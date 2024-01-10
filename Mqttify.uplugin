@@ -1,0 +1,30 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "1.0",
+  "FriendlyName": "Mqttify",
+  "Description": "MQTT Client, A simple MQTT client for sending and receiving messages Based partially on MQTT core and MQTTnet, The name is a bit silly to avoid coliding with other projects",
+  "Category": "Other",
+  "CreatedBy": "Simon Balarabe",
+  "CreatedByURL": "",
+  "DocsURL": "",
+  "MarketplaceURL": "",
+  "SupportURL": "",
+  "CanContainContent": true,
+  "IsBetaVersion": false,
+  "IsExperimentalVersion": false,
+  "Installed": false,
+  "Modules": [
+    {
+      "Name": "Mqttify",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ],
+  "Plugins": [
+    {
+      "Name": "MQTT",
+      "Enabled": true
+    }
+  ]
+}

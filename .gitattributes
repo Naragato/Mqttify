@@ -1,0 +1,29 @@
+# Unreal Engine binary and asset files
+*.uasset filter=lfs diff=lfs merge=lfs -text lockable
+*.umap filter=lfs diff=lfs merge=lfs -text lockable
+*.upk filter=lfs diff=lfs merge=lfs -text lockable
+*.u files=lfs diff=lfs merge=lfs -text lockable
+*.pak filter=lfs diff=lfs merge=lfs -text lockable
+
+# Unreal Engine content folder
+Game/Content/* filter=lfs diff=lfs merge=lfs -text lockable
+
+# Binary Assets
+Assets/Bin/* filter=lfs diff=lfs merge=lfs -text lockable
+
+# Image formats
+*.jpg filter=lfs diff=lfs merge=lfs -text lockable
+*.jpeg filter=lfs diff=lfs merge=lfs -text lockable
+*.png filter=lfs diff=lfs merge=lfs -text lockable
+*.gif filter=lfs diff=lfs merge=lfs -text lockable
+*.tiff filter=lfs diff=lfs merge=lfs -text lockable
+*.bmp filter=lfs diff=lfs merge=lfs -text lockable
+*.ico filter=lfs diff=lfs merge=lfs -text lockable
+*.svg filter=lfs diff=lfs merge=lfs -text lockable
+
+# Video formats
+*.mp4 filter=lfs diff=lfs merge=lfs -text lockable
+*.avi filter=lfs diff=lfs merge=lfs -text lockable
+*.mov filter=lfs diff=lfs merge=lfs -text lockable
+*.wmv filter=lfs diff=lfs merge=lfs -text lockable
+*.flv filter=lfs diff=lfs merge=lfs -text lockable

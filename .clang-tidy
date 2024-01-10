@@ -1,0 +1,82 @@
+---
+Checks: >
+  *,
+  -bugprone-easily-swappable-parameters
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-macro-usage,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  -cppcoreguidelines-pro-type-union-access,
+  -cppcoreguidelines-pro-type-vararg,
+  -cppcoreguidelines-special-member-functions
+  -fuchsia-*,
+  -google-readability-namespace-comments,
+  -google-readability-todo,
+  -google-runtime-int,
+  -google-runtime-references,
+  -hicpp-uppercase-literal-suffix
+  -llvm-header-guard,
+  -llvm-include-order,
+  -llvm-namespace-comment,
+  -misc-non-private-member-variables-in-classes,
+  -misc-unused-parameters,
+  -modernize-use-auto,
+  -modernize-use-trailing-return-type,
+  -modernize-use-trailing-return-type,
+  -readability-avoid-const-params-in-decls,
+  -readability-magic-numbers,
+  -readability-named-parameter,
+  bugprone-*
+  clang-analyzer-*,
+  clang-diagnostic-*,
+  cppcoreguidelines-*,
+  misc-*,
+  modernize-*,
+  readability-*,
+
+WarningsAsErrors: false
+HeaderFilterRegex: ''
+AnalyzeTemporaryDtors: false
+FormatStyle:     llvm
+CheckOptions:
+  - key:             readability-identifier-naming.PublicMemberCase
+    value:           aNy_Case
+  - key:             readability-identifier-naming.MemberCase
+    value:           aNy_Case
+  - key:             readability-identifier-naming.PrivateMemberCase
+    value:           aNy_Case
+  - key:             readability-identifier-naming.MemberPrefix
+    value:           'm_'
+  - key:             readability-identifier-naming.PrivateMemberPrefix
+    value:           'm_'
+  - key:             readability-identifier-naming.PublicMemberPrefix
+    value:           ''
+  - key:             cert-dcl16-c.NewSuffixes
+    value:           'L;LL;LU;LLU'
+  - key:             cert-oop54-cpp.WarnOnlyIfThisHasSuspiciousField
+    value:           '0'
+  - key:             cppcoreguidelines-explicit-virtual-functions.IgnoreDestructors
+    value:           '1'
+  - key:             cppcoreguidelines-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
+    value:           '1'
+  - key:             google-readability-braces-around-statements.ShortStatementLines
+    value:           '1'
+  - key:             google-readability-function-size.StatementThreshold
+    value:           '800'
+  - key:             google-readability-namespace-comments.ShortNamespaceLines
+    value:           '10'
+  - key:             google-readability-namespace-comments.SpacesBeforeComments
+    value:           '2'
+  - key:             modernize-loop-convert.MaxCopySize
+    value:           '16'
+  - key:             modernize-loop-convert.MinConfidence
+    value:           reasonable
+  - key:             modernize-loop-convert.NamingStyle
+    value:           CamelCase
+  - key:             modernize-pass-by-value.IncludeStyle
+    value:           llvm
+  - key:             modernize-replace-auto-ptr.IncludeStyle
+    value:           llvm
+  - key:             modernize-use-nullptr.NullMacros
+    value:           'NULL'
+  
