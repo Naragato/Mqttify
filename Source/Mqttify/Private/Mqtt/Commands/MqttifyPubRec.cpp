@@ -11,7 +11,7 @@ namespace Mqttify
 	FMqttifyPubRec::FMqttifyPubRec(
 		const uint16 InPacketId,
 		const EMqttifyReasonCode InReasonCode,
-		const TWeakPtr<IMqttifySocket>& InSocket,
+		const TWeakPtr<FMqttifySocketBase>& InSocket,
 		const FMqttifyConnectionSettingsRef&
 		InConnectionSettings)
 		: TMqttifyAcknowledgeable{ InPacketId, InSocket, InConnectionSettings }

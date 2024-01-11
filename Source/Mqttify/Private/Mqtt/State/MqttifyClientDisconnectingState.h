@@ -3,7 +3,7 @@
 #include "Mqtt/MqttifyState.h"
 #include "Mqtt/Interface/IMqttifyDisconnectableAsync.h"
 #include "Mqtt/State/MqttifyClientState.h"
-#include "Socket/Interface/IMqttifySocket.h"
+#include "Socket/Interface/MqttifySocketBase.h"
 
 enum class EMqttifyProtocolVersion : uint8;
 

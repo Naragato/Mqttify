@@ -6,7 +6,7 @@
 #include "Packets/MqttifyConnectPacket.h"
 #include "Packets/MqttifyFixedHeader.h"
 #include "Serialization/ArrayReader.h"
-#include "Socket/Interface/IMqttifySocket.h"
+#include "Socket/Interface/MqttifySocketBase.h"
 #include "Tests/Packets/PacketComparision.h"
 
 namespace Mqttify

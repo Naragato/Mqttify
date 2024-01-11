@@ -7,7 +7,7 @@ struct FMqttifyMessage;
 
 namespace Mqttify
 {
-	class IMqttifySocket;
+	class FMqttifySocketBase;
 
 	template <EMqttifyQualityOfService InQualityOfService>
 	class TMqttifyPublish;
@@ -23,7 +23,7 @@ namespace Mqttify
 		explicit TMqttifyPublish(
 			FMqttifyMessage&& InMessage,
 			const uint16 InPacketId,
-			const TWeakPtr<IMqttifySocket>& InSocket,
+			const TWeakPtr<FMqttifySocketBase>& InSocket,
 			const FMqttifyConnectionSettingsRef& InConnectionSettings);
 
 		bool NextImpl() override;
@@ -52,7 +52,7 @@ namespace Mqttify
 		TMqttifyPublish(
 			FMqttifyMessage&& InMessage,
 			const uint16 InPacketId,
-			const TWeakPtr<IMqttifySocket>& InSocket,
+			const TWeakPtr<FMqttifySocketBase>& InSocket,
 			const FMqttifyConnectionSettingsRef& InConnectionSettings);
 
 		void Abandon() override;
@@ -83,7 +83,7 @@ namespace Mqttify
 	auto MakeMqttifyPublish(
 		FMqttifyMessage&& InMessage,
 		const uint16 InPacketId,
-		const TWeakPtr<IMqttifySocket>& InSocket,
+		const TWeakPtr<FMqttifySocketBase>& InSocket,
 		const FMqttifyConnectionSettingsRef& InConnectionSettings)
 	{
 		if constexpr (InQualityOfService == EMqttifyQualityOfService::AtLeastOnce)

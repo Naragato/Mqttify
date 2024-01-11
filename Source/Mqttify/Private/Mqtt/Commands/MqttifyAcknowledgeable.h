@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Async/Async.h"
 #include "Mqtt/MqttifyResult.h"
-#include "Socket/Interface/IMqttifySocket.h"
+#include "Socket/Interface/MqttifySocketBase.h"
 #include "Templates/SharedPointer.h"
 #include "Templates/UniquePtr.h"
 
@@ -25,7 +25,7 @@ namespace Mqttify
 		virtual ~FMqttifyAcknowledgeable() = default;
 
 		explicit FMqttifyAcknowledgeable(const uint16 InPacketId,
-										const TWeakPtr<IMqttifySocket>& InSocket,
+										const TWeakPtr<FMqttifySocketBase>& InSocket,
 										const TSharedRef<FMqttifyConnectionSettings>& InConnectionSettings)
 			: Settings{ InConnectionSettings }
 			, Socket{ InSocket }
@@ -76,7 +76,7 @@ namespace Mqttify
 		virtual bool IsDone() const = 0;
 
 		FMqttifyConnectionSettingsRef Settings;
-		TWeakPtr<IMqttifySocket> Socket;
+		TWeakPtr<FMqttifySocketBase> Socket;
 		FDateTime RetryWaitTime;
 		mutable FCriticalSection CriticalSection;
 		uint16 PacketId;
@@ -92,7 +92,7 @@ namespace Mqttify
 
 	public:
 		explicit TMqttifyAcknowledgeable(const uint16 InPacketId,
-										const TWeakPtr<IMqttifySocket>& InSocket,
+										const TWeakPtr<FMqttifySocketBase>& InSocket,
 										const FMqttifyConnectionSettingsRef& InConnectionSettings)
 			: FMqttifyAcknowledgeable{ InPacketId, InSocket, InConnectionSettings }
 			, bIsDone{ false } {}
@@ -122,7 +122,7 @@ namespace Mqttify
 	void TMqttifyAcknowledgeable<TReturnValue>::SetPromiseValue(TMqttifyResult<TReturnValue>&& InValue)
 	{
 		bool Expected = false;
-		if (bIsDone.compare_exchange_strong(Expected, true, std::memory_order_release))
+		if (bIsDone.compare_exchange_strong(Expected, true, std::memory_order_relaxed))
 		{
 			if constexpr (GMqttifyThreadMode != EMqttifyThreadMode::BackgroundThreadWithCallbackMarshalling)
 			{

@@ -1,11 +1,11 @@
-#include "Socket/Interface/IMqttifySocket.h"
+#include "MqttifySocketBase.h"
 
 #include "Socket/MqttifySocket.h"
 #include "Socket/MqttifyWebSocket.h"
 
 namespace Mqttify
 {
-	IMqttifySocket::~IMqttifySocket()
+	FMqttifySocketBase::~FMqttifySocketBase()
 	{
 		FScopeLock Lock(&SocketAccessLock);
 		OnConnectDelegate.Clear();
@@ -13,7 +13,7 @@ namespace Mqttify
 		OnDataReceiveDelegate.Clear();
 	}
 
-	FMqttifySocketPtr IMqttifySocket::Create(const FMqttifyConnectionSettingsRef& InConnectionSettings)
+	FMqttifySocketPtr FMqttifySocketBase::Create(const FMqttifyConnectionSettingsRef& InConnectionSettings)
 	{
 
 		switch (InConnectionSettings->GetTransportProtocol())

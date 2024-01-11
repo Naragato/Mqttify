@@ -10,7 +10,7 @@ namespace Mqttify
 		bool bIsDone{ false };
 
 	public:
-		FMqttifyPingReq(const TWeakPtr<IMqttifySocket>& InSocket,
+		FMqttifyPingReq(const TWeakPtr<FMqttifySocketBase>& InSocket,
 						const TSharedRef<FMqttifyConnectionSettings>& InConnectionSettings)
 			: TMqttifyAcknowledgeable(0, InSocket, InConnectionSettings) {}
 

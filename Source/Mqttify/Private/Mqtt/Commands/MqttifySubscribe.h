@@ -14,7 +14,7 @@ namespace Mqttify
 		explicit FMqttifySubscribe(
 			const TArray<TTuple<FMqttifyTopicFilter, TSharedRef<FOnMessage>>>& InTopicFilters,
 			uint16 InPacketId,
-			const TWeakPtr<IMqttifySocket>& InSocket,
+			const TWeakPtr<FMqttifySocketBase>& InSocket,
 			const FMqttifyConnectionSettingsRef& InConnectionSettings);
 
 		void Abandon() override;

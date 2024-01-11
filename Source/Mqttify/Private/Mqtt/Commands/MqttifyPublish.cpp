@@ -9,7 +9,7 @@ namespace Mqttify
 	TMqttifyPublish<EMqttifyQualityOfService::AtLeastOnce>::TMqttifyPublish(
 		FMqttifyMessage&& InMessage,
 		const uint16 InPacketId,
-		const TWeakPtr<IMqttifySocket>&
+		const TWeakPtr<FMqttifySocketBase>&
 		InSocket,
 		const FMqttifyConnectionSettingsRef
 		& InConnectionSettings)
@@ -74,7 +74,7 @@ namespace Mqttify
 	TMqttifyPublish<EMqttifyQualityOfService::ExactlyOnce>::TMqttifyPublish(
 		FMqttifyMessage&& InMessage,
 		const uint16 InPacketId,
-		const TWeakPtr<IMqttifySocket>& InSocket,
+		const TWeakPtr<FMqttifySocketBase>& InSocket,
 		const FMqttifyConnectionSettingsRef& InConnectionSettings)
 		: TMqttifyAcknowledgeable{ InPacketId, InSocket, InConnectionSettings }
 		, PublishPacket{ MakeShared<TMqttifyPublishPacket<GMqttifyProtocol>>(MoveTemp(InMessage),

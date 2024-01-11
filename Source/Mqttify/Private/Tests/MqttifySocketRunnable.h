@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Mqtt/MqttifyConnectionSettingsBuilder.h"
-#include "Socket/Interface/IMqttifySocket.h"
+#include "Socket/Interface/MqttifySocketBase.h"
 
 namespace Mqttify
 {
@@ -21,7 +21,7 @@ namespace Mqttify
 		explicit FMqttifySocketRunnable(const FString& InUrl)
 		{
 			ConnectionSettings = FMqttifyConnectionSettingsBuilder(InUrl).Build();
-			SocketUnderTest    = IMqttifySocket::Create(ConnectionSettings.ToSharedRef());
+			SocketUnderTest    = FMqttifySocketBase::Create(ConnectionSettings.ToSharedRef());
 			Thread             = FRunnableThread::Create(this,
 											TEXT("SocketRunnable"),
 											0,

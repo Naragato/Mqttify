@@ -2,7 +2,7 @@
 #include "LogMqttify.h"
 #include "Mqtt/Interface/IMqttifyConnectableAsync.h"
 #include "Mqtt/State/MqttifyClientState.h"
-#include "Socket/Interface/IMqttifySocket.h"
+#include "Socket/Interface/MqttifySocketBase.h"
 #include "Socket/SocketState/IMqttifySocketTickable.h"
 
 namespace Mqttify
@@ -34,7 +34,7 @@ namespace Mqttify
 			const bool bInCleanSession)
 			: FMqttifyClientState{ InOnStateChanged, InContext }
 			, bCleanSession{ bInCleanSession }
-			, Socket{ IMqttifySocket::Create(InContext->GetConnectionSettings()) }
+			, Socket{ FMqttifySocketBase::Create(InContext->GetConnectionSettings()) }
 			, LastConnectAttempt{ FDateTime::MinValue() }
 			, AttemptCount{ 0 }
 		{

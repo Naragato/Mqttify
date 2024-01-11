@@ -3,14 +3,14 @@
 #include "CoreMinimal.h"
 #include "IWebSocket.h"
 #include "Mqtt/MqttifyConnectionSettings.h"
-#include "Socket/Interface/IMqttifySocket.h"
+#include "Socket/Interface/MqttifySocketBase.h"
 
 
 namespace Mqttify
 {
 	enum class EMqttifySocketState;
 
-	class FMqttifyWebSocket final : public IMqttifySocket
+	class FMqttifyWebSocket final : public FMqttifySocketBase
 	{
 	private:
 		const FMqttifyConnectionSettingsRef ConnectionSettings;

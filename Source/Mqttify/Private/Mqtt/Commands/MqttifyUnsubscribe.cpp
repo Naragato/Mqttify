@@ -9,7 +9,7 @@ namespace Mqttify
 	FMqttifyUnsubscribe::FMqttifyUnsubscribe(
 		const TArray<FMqttifyTopicFilter>& InTopicFilters,
 		const uint16 InPacketId,
-		const TWeakPtr<IMqttifySocket>& InSocket,
+		const TWeakPtr<FMqttifySocketBase>& InSocket,
 		const FMqttifyConnectionSettingsRef& InConnectionSettings)
 		: TMqttifyAcknowledgeable{ InPacketId, InSocket, InConnectionSettings }
 		, bIsDone{ false }

@@ -28,7 +28,7 @@ namespace Mqttify
 		FMqttifyPubRec(
 			const uint16 InPacketId,
 			const EMqttifyReasonCode InReasonCode,
-			const TWeakPtr<IMqttifySocket>& InSocket,
+			const TWeakPtr<FMqttifySocketBase>& InSocket,
 			const FMqttifyConnectionSettingsRef& InConnectionSettings);
 
 		void Abandon() override;

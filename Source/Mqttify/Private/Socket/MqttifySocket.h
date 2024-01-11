@@ -2,13 +2,13 @@
 
 #include "CoreMinimal.h"
 #include "Mqtt/MqttifyConnectionSettings.h"
-#include "Socket/Interface/IMqttifySocket.h"
+#include "Socket/Interface/MqttifySocketBase.h"
 #include "SocketState/MqttifySocketState.h"
 
 namespace Mqttify
 {
 	/// @brief Raw Socket Implementation of FMqttifySocket
-	class FMqttifySocket final : public IMqttifySocket
+	class FMqttifySocket final : public FMqttifySocketBase
 	{
 	private:
 		const FMqttifyConnectionSettingsRef ConnectionSettings;

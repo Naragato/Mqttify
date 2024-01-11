@@ -304,7 +304,7 @@ namespace Mqttify
 					Socket,
 					Context->GetConnectionSettings());
 
-				TWeakPtr<IMqttifySocket> WeakSocket = Socket;
+				TWeakPtr<FMqttifySocketBase> WeakSocket = Socket;
 				PingReqCommand->GetFuture().Next(
 					[this](const TMqttifyResult<void>& InResult) {
 						if (!InResult.HasSucceeded())

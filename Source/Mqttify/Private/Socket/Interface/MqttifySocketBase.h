@@ -4,10 +4,10 @@
 
 namespace Mqttify
 {
-	using FMqttifySocketPtr = TSharedPtr<class IMqttifySocket>;
+	using FMqttifySocketPtr = TSharedPtr<class FMqttifySocketBase>;
 
 	/// @brief Interface for MQTT socket.
-	class IMqttifySocket
+	class FMqttifySocketBase
 	{
 	public:
 		DECLARE_MULTICAST_DELEGATE_OneParam(FOnConnectDelegate, const bool /* WasSuccessful */);
@@ -22,7 +22,7 @@ namespace Mqttify
 		/// @return The OnDataReceived event.
 		FOnDataReceivedDelegate& GetOnDataReceivedDelegate() { return OnDataReceiveDelegate; }
 
-		virtual ~IMqttifySocket();
+		virtual ~FMqttifySocketBase();
 		/// @brief Connect to the host.
 		virtual void Connect() = 0;
 		/// @brief Disconnect connect from the host.

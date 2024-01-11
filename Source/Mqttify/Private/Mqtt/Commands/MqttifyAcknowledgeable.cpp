@@ -32,7 +32,7 @@ namespace Mqttify
 
 	void FMqttifyAcknowledgeable::SendPacketInternal(const TSharedPtr<IMqttifyControlPacket>& InPacket)
 	{
-		if (const TSharedPtr<IMqttifySocket> PinnedSocket = Socket.Pin())
+		if (const TSharedPtr<FMqttifySocketBase> PinnedSocket = Socket.Pin())
 		{
 			++PacketTries;
 			TArray<uint8> ActualBytes;

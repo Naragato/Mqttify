@@ -21,7 +21,7 @@ namespace Mqttify
 		 */
 		explicit FMqttifyUnsubscribe(const TArray<FMqttifyTopicFilter>& InTopicFilters,
 									const uint16 InPacketId,
-									const TWeakPtr<IMqttifySocket>& InSocket,
+									const TWeakPtr<FMqttifySocketBase>& InSocket,
 									const FMqttifyConnectionSettingsRef& InConnectionSettings);
 		bool Acknowledge(const FMqttifyPacketPtr& InPacket) override;
 		void Abandon() override;
