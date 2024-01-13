@@ -21,6 +21,7 @@ namespace Mqttify
 	void FMqttifyClientConnectedState::OnSocketDataReceive(TSharedPtr<FArrayReader> InData)
 	{
 		FMqttifyPacketPtr Packet = CreatePacket(InData);
+
 		if (Packet == nullptr)
 		{
 			LOG_MQTTIFY(Error, TEXT("Failed to parse packet."));
@@ -29,7 +30,7 @@ namespace Mqttify
 
 		if (!Packet->IsValid())
 		{
-			LOG_MQTTIFY(Error, TEXT("Malformed packet."));
+			LOG_MQTTIFY(Error, TEXT("Malformed packet. %s"), EnumToTCharString(Packet->GetPacketType()));
 			TransitionTo(MakeUnique<FMqttifyClientConnectingState>(OnStateChanged, Context, Socket));
 		}
 

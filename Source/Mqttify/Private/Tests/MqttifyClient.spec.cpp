@@ -19,13 +19,31 @@ namespace Mqttify
 
 		void OnClientConnect(const bool) const
 		{
-			if (nullptr != MqttClientA
-				&& nullptr != MqttClientB
-				&& MqttClientA->IsConnected()
-				&& MqttClientB->IsConnected())
+			if (nullptr == MqttClientA)
 			{
-				MqttClientB->SubscribeAsync(FString(kTopic));
+				LOG_MQTTIFY(Error, TEXT("MqttClientA is null."));
+				return;
 			}
+
+			if (nullptr == MqttClientB)
+			{
+				LOG_MQTTIFY(Error, TEXT("MqttClientB is null."));
+				return;
+			}
+
+			if (!MqttClientA->IsConnected())
+			{
+				LOG_MQTTIFY(Warning, TEXT("MqttClientA is not connected."));
+				return;
+			}
+
+			if (!MqttClientB->IsConnected())
+			{
+				LOG_MQTTIFY(Warning, TEXT("MqttClientB is not connected."));
+				return;
+			}
+
+			MqttClientB->SubscribeAsync(FString(kTopic));
 		}
 
 	END_DEFINE_SPEC(FMqttifyClientTests)
@@ -105,10 +123,10 @@ namespace Mqttify
 				[this]()
 				{
 					LatentIt(TEXT("Client B should unsubscribe"),
-							[this](const FDoneDelegate& Done)
+							[this](const FDoneDelegate& TestDone)
 							{
 								MqttClientB->UnsubscribeAsync({FString(kTopic)}).Then(
-									[this, Done](
+									[this, TestDone](
 									const TFuture<TMqttifyResult<TArray<FMqttifyUnsubscribeResult>>>& InFuture)
 									{
 										const TSharedPtr<TArray<FMqttifyUnsubscribeResult>> Result = InFuture.Get().
@@ -118,24 +136,22 @@ namespace Mqttify
 											&& Result->Top().WasSuccessful()
 											&& Result->Top().GetFilter().GetFilter() == kTopic)
 										{
-											Done.Execute();
+											TestDone.Execute();
 										}
 									});
 							});
 
 					LatentIt(TEXT("Client A should successfully send a message to Client B"),
-							[this](const FDoneDelegate& Done)
+							[this](const FDoneDelegate& TestDone)
 							{
 								const TArray<uint8> Payload = TArray<uint8>{0, 1, 2, 3, 4};
 								ClientBOnMessageDelegate
 									= FOnMessage::FDelegate::CreateLambda(
-										[this, Done, Payload](const FMqttifyMessage& InMessage)
+										[this, TestDone, Payload](const FMqttifyMessage& InMessage)
 										{
-											if (InMessage.GetTopic() == kTopic && InMessage.GetPayload() == Payload)
-
-											{
-												Done.Execute();
-											}
+											TestEqual("Topic should match", InMessage.GetTopic(), kTopic);
+											TestEqual("Payload should match", InMessage.GetPayload(), Payload);
+											TestDone.Execute();
 										});
 
 								MqttClientB->OnMessage().Add(ClientBOnMessageDelegate);

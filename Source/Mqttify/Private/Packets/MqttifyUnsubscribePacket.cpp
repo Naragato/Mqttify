@@ -88,8 +88,8 @@ namespace Mqttify
 		InWriter.SetByteSwapping(true);
 		FixedHeader.Encode(InWriter);
 		InWriter << PacketIdentifier;
-		Properties.Encode(InWriter);
 
+		Properties.Encode(InWriter);
 		for (auto TopicFilter : TopicFilters)
 		{
 			Data::EncodeString(TopicFilter.GetFilter(), InWriter);

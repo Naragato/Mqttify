@@ -61,7 +61,7 @@ namespace Mqttify
 		 * @brief Get the packet identifier.
 		 * @return The packet identifier.
 		 */
-		uint16 GetPacketIdentifier() const { return PacketIdentifier; }
+		uint16 GetPacketId() const override { return PacketIdentifier; }
 
 		/**
 		 * @brief Get the payload.

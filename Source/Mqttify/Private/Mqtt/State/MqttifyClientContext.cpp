@@ -180,11 +180,11 @@ namespace Mqttify
 			return;
 		}
 
-		if (const TSharedRef<FMqttifyAcknowledgeable>* Command = AcknowledgeableCommands.Find(InPacket->GetPacketId()))
+		if (const TSharedRef<FMqttifyAcknowledgeable>* Command = AcknowledgeableCommands.Find(InPacketIdentifier))
 		{
 			if ((*Command)->Acknowledge(InPacket))
 			{
-				AcknowledgeableCommands.Remove(InPacket->GetPacketId());
+				AcknowledgeableCommands.Remove(InPacketIdentifier);
 				if (InPacketIdentifier <= kMaxCount)
 				{
 					ReleaseId(InPacket->GetPacketId());

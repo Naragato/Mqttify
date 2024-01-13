@@ -155,8 +155,11 @@ namespace Mqttify::Data
 		TArray<uint8> Result;
 		if (InArchive.IsLoading())
 		{
-			Result.Reserve(PayloadSize);
-			InArchive.Serialize(Result.GetData(), PayloadSize);
+			Result.Init(0, PayloadSize);
+			for(int Idx = 0; Idx < PayloadSize; ++Idx)
+			{
+				InArchive << Result[Idx];
+			}
 		}
 
 		return Result;

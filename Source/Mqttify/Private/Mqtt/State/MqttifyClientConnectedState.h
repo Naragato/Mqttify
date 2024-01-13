@@ -49,7 +49,6 @@ namespace Mqttify
 
 			Socket->GetOnDisconnectDelegate().AddRaw(this, &FMqttifyClientConnectedState::OnSocketDisconnect);
 			Socket->GetOnDataReceivedDelegate().AddRaw(this, &FMqttifyClientConnectedState::OnSocketDataReceive);
-			Socket->Connect();
 		}
 
 		~FMqttifyClientConnectedState() override

@@ -224,7 +224,7 @@ namespace Mqttify
 								PubRelPacket(Reader, Header);
 
 							TestEqual(TEXT("Packet Identifier should be equal"),
-									PubRelPacket.GetPacketIdentifier(),
+									PubRelPacket.GetPacketId(),
 									1);
 						});
 				});

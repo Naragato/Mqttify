@@ -163,7 +163,7 @@ namespace Mqttify
 									}
 								};
 								TestEqual(TEXT("Packet Identifier should be equal"),
-										UnsubAckPacket.GetPacketIdentifier(),
+										UnsubAckPacket.GetPacketId(),
 										1);
 
 								TestEqual(TEXT("Reason codes should be equal"),
@@ -205,7 +205,7 @@ namespace Mqttify
 								UnsubAckPacket(Reader, Header);
 
 							TestEqual(TEXT("Packet Identifier should be equal"),
-									UnsubAckPacket.GetPacketIdentifier(),
+									UnsubAckPacket.GetPacketId(),
 									1);
 						});
 				});

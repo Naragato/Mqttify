@@ -84,8 +84,8 @@ namespace Mqttify
 			}
 		}
 
-		Context->CompleteConnect();
 		TransitionTo(MakeUnique<FMqttifyClientConnectedState>(OnStateChanged, Context, Socket));
+		Context->CompleteConnect();
 	}
 
 	void FMqttifyClientConnectingState::TryConnect()

@@ -206,7 +206,7 @@ namespace Mqttify
 									}
 								};
 								TestEqual(TEXT("Packet Identifier should be equal"),
-										PublishPacket.GetPacketIdentifier(),
+										PublishPacket.GetPacketId(),
 										QoS == EMqttifyQualityOfService::AtMostOnce ? 0 : 1);
 
 								TestEqual(TEXT("Is Duplicate should be equal"),
@@ -283,7 +283,7 @@ namespace Mqttify
 									PublishPacket(Reader, Header);
 
 								TestEqual(TEXT("Packet Identifier should be equal"),
-										PublishPacket.GetPacketIdentifier(),
+										PublishPacket.GetPacketId(),
 										QoS == EMqttifyQualityOfService::AtMostOnce ? 0 : 1);
 
 								TestEqual(TEXT("Is Duplicate should be equal"),

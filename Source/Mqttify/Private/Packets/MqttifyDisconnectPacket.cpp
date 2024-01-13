@@ -80,7 +80,13 @@ namespace Mqttify
 				EnumToTCharString(ReasonCode));
 		}
 
-		Properties.Decode(InReader);
+		// https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901209
+		// The length of Properties in the DISCONNECT packet Variable Header encoded as a Variable Byte Integer.
+		// If the Remaining Length is less than 2, a value of 0 is used.
+		if (FixedHeader.GetRemainingLength() >= 2)
+		{
+			Properties.Decode(InReader);
+		}
 	}
 
 	bool TMqttifyDisconnectPacket<EMqttifyProtocolVersion::Mqtt_5>::IsReasonCodeValid(
