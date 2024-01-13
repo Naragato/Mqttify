@@ -100,7 +100,7 @@ namespace Mqttify
 			return true;
 		}
 
-		SendPacketInternal(MakeShared<FMqttifyUnsubscribePacket3>(TopicFilters, PacketId));
+		SendPacketInternal(MakeShared<TMqttifyUnsubscribePacket<GMqttifyProtocol>>(TopicFilters, PacketId));
 		return false;
 	}
 }
