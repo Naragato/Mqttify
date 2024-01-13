@@ -25,11 +25,13 @@ namespace Mqttify
 			Socket->Disconnect();
 		}
 
+		InContext->CompleteDisconnect();
 		TransitionTo(MakeUnique<FMqttifyDisconnectedState>(OnStateChanged, Context));
 	}
 
 	TFuture<TMqttifyResult<void>> FMqttifyClientDisconnectingState::DisconnectAsync()
 	{
+		Context->CompleteDisconnect();
 		return Context->GetDisconnectPromise()->GetFuture();
 	}
 

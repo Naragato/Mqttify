@@ -114,9 +114,10 @@ namespace Mqttify
 
 	TFuture<TMqttifyResult<void>> FMqttifyClientConnectedState::DisconnectAsync()
 	{
+		TFuture<TMqttifyResult<void>> Future = Context->GetDisconnectPromise()->GetFuture();
 		TransitionTo(
 			MakeUnique<FMqttifyClientDisconnectingState>(OnStateChanged, Context, MoveTemp(Socket)));
-		return Context->GetDisconnectPromise()->GetFuture();
+		return Future;
 	}
 
 	TFuture<TMqttifyResult<void>> FMqttifyClientConnectedState::PublishAsync(FMqttifyMessage&& InMessage)

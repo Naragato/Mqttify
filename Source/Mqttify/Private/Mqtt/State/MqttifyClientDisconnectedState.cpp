@@ -8,7 +8,9 @@ namespace Mqttify
 
 	FMqttifyDisconnectedState::FMqttifyDisconnectedState(const FOnStateChangedDelegate& InOnStateChanged,
 														const TSharedRef<FMqttifyClientContext>& InContext)
-		: FMqttifyClientState{ InOnStateChanged, InContext } {}
+		: FMqttifyClientState{ InOnStateChanged, InContext }
+	{
+	}
 
 
 	TFuture<TMqttifyResult<void>> FMqttifyDisconnectedState::ConnectAsync(bool bCleanSession)
