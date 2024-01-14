@@ -1,7 +1,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MqttifyEnumToString.h"
 #include "MqttifyConnectionProtocol.generated.h"
 
 /**
@@ -40,24 +39,3 @@ namespace MqttifyConnectionProtocol
 {
 	constexpr TCHAR InvalidConnectionProtocol[] = TEXT("Invalid Connection protocol.");
 }
-
-namespace Mqttify
-{
-	template <>
-	FORCEINLINE const TCHAR* EnumToTCharString<EMqttifyConnectionProtocol>(const EMqttifyConnectionProtocol InValue)
-	{
-		switch (InValue)
-		{
-			case EMqttifyConnectionProtocol::Mqtt:
-				return TEXT("mqtt");
-			case EMqttifyConnectionProtocol::Mqtts:
-				return TEXT("mqtts");
-			case EMqttifyConnectionProtocol::Ws:
-				return TEXT("ws");
-			case EMqttifyConnectionProtocol::Wss:
-				return TEXT("wss");
-			default:
-				return TEXT("INVALID");
-		}
-	}
-} // namespace Mqttify

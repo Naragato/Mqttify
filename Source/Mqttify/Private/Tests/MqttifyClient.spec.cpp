@@ -55,20 +55,12 @@ namespace Mqttify
 				{
 					LatentBeforeEach([this](const FDoneDelegate& BeforeDone)
 						{
-							if (!FModuleManager::Get().IsModuleLoaded(TEXT("Mqttify")))
-							{
-								//NOTE: This module gets left in after the test completes otherwise the content browser would crash when it tries to access the created BehaviorTree.
-								FModuleManager::Get().LoadModule(TEXT("Mqttify"));
-							}
+							auto& MqttifyModule = IMqttifyModule::Get();
 
-							if (FMqttifyModule* MqttifyModule = static_cast<FMqttifyModule*>(FMqttifyModule::Get()))
-							{
-								MqttClientA = MqttifyModule->GetOrCreateClient(
-									FString(TEXT("mqtt://clientA:password@localhost:1883")));
-								MqttClientB = MqttifyModule->GetOrCreateClient(
-									FString(TEXT("mqtt://clientB:password@localhost:1883")));
-							}
-
+							MqttClientA = MqttifyModule.GetOrCreateClient(
+								FString(TEXT("mqtt://clientA:password@localhost:1883")));
+							MqttClientB = MqttifyModule.GetOrCreateClient(
+								FString(TEXT("mqtt://clientB:password@localhost:1883")));
 							if (nullptr == MqttClientA)
 							{
 								LOG_MQTTIFY(Error, TEXT("MqttClientA is nullptr."));
