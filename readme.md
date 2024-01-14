@@ -103,21 +103,17 @@ Here's a quick example to get you started:
 // Example ...
 void MyFunction() 
 {
-    // Load the Mqttify module and create clients
-    FModuleManager::Get().LoadModule(TEXT("Mqttify"));
-    FMqttifyModule* MqttifyModule = static_cast<FMqttifyModule*>(FMqttifyModule::Get());
+    IMqttifyModule& MqttifyModule = IMqttifyModule::Get();
 
-    TSharedPtr<IMqttifyClient> MqttClientA = MqttifyModule->GetOrCreateClient(
+    TSharedPtr<IMqttifyClient> MqttClient = MqttifyModule.GetOrCreateClient(
         FString(TEXT("mqtt://clientA:password@localhost:1883")));
 
-    TSharedPtr<IMqttifyClient> MqttClientB = MqttifyModule->GetOrCreateClient(
-        FString(TEXT("mqtt://clientB:password@localhost:1883")));
 
     // Set up connection delegate
     MqttClient->OnConnect().AddRaw(this, &MyClass::OnClientConnect);
 
     // Connect clients
-    MqttClientA->ConnectAsync();
+    MqttClient->ConnectAsync();
 
     // Subscribe to a topic with Client B
     MqttClient->SubscribeAsync(FString(TEXT("/Test")));
@@ -134,7 +130,7 @@ void MyFunction()
 
     // Publish a message with Client A
     TArray<uint8> Payload = { /* Your payload data here */ };
-    MqttClientA->PublishAsync(FMqttifyMessage{
+    MqttClient->PublishAsync(FMqttifyMessage{
         FString(TEXT("/Test")), Payload, false, EMqttifyQualityOfService::AtMostOnce
     });
 }
