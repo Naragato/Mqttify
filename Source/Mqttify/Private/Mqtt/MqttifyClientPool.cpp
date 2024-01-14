@@ -148,6 +148,7 @@ namespace Mqttify
 	bool FMqttifyClientPool::GameThreadTick(float DeltaTime)
 	{
 		check(IsInGameThread());
+		FScopeLock Lock(&ClientMapLock);
 		for (auto& Client : MqttifyClients)
 		{
 			auto ClientPtr = Client.Value.Pin();
