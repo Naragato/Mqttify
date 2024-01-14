@@ -11,22 +11,20 @@ public class Mqttify : ModuleRules
 			new[]
 			{
 				"Core",
-				"CoreUObject",
-				"Projects",
-				"Engine"
+				"CoreUObject"
 			}
 		);
 
 		PrivateDependencyModuleNames.AddRange(
 			new[]
 			{
+				"Asio",
 				"Engine",
 				"Networking",
 				"Projects",
-				"Sockets",
-				"WebSockets",
 				"SSL",
-				"Asio"
+				"Sockets",
+				"WebSockets"
 			}
 		);
 
@@ -54,7 +52,5 @@ public class Mqttify : ModuleRules
 		// 1 = worker thread with marshalling of callbacks onto main thread
 		// 2 = worker thread without marshalling of callbacks
 		PrivateDefinitions.Add("MQTTIFY_THREAD=0");
-
-
 	}
 }
