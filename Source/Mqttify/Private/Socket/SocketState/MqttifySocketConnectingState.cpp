@@ -12,7 +12,7 @@ namespace Mqttify
 	{
 		const FMqttifyConnectionSettingsRef ConnectionSettings = MqttifySocket->GetConnectionSettings();
 		double Expected = 0;
-		const double Desired = FPlatformTime::Seconds() + ConnectionSettings->GetSocketConnectionTimoutSeconds();
+		const double Desired = FPlatformTime::Seconds() + ConnectionSettings->GetSocketConnectionTimeoutSeconds();
 		TimeoutTime.compare_exchange_strong(Expected, Desired);
 
 		if (!Socket.IsValid())

@@ -5,6 +5,7 @@ struct FMqttifyUnsubscribeResult;
 
 namespace Mqttify
 {
+	using FUnsubscribesFuture = TFuture<TMqttifyResult<TArray<FMqttifyUnsubscribeResult>>>;
 	/**
 	 * @brief Interface for a client that can subscribe to topics
 	 */
@@ -16,7 +17,6 @@ namespace Mqttify
 		 * @return A future that contains the result of the connection, which can be checked for success.
 		 * the result contains a true or false for each topic filter
 		 */
-		virtual TFuture<TMqttifyResult<TArray<FMqttifyUnsubscribeResult>>> UnsubscribeAsync(
-			const TSet<FString>& InTopicFilters) = 0;
+		virtual FUnsubscribesFuture UnsubscribeAsync(const TSet<FString>& InTopicFilters) = 0;
 	}; // namespace Mqttify
 }

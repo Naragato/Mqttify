@@ -54,7 +54,7 @@ namespace Mqttify
 		 * @brief Get the packet identifier.
 		 * @return The packet identifier.
 		 */
-		uint16 GetPacketId() const override { return PacketIdentifier; }
+		virtual uint16 GetPacketId() const override { return PacketIdentifier; }
 
 	protected:
 		uint16 PacketIdentifier;
@@ -80,9 +80,9 @@ namespace Mqttify
 			Decode(InReader);
 		}
 
-		uint32 GetLength() const override;
-		void Encode(FMemoryWriter& InWriter) override;
-		void Decode(FArrayReader& InReader) override;
+		virtual uint32 GetLength() const override;
+		virtual void Encode(FMemoryWriter& InWriter) override;
+		virtual void Decode(FArrayReader& InReader) override;
 	};
 
 	template <>
@@ -104,10 +104,10 @@ namespace Mqttify
 			Decode(InReader);
 		}
 
-		uint32 GetLength() const override;
+		virtual uint32 GetLength() const override;
 
-		void Encode(FMemoryWriter& InWriter) override;
-		void Decode(FArrayReader& InReader) override;
+		virtual void Encode(FMemoryWriter& InWriter) override;
+		virtual void Decode(FArrayReader& InReader) override;
 
 		/**
 		 * @brief Get the properties.

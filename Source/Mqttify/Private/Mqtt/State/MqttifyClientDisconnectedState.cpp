@@ -1,25 +1,23 @@
 #include "Mqtt/State/MqttifyClientDisconnectedState.h"
 
-#include "LogMqttify.h"
 #include "Mqtt/State/MqttifyClientConnectingState.h"
 
 namespace Mqttify
 {
-
-	FMqttifyDisconnectedState::FMqttifyDisconnectedState(const FOnStateChangedDelegate& InOnStateChanged,
-														const TSharedRef<FMqttifyClientContext>& InContext)
-		: FMqttifyClientState{ InOnStateChanged, InContext }
+	FMqttifyClientDisconnectedState::FMqttifyClientDisconnectedState(
+		const FOnStateChangedDelegate& InOnStateChanged,
+		const TSharedRef<FMqttifyClientContext>& InContext,
+		const FMqttifySocketPtr& InSocket
+		)
+		: FMqttifyClientState{InOnStateChanged, InContext}
+		, Socket{InSocket}
 	{
 	}
 
-
-	TFuture<TMqttifyResult<void>> FMqttifyDisconnectedState::ConnectAsync(bool bCleanSession)
+	TFuture<TMqttifyResult<void>> FMqttifyClientDisconnectedState::ConnectAsync(bool bCleanSession)
 	{
 		const TSharedPtr<TPromise<TMqttifyResult<void>>> Promise = Context->GetConnectPromise();
-		TransitionTo(MakeUnique<FMqttifyClientConnectingState>(
-			OnStateChanged,
-			Context,
-			bCleanSession));
+		TransitionTo(MakeShared<FMqttifyClientConnectingState>(OnStateChanged, Context, bCleanSession, Socket));
 		return Promise->GetFuture();
 	}
 } // namespace Mqttify

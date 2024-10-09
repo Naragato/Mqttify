@@ -16,12 +16,12 @@ namespace Mqttify
 			, RemoteAddress{ nullptr }
 			, TimeoutTime{ 0 } {}
 
-		void Tick() override;
-		void Disconnect() override;
-		EMqttifySocketState GetState() const override { return EMqttifySocketState::Connecting; }
+		virtual void Tick() override;
+		virtual void Disconnect() override;
+		virtual EMqttifySocketState GetState() const override { return EMqttifySocketState::Connecting; }
 
-		IMqttifySocketDisconnectable* AsDisconnectable() override { return this; }
-		IMqttifySocketTickable* AsTickable() override { return this; }
+		virtual IMqttifySocketDisconnectable* AsDisconnectable() override { return this; }
+		virtual IMqttifySocketTickable* AsTickable() override { return this; }
 
 	private:
 		// 1Mb

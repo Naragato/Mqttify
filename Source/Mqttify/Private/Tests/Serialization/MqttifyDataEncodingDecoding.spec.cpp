@@ -1,4 +1,4 @@
-#if WITH_AUTOMATION_TESTS
+#if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
 #include "Serialization/ArrayReader.h"
@@ -10,7 +10,7 @@ namespace Mqttify
 {
 	BEGIN_DEFINE_SPEC(MqttifyDataEncodingDecodingSpec,
 					"Mqttify.Automation.MqttifyDataEncodingDecoding",
-					EAutomationTestFlags::EngineFilter | EAutomationTestFlags::ApplicationContextMask)
+					EAutomationTestFlags::ProductFilter | EAutomationTestFlags::ApplicationContextMask)
 	END_DEFINE_SPEC(MqttifyDataEncodingDecodingSpec)
 
 	void MqttifyDataEncodingDecodingSpec::Define()
@@ -75,4 +75,4 @@ namespace Mqttify
 				});
 	}
 } // namespace Mqttify
-#endif // WITH_AUTOMATION_TESTS
+#endif // WITH_DEV_AUTOMATION_TESTS

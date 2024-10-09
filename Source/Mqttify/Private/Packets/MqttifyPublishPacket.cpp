@@ -25,6 +25,7 @@ namespace Mqttify
 
 	void TMqttifyPublishPacket<EMqttifyProtocolVersion::Mqtt_3_1_1>::Encode(FMemoryWriter& InWriter)
 	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("[Encode][Publish]"));
 		InWriter.SetByteSwapping(true);
 		FixedHeader.Encode(InWriter);
 
@@ -39,6 +40,7 @@ namespace Mqttify
 
 	void TMqttifyPublishPacket<EMqttifyProtocolVersion::Mqtt_3_1_1>::Decode(FArrayReader& InReader)
 	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("[Decode][Publish]"));
 		InReader.SetByteSwapping(true);
 		if (FixedHeader.GetPacketType() != EMqttifyPacketType::Publish)
 		{
@@ -90,6 +92,7 @@ namespace Mqttify
 
 	void TMqttifyPublishPacket<EMqttifyProtocolVersion::Mqtt_5>::Encode(FMemoryWriter& InWriter)
 	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("[Encode][Publish]"));
 		InWriter.SetByteSwapping(true);
 		FixedHeader.Encode(InWriter);
 
@@ -105,6 +108,7 @@ namespace Mqttify
 
 	void TMqttifyPublishPacket<EMqttifyProtocolVersion::Mqtt_5>::Decode(FArrayReader& InReader)
 	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("[Decode][Publish]"));
 		InReader.SetByteSwapping(true);
 		if (FixedHeader.GetPacketType() != EMqttifyPacketType::Publish)
 		{

@@ -5,6 +5,7 @@ struct FMqttifyMessage;
 
 namespace Mqttify
 {
+	using FPublishFuture = TFuture<TMqttifyResult<void>>;
 	/**
 	 * @brief Interface for a client that can subscribe to topics
 	 */
@@ -18,7 +19,7 @@ namespace Mqttify
 		 * @param InMessage The message to publish
 		 * @return A future that contains the result of the publish, which can be checked for success.
 		 */
-		virtual TFuture<TMqttifyResult<void>> PublishAsync(FMqttifyMessage&& InMessage) = 0;
+		virtual FPublishFuture PublishAsync(FMqttifyMessage&& InMessage) = 0;
 
 	};
 } // namespace Mqttify

@@ -1,5 +1,7 @@
 #pragma once
+
 #include "Packets/Interface/IMqttifyControlPacket.h"
+#include <bitset>
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMqttify, VeryVerbose, All);
 
@@ -108,7 +110,7 @@ do {\
 if (UE_LOG_ACTIVE(LogMqttify, Level))\
 {\
 FString BitString;\
-for (int32 i = 0; i < Length; ++i)\
+for (uint32 i = 0; i < Length; ++i)\
 {\
 std::bitset<8> Bits(Data[i]);\
 BitString += FString::Printf(TEXT("%hs "), Bits.to_string().c_str());\

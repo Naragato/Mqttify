@@ -1,5 +1,6 @@
 #include "MqttifyClientContext.h"
 
+#include "LogMqttify.h"
 #include "Mqtt/MqttifyResult.h"
 #include "Mqtt/Commands/MqttifyAcknowledgeable.h"
 #include "Packets/Interface/IMqttifyControlPacket.h"
@@ -17,7 +18,6 @@ namespace Mqttify
 	FMqttifyClientContext::FMqttifyClientContext(const FMqttifyConnectionSettingsRef& InConnectionSettings)
 		: ConnectionSettings{ InConnectionSettings }
 	{
-
 		for (uint16 i = 1; i < kMaxCount; ++i)
 		{
 			IdPool.Enqueue(i);
@@ -47,12 +47,6 @@ namespace Mqttify
 		{
 			UE_LOG(LogTemp, Warning, TEXT("Invalid ID!"));
 		}
-	}
-
-	void FMqttifyClientContext::UpdatePassword(const FString& InPassword)
-	{
-		FScopeLock Lock(&ConnectionSettingsCriticalSection);
-		ConnectionSettings = ConnectionSettings->FromNewPassword(InPassword);
 	}
 
 	void FMqttifyClientContext::AddAcknowledgeableCommand(
@@ -95,6 +89,7 @@ namespace Mqttify
 		FScopeLock Lock(&OnDisconnectPromisesCriticalSection);
 		const TSharedPtr<TPromise<TMqttifyResult<void>>> Promise = MakeShared<TPromise<TMqttifyResult<void>>>();
 		OnDisconnectPromises.Add(Promise);
+		LOG_MQTTIFY(VeryVerbose, TEXT("GetDisconnectPromise %d"), OnDisconnectPromises.Num());
 		return Promise;
 	}
 
@@ -103,6 +98,7 @@ namespace Mqttify
 		FScopeLock Lock(&OnConnectPromisesCriticalSection);
 		const TSharedPtr<TPromise<TMqttifyResult<void>>> Promise = MakeShared<TPromise<TMqttifyResult<void>>>();
 		OnConnectPromises.Add(Promise);
+		LOG_MQTTIFY(VeryVerbose, TEXT("GetConnectPromise %d"), OnConnectPromises.Num());
 		return Promise;
 	}
 
@@ -115,6 +111,7 @@ namespace Mqttify
 		}
 		const TSharedRef<FOnMessage> Delegate = MakeShared<FOnMessage>();
 		OnMessageDelegates.Add(InTopic, Delegate);
+		LOG_MQTTIFY(VeryVerbose, TEXT("GetMessageDelegate %s %d"), *InTopic, OnMessageDelegates.Num());
 		return Delegate;
 	}
 
@@ -122,6 +119,8 @@ namespace Mqttify
 		const TSharedPtr<TArray<FMqttifyUnsubscribeResult>>& InUnsubscribeResults)
 	{
 		FScopeLock Lock(&OnMessageDelegatesCriticalSection);
+
+		LOG_MQTTIFY(VeryVerbose, TEXT("ClearMessageDelegates %d"), OnMessageDelegates.Num());
 		for (FMqttifyUnsubscribeResult& Result : *InUnsubscribeResults)
 		{
 			if (const TSharedRef<FOnMessage>* Delegate = OnMessageDelegates.Find(Result.GetFilter().GetFilter()))

@@ -2,8 +2,8 @@
 
 #include "MqttifyProtocolVersion.h"
 #include "MqttifyThreadMode.h"
+#include "Interface/IMqttifyCredentialsProvider.h"
 #include "Misc/Base64.h"
-#include "Misc/Fnv.h"
 #include "Mqtt/MqttifyConnectionProtocol.h"
 
 enum class EMqttifyProtocolVersion : uint8;
@@ -17,25 +17,22 @@ class MQTTIFY_API FMqttifyConnectionSettings final
 {
 private:
 	/// @brief Unique Id for this game instance / credentials.
-	FString ClientId;
+	FString ClientId{};
 
 	/// @brief Port number for the connection. Default port is 1883 for MQTT and 8883 for MQTTS.
 	int16 Port;
 
 	/// @brief MQTT Host name or IP. Defaults to "localhost".
-	FString Host;
-
-	/// @brief Username for MQTT authentication.
-	FString Username;
-
-	/// @brief Password for MQTT authentication. Only used if a username is provided.
-	FString Password;
+	FString Host{};
 
 	/// @brief Protocol to use for MQTT connection.
 	EMqttifyConnectionProtocol ConnectionProtocol;
 
+	/// @brief Provider to resolve Credentials used by the connection.
+	FMqttifyCredentialsProviderPtr CredentialsProvider = nullptr;
+
 	/// @brief Path for url of the connection.
-	FString Path;
+	FString Path{};
 
 	/// @brief Min seconds to wait before retrying sending a packet.
 	uint16 PacketRetryIntervalSeconds;
@@ -51,25 +48,27 @@ private:
 	uint8 MaxConnectionRetries;
 	/// @brief Number of times to retry sending packet before giving up.
 	uint8 MaxPacketRetries;
+	/// @breif Verify the server certificate.
+	bool bShouldVerifyServerCertificate;
 
 public:
 	/// @brief Copy constructor.
 	FMqttifyConnectionSettings(const FMqttifyConnectionSettings& Other)
 	{
-		ClientId                              = Other.ClientId;
-		Port                                  = Other.Port;
-		Host                                  = Other.Host;
-		Username                              = Other.Username;
-		Password                              = Other.Password;
-		ConnectionProtocol                    = Other.ConnectionProtocol;
-		Path                                  = Other.Path;
-		PacketRetryIntervalSeconds            = Other.PacketRetryIntervalSeconds;
-		SocketConnectionTimeoutSeconds        = Other.SocketConnectionTimeoutSeconds;
-		KeepAliveIntervalSeconds              = Other.KeepAliveIntervalSeconds;
-		MqttConnectionTimeoutSeconds          = Other.MqttConnectionTimeoutSeconds;
+		ClientId = Other.ClientId;
+		Port = Other.Port;
+		Host = Other.Host;
+		CredentialsProvider = Other.CredentialsProvider;
+		ConnectionProtocol = Other.ConnectionProtocol;
+		Path = Other.Path;
+		PacketRetryIntervalSeconds = Other.PacketRetryIntervalSeconds;
+		SocketConnectionTimeoutSeconds = Other.SocketConnectionTimeoutSeconds;
+		KeepAliveIntervalSeconds = Other.KeepAliveIntervalSeconds;
+		MqttConnectionTimeoutSeconds = Other.MqttConnectionTimeoutSeconds;
 		InitialRetryConnectionIntervalSeconds = Other.InitialRetryConnectionIntervalSeconds;
-		MaxConnectionRetries                  = Other.MaxConnectionRetries;
-		MaxPacketRetries                      = Other.MaxPacketRetries;
+		MaxConnectionRetries = Other.MaxConnectionRetries;
+		MaxPacketRetries = Other.MaxPacketRetries;
+		bShouldVerifyServerCertificate = Other.bShouldVerifyServerCertificate;
 	}
 
 	FMqttifyConnectionSettings& operator=(const FMqttifyConnectionSettings&)
@@ -80,14 +79,11 @@ public:
 	/// @brief Get the transport protocol used for the connection.
 	EMqttifyConnectionProtocol GetTransportProtocol() const { return ConnectionProtocol; }
 
-	/// @brief Get's the host URL for the connection.
+	/// @brief Returns the host URL for the connection.
 	const FString& GetHost() const { return Host; }
 
-	/// @brief Get's the username for the connection.
-	const FString& GetUsername() const { return Username; }
-
-	/// @brief Get's the password for the connection.
-	const FString& GetPassword() const { return Password; }
+	/// @brief Returns the credentials used by connection.
+	FMqttifyCredentialsProviderRef GetCredentialsProvider() const { return CredentialsProvider.ToSharedRef(); }
 
 	/// @brief Get Path for url of the connection.
 	const FString& GetPath() const { return Path; }
@@ -95,23 +91,26 @@ public:
 	/// @brief Get the port number for the connection.
 	int32 GetPort() const { return Port; }
 
-	/// @brief Get's the socket connection timeout.
-	uint16 GetSocketConnectionTimoutSeconds() const { return SocketConnectionTimeoutSeconds; }
+	/// @brief Returns the socket connection timeout.
+	uint16 GetSocketConnectionTimeoutSeconds() const { return SocketConnectionTimeoutSeconds; }
 
-	/// @brief Get's the keep alive interval.
+	/// @brief Returns the keep alive interval.
 	uint16 GetKeepAliveIntervalSeconds() const { return KeepAliveIntervalSeconds; }
 
-	/// @brief Get's the MQTT connection timeout.
+	/// @brief Returns the MQTT connection timeout.
 	uint16 GetMqttConnectionTimeoutSeconds() const { return MqttConnectionTimeoutSeconds; }
 
-	/// @brief Get's the packet retry interval.
+	/// @brief Returns the packet retry interval.
 	uint16 GetPacketRetryIntervalSeconds() const { return PacketRetryIntervalSeconds; }
 
-	/// @brief Get's the Max Connection Retries.
+	/// @brief Returns the Max Connection Retries.
 	uint8 GetMaxConnectionRetries() const { return MaxConnectionRetries; }
 
-	/// @brief Get's the Max Packet Retries.
+	/// @brief Returns the Max Packet Retries.
 	uint8 GetMaxPacketRetries() const { return MaxPacketRetries; }
+
+	/// @brief Whether to verify the server certificate.
+	bool ShouldVerifyServerCertificate() const { return bShouldVerifyServerCertificate; }
 
 	/**
 	 * @brief Generates a deterministic ClientId based on the connection settings.
@@ -132,45 +131,71 @@ public:
 	 * @brief Parses the input string to populate the struct.
 	 * @return The connection settings.
 	 */
-	static TSharedPtr<FMqttifyConnectionSettings> CreateShared(const FString& InURL,
-																EMqttifyProtocolVersion InMqttProtocolVersion,
-																uint16 InPacketRetryIntervalSeconds,
-																uint16 InSocketConnectionTimeoutSeconds,
-																uint16 InKeepAliveIntervalSeconds,
-																uint16 InMqttConnectionTimeoutSeconds,
-																uint16 InInitialRetryIntervalSeconds,
-																uint8 InMaxConnectionRetries,
-																uint8 InMaxPacketRetries,
-																EMqttifyThreadMode InThreadMode);
+	static TSharedPtr<FMqttifyConnectionSettings> CreateShared(
+		const FString& InURL,
+		uint16 InPacketRetryIntervalSeconds,
+		uint16 InSocketConnectionTimeoutSeconds,
+		uint16 InKeepAliveIntervalSeconds,
+		uint16 InMqttConnectionTimeoutSeconds,
+		uint16 InInitialRetryIntervalSeconds,
+		uint8 InMaxConnectionRetries,
+		uint8 InMaxPacketRetries,
+		bool bInShouldVerifyCertificate
+		);
+
+	static TSharedPtr<FMqttifyConnectionSettings> CreateShared(
+		const FString& InURL,
+		const TSharedRef<IMqttifyCredentialsProvider>& CredentialsProvider,
+		const uint16 InPacketRetryIntervalSeconds,
+		const uint16 InSocketConnectionTimeoutSeconds,
+		const uint16 InKeepAliveIntervalSeconds,
+		const uint16 InMqttConnectionTimeoutSeconds,
+		const uint16 InInitialRetryIntervalSeconds,
+		const uint8 InMaxConnectionRetries,
+		const uint8 InMaxPacketRetries,
+		const bool bInShouldVerifyCertificate
+		);
+
+	// Helper function to create FMqttifyConnectionSettings
+	static TSharedPtr<FMqttifyConnectionSettings> CreateSharedInternal(
+		FString&& Host,
+		FString&& Path,
+		const EMqttifyConnectionProtocol Protocol,
+		const int32 Port,
+		const TSharedRef<IMqttifyCredentialsProvider>& CredentialsProvider,
+		const uint16 PacketRetryIntervalSeconds,
+		const uint16 SocketConnectionTimeoutSeconds,
+		const uint16 KeepAliveIntervalSeconds,
+		const uint16 MqttConnectionTimeoutSeconds,
+		const uint16 InitialRetryIntervalSeconds,
+		const uint8 MaxConnectionRetries,
+		const uint8 MaxPacketRetries,
+		const bool bShouldVerifyServerCertificate
+		)
+	{
+		return MakeShareable(
+			new FMqttifyConnectionSettings(
+				MoveTemp(Host),
+				MoveTemp(Path),
+				Protocol,
+				Port,
+				CredentialsProvider,
+				PacketRetryIntervalSeconds,
+				SocketConnectionTimeoutSeconds,
+				KeepAliveIntervalSeconds,
+				MqttConnectionTimeoutSeconds,
+				InitialRetryIntervalSeconds,
+				MaxConnectionRetries,
+				MaxPacketRetries,
+				bShouldVerifyServerCertificate));
+	}
 
 	/**
 	 * @brief Converts the connection settings to a string format.
-	 * @return The connection settings as a string.
+	 * @return The connection settings as a string. For logging.
 	 */
 	FString ToString() const;
-
-	/**
-	 * @brief Creates a new connection settings with the updated password.
-	 * @param InPassword The new password to use.
-	 * @return A new connection settings with the updated password.
-	 */
-	FMqttifyConnectionSettingsRef FromNewPassword(const FString& InPassword) const
-	{
-		return MakeShareable<FMqttifyConnectionSettings>(new FMqttifyConnectionSettings(
-			ConnectionProtocol,
-			Port,
-			Host,
-			Username,
-			Password,
-			Path,
-			PacketRetryIntervalSeconds,
-			SocketConnectionTimeoutSeconds,
-			KeepAliveIntervalSeconds,
-			MqttConnectionTimeoutSeconds,
-			InitialRetryConnectionIntervalSeconds,
-			MaxConnectionRetries,
-			MaxPacketRetries));
-	}
+	FString ToConnectionString() const;
 
 private:
 	FMqttifyConnectionSettings() = delete;
@@ -180,8 +205,7 @@ private:
 	 * @param InConnectionProtocol The protocol to use for the connection. WSS/WS/MQTTS/MQTT
 	 * @param InPort The port to connect to.
 	 * @param InHost The host to connect to.
-	 * @param InUsername The username to use for authentication.
-	 * @param InPassword The password to use for authentication.
+	 * @param InCredentialsProvider The credential provider to use for authentication.
 	 * @param InPath The Uri path to use for the connection.
 	 * @param InPacketRetryIntervalSeconds The packet retry interval in seconds.
 	 * @param InSocketConnectionTimeoutSeconds The socket connection timeout in seconds.
@@ -190,22 +214,31 @@ private:
 	 * @param InInitialRetryIntervalSeconds The initial retry interval in seconds.
 	 * @param InMaxConnectionRetries The maximum number of connection retries.
 	 * @param InMaxPacketRetries The maximum number time to retry sending a packet.
+	 * @param bInShouldVerifyCertificate Whether to verify the server certificate.
 	 * @param InClientId The ClientId to use for the connection.
 	 */
-	explicit FMqttifyConnectionSettings(const EMqttifyConnectionProtocol InConnectionProtocol,
-										const int16 InPort,
-										const FString& InHost,
-										const FString& InUsername,
-										const FString& InPassword,
-										const FString& InPath,
-										const uint16 InPacketRetryIntervalSeconds,
-										const uint16 InSocketConnectionTimeoutSeconds,
-										const uint16 InKeepAliveIntervalSeconds,
-										const uint16 InMqttConnectionTimeoutSeconds,
-										const uint16 InInitialRetryIntervalSeconds,
-										const uint8 InMaxConnectionRetries,
-										const uint8 InMaxPacketRetries,
-										const FString& InClientId = TEXT(""));
+	explicit FMqttifyConnectionSettings(
+		FString&& InHost,
+		FString&& InPath,
+		const EMqttifyConnectionProtocol InConnectionProtocol,
+		const int16 InPort,
+		const FMqttifyCredentialsProviderRef& InCredentialsProvider,
+		const uint16 InPacketRetryIntervalSeconds,
+		const uint16 InSocketConnectionTimeoutSeconds,
+		const uint16 InKeepAliveIntervalSeconds,
+		const uint16 InMqttConnectionTimeoutSeconds,
+		const uint16 InInitialRetryIntervalSeconds,
+		const uint8 InMaxConnectionRetries,
+		const uint8 InMaxPacketRetries,
+		const bool bInShouldVerifyCertificate,
+		FString&& InClientId = TEXT("")
+		);
+
+	/// @brief Helper function to parse protocol
+	static FORCEINLINE EMqttifyConnectionProtocol ParseProtocol(const FString& Scheme);
+
+	/// @brief Helper function to determine default port based on protocol
+	static FORCEINLINE int32 DefaultPort(EMqttifyConnectionProtocol Protocol);
 
 	/**
 	 * @brief Adds the given bytes to the given array.
@@ -213,12 +246,7 @@ private:
 	 * @param Src The bytes to add.
 	 * @param Size The size of the bytes to add.
 	 */
-	static FORCEINLINE void AddToBytes(TArray<uint8>& Bytes, const void* Src, const int32 Size)
-	{
-		const int32 Offset = Bytes.Num();
-		Bytes.SetNumUninitialized(Offset + Size, false);
-		FMemory::Memcpy(Bytes.GetData() + Offset, Src, Size);
-	}
+	static FORCEINLINE void AddToBytes(TArray<uint8>& Bytes, const void* Src, const int32 Size);
 
 	/**
 	 * @brief Generates a deterministic ClientId based on the connection settings.
@@ -226,58 +254,8 @@ private:
 	 * Allowing the user of the client to update the password without it changing
 	 * @return A ClientId.
 	 */
-	FORCEINLINE FString GenerateClientId()
-	{
-		// 12 bytes for the hash codes of Username, Host, Path, where each hash code is 4 bytes (uint32)
-		constexpr int32 Num = 12 +
-			sizeof(Port) /*Port*/ +
-			sizeof(ConnectionProtocol) +
-			sizeof(MaxPacketRetries) +
-			sizeof(PacketRetryIntervalSeconds) +
-			sizeof(SocketConnectionTimeoutSeconds) +
-			sizeof(KeepAliveIntervalSeconds) +
-			sizeof(MqttConnectionTimeoutSeconds) +
-			sizeof(InitialRetryConnectionIntervalSeconds) +
-			sizeof(MaxConnectionRetries);
-
-		TArray<uint8> Bytes;
-		Bytes.Reserve(Num);
-
-		// Add hash codes of Username, Host, Path
-		int32 CurrentHash = FFnv::MemFnv32(*Username, Username.Len());
-		AddToBytes(Bytes, &CurrentHash, sizeof(CurrentHash));
-
-		CurrentHash = FFnv::MemFnv32(*Host, Host.Len());
-		AddToBytes(Bytes, &CurrentHash, sizeof(CurrentHash));
-
-		CurrentHash = FFnv::MemFnv32(*Path, Path.Len());
-		AddToBytes(Bytes, &CurrentHash, sizeof(CurrentHash));
-
-		// Add other data
-		AddToBytes(Bytes, &ConnectionProtocol, sizeof(ConnectionProtocol));
-		AddToBytes(Bytes, &Port, sizeof(Port));
-		AddToBytes(Bytes, &PacketRetryIntervalSeconds, sizeof(PacketRetryIntervalSeconds));
-		AddToBytes(Bytes, &SocketConnectionTimeoutSeconds, sizeof(SocketConnectionTimeoutSeconds));
-		AddToBytes(Bytes, &KeepAliveIntervalSeconds, sizeof(KeepAliveIntervalSeconds));
-		AddToBytes(Bytes, &MqttConnectionTimeoutSeconds, sizeof(MqttConnectionTimeoutSeconds));
-		AddToBytes(Bytes, &InitialRetryConnectionIntervalSeconds, sizeof(InitialRetryConnectionIntervalSeconds));
-		AddToBytes(Bytes, &MaxConnectionRetries, sizeof(MaxConnectionRetries));
-
-		FString Result;
-
-		// Reserve enough space for the username and the base64 encoded bytes.
-		const int32 Base64Size = FBase64::GetEncodedDataSize(Bytes.Num());
-		Result.Reserve(Username.Len() + Base64Size + 1);
-
-		// Append the username, a separator and the base64 encoded bytes.
-		Result.Append(Username);
-		Result.Append(TEXT("_"));
-		Result.Append(FBase64::Encode(Bytes));
-
-		return Result;
-	}
+	FORCEINLINE FString GenerateClientId() const;
 };
-
 
 FORCEINLINE uint32 GetTypeHash(const FMqttifyConnectionSettings& ConnectionSettings)
 {

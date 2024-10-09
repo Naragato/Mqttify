@@ -22,6 +22,7 @@ namespace Mqttify
 					break;
 				case EInitializeResult::Failed:
 				default:
+					LOG_MQTTIFY(Error, TEXT("Failed to initialize packet. Disconnecting."));
 					TransitionTo(MakeUnique<FMqttifySocketDisconnectingState>(MoveTemp(Socket), MqttifySocket));
 			}
 		}
@@ -36,7 +37,7 @@ namespace Mqttify
 
 		if (Socket->Recv(PacketView.GetData(), ViewCount, Read))
 		{
-			LOG_MQTTIFY_PACKET_DATA(VeryVerbose, PacketView.GetData(), Read);
+			LOG_MQTTIFY_PACKET_DATA(VeryVerbose, PacketView.GetData(), static_cast<uint32>(Read));
 			Packet->Seek(Packet->Tell() + Read);
 		}
 

@@ -1,10 +1,12 @@
 #pragma once
 
+#include "Templates/SharedPointer.h"
+
 /**
  * @brief A result type that can be used to return a value and whether the operation was successful
  */
 template <typename TResultType>
-class TMqttifyResult
+class MQTTIFY_API TMqttifyResult
 {
 private:
 	TSharedPtr<TResultType> Result;
@@ -45,7 +47,7 @@ public:
  * the void specialization is used to return a result without a value
  */
 template <>
-class TMqttifyResult<void>
+class MQTTIFY_API TMqttifyResult<void>
 {
 private:
 	bool bSuccess;

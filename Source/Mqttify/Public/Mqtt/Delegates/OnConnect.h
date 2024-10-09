@@ -2,5 +2,5 @@
 
 namespace Mqttify
 {
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnConnect, const bool /* IsConnected */);
+	DECLARE_TS_MULTICAST_DELEGATE_OneParam(FOnConnect, const bool /* IsConnected */);
 } // namespace Mqttify

@@ -44,6 +44,7 @@ namespace Mqttify
 
 	void TMqttifyPubCompPacket<EMqttifyProtocolVersion::Mqtt_5>::Encode(FMemoryWriter& InWriter)
 	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("[Encode][PubComp]"));
 		InWriter.SetByteSwapping(true);
 		FixedHeader.Encode(InWriter);
 
@@ -59,6 +60,7 @@ namespace Mqttify
 
 	void TMqttifyPubCompPacket<EMqttifyProtocolVersion::Mqtt_5>::Decode(FArrayReader& InReader)
 	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("[Decode][PubComp]"));
 		InReader.SetByteSwapping(true);
 		if (FixedHeader.GetPacketType() != EMqttifyPacketType::PubComp)
 		{

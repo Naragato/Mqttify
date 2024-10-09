@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Mqtt/MqttifyProtocolVersion.h"
 #include "Mqtt/MqttifyReasonCode.h"
 #include "Packets/MqttifyFixedHeader.h"
 #include "Packets/Interface/MqttifyControlPacket.h"
@@ -54,10 +53,10 @@ namespace Mqttify
 			Decode(InReader);
 		}
 
-		uint32 GetLength() const override;
+		virtual uint32 GetLength() const override;
 
-		void Encode(FMemoryWriter& InWriter) override;
-		void Decode(FArrayReader& InReader) override;
+		virtual void Encode(FMemoryWriter& InWriter) override;
+		virtual void Decode(FArrayReader& InReader) override;
 
 		/**
 		 * @brief Get the reason code.

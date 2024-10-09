@@ -26,12 +26,12 @@ namespace Mqttify
 			const TWeakPtr<FMqttifySocketBase>& InSocket,
 			const FMqttifyConnectionSettingsRef& InConnectionSettings);
 
-		bool NextImpl() override;
-		void Abandon() override;
-		bool Acknowledge(const FMqttifyPacketPtr& InPacket) override;
+		virtual bool NextImpl() override;
+		virtual void Abandon() override;
+		virtual bool Acknowledge(const FMqttifyPacketPtr& InPacket) override;
 
 	protected:
-		bool IsDone() const override;
+		virtual bool IsDone() const override;
 	};
 
 	template <>
@@ -55,12 +55,12 @@ namespace Mqttify
 			const TWeakPtr<FMqttifySocketBase>& InSocket,
 			const FMqttifyConnectionSettingsRef& InConnectionSettings);
 
-		void Abandon() override;
-		bool Acknowledge(const FMqttifyPacketPtr& InPacket) override;
+		virtual void Abandon() override;
+		virtual bool Acknowledge(const FMqttifyPacketPtr& InPacket) override;
 
 	protected:
-		bool NextImpl() override;
-		bool IsDone() const override;
+		virtual bool NextImpl() override;
+		virtual bool IsDone() const override;
 		bool HandlePubRec(const FMqttifyPacketPtr& InPacket);
 		bool HandlePubComp(const FMqttifyPacketPtr& InPacket);
 	};

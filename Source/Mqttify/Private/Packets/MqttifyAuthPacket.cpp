@@ -15,6 +15,7 @@ namespace Mqttify
 
 	void FMqttifyAuthPacket::Encode(FMemoryWriter& InWriter)
 	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("[Encode][Auth]"));
 		InWriter.SetByteSwapping(true);
 		FixedHeader.Encode(InWriter);
 
@@ -27,6 +28,7 @@ namespace Mqttify
 
 	void FMqttifyAuthPacket::Decode(FArrayReader& InReader)
 	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("[Decode][Auth]"));
 		InReader.SetByteSwapping(true);
 		if (FixedHeader.GetPacketType() != EMqttifyPacketType::Auth)
 		{

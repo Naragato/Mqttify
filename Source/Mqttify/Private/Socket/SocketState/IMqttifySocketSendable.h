@@ -1,5 +1,7 @@
 #pragma once
 
+#include "HAL/Platform.h"
+
 namespace Mqttify
 {
 	class IMqttifySocketSendable

@@ -1,8 +1,8 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "MqttifyConstants.h"
 #include "MqttifyQualityOfService.h"
-
 #include "MqttifyMessage.generated.h"
 
 namespace Mqttify

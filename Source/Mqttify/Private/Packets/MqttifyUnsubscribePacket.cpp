@@ -19,6 +19,7 @@ namespace Mqttify
 
 	void TMqttifyUnsubscribePacket<EMqttifyProtocolVersion::Mqtt_3_1_1>::Encode(FMemoryWriter& InWriter)
 	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("[Encode][Unsubscribe]"));
 		InWriter.SetByteSwapping(true);
 		FixedHeader.Encode(InWriter);
 
@@ -32,6 +33,7 @@ namespace Mqttify
 
 	void TMqttifyUnsubscribePacket<EMqttifyProtocolVersion::Mqtt_3_1_1>::Decode(FArrayReader& InReader)
 	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("[Decode][Unsubscribe]"));
 		InReader.SetByteSwapping(true);
 
 		if (FixedHeader.GetPacketType() != EMqttifyPacketType::Unsubscribe)
@@ -85,6 +87,7 @@ namespace Mqttify
 
 	void TMqttifyUnsubscribePacket<EMqttifyProtocolVersion::Mqtt_5>::Encode(FMemoryWriter& InWriter)
 	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("[Encode][Unsubscribe]"));
 		InWriter.SetByteSwapping(true);
 		FixedHeader.Encode(InWriter);
 		InWriter << PacketIdentifier;
@@ -98,6 +101,7 @@ namespace Mqttify
 
 	void TMqttifyUnsubscribePacket<EMqttifyProtocolVersion::Mqtt_5>::Decode(FArrayReader& InReader)
 	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("[Decode][Unsubscribe]"));
 		InReader.SetByteSwapping(true);
 		if (FixedHeader.GetPacketType() != EMqttifyPacketType::Unsubscribe)
 		{

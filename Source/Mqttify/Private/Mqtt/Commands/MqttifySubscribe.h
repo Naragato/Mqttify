@@ -17,12 +17,12 @@ namespace Mqttify
 			const TWeakPtr<FMqttifySocketBase>& InSocket,
 			const FMqttifyConnectionSettingsRef& InConnectionSettings);
 
-		void Abandon() override;
-		bool Acknowledge(const FMqttifyPacketPtr& InPacket) override;
+		virtual void Abandon() override;
+		virtual bool Acknowledge(const FMqttifyPacketPtr& InPacket) override;
 
 	protected:
-		bool IsDone() const override;
-		bool NextImpl() override;
+		virtual bool IsDone() const override;
+		virtual bool NextImpl() override;
 		bool bIsDone;
 		TArray<TTuple<FMqttifyTopicFilter, TSharedRef<FOnMessage>>> TopicFilters;
 	};

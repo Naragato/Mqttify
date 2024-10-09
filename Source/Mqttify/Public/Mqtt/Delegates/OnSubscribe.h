@@ -3,6 +3,6 @@
 
 namespace Mqttify
 {
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSubscribe,
+	DECLARE_TS_MULTICAST_DELEGATE_OneParam(FOnSubscribe,
 										const TSharedPtr<TArray<FMqttifySubscribeResult>>& /* Result per topic filter */);
 } // namespace Mqttify

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Mqtt/Commands/MqttifyAcknowledgeable.h"
-#include "Mqtt/Delegates/OnMessage.h"
 #include "Packets/MqttifyUnsubscribePacket.h"
 
 struct FMqttifyUnsubscribeResult;
@@ -23,13 +22,13 @@ namespace Mqttify
 									const uint16 InPacketId,
 									const TWeakPtr<FMqttifySocketBase>& InSocket,
 									const FMqttifyConnectionSettingsRef& InConnectionSettings);
-		bool Acknowledge(const FMqttifyPacketPtr& InPacket) override;
-		void Abandon() override;
+		virtual bool Acknowledge(const FMqttifyPacketPtr& InPacket) override;
+		virtual void Abandon() override;
 
 	private:
 		bool bIsDone;
 		TArray<FMqttifyTopicFilter> TopicFilters;
-		bool IsDone() const override;
-		bool NextImpl() override;
+		virtual bool IsDone() const override;
+		virtual bool NextImpl() override;
 	};
 }

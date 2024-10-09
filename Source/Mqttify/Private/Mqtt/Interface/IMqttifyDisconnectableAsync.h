@@ -3,6 +3,7 @@
 
 namespace Mqttify
 {
+	using FDisconnectFuture = TFuture<TMqttifyResult<void>>;
 	/**
 	 * @brief Interface for a client that can disconnect from the MQTT broker
 	 */
@@ -14,6 +15,6 @@ namespace Mqttify
 		 * @brief Disconnect from to the MQTT broker
 		 * @return A future that contains the result of the disconnection, which can be checked for success.
 		 */
-		virtual TFuture<TMqttifyResult<void>> DisconnectAsync() = 0;
+		virtual FDisconnectFuture DisconnectAsync() = 0;
 	};
 } // namespace Mqttify

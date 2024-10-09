@@ -23,13 +23,13 @@ namespace Mqttify
 		explicit TMqttifyControlPacket(const FMqttifyFixedHeader& InFixedHeader)
 			: FixedHeader{ InFixedHeader } {}
 
-		~TMqttifyControlPacket() override = default;
+		virtual ~TMqttifyControlPacket() override = default;
 
 		/**
 		 * @brief Encode the packet.
 		 * @return The packet type.
 		 */
-		EMqttifyPacketType GetPacketType() const override
+		virtual EMqttifyPacketType GetPacketType() const override
 		{
 			return TPacketType;
 		}
@@ -37,7 +37,7 @@ namespace Mqttify
 		/**
 		 * @brief Is this packet valid?
 		 */
-		bool IsValid() const override
+		virtual bool IsValid() const override
 		{
 			return bIsValid;
 		}

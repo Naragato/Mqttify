@@ -4,6 +4,7 @@
 #include "Mqtt/Interface/IMqttifyConnectableAsync.h"
 #include "Mqtt/Interface/IMqttifyDisconnectableAsync.h"
 #include "Mqtt/State/MqttifyClientState.h"
+#include "Socket/Interface/MqttifySocketBase.h"
 
 enum class EMqttifyProtocolVersion : uint8;
 
@@ -11,23 +12,36 @@ namespace Mqttify
 {
 	class IMqttifyControlPacket;
 
-	class FMqttifyDisconnectedState final : public FMqttifyClientState,
-											public IMqttifyConnectableAsync,
-											public IMqttifyDisconnectableAsync
+	class FMqttifyClientDisconnectedState final : public FMqttifyClientState,
+	                                              public IMqttifyConnectableAsync,
+	                                              public IMqttifyDisconnectableAsync
 	{
+	private:
+		FMqttifySocketPtr Socket;
+
 	public:
-		explicit FMqttifyDisconnectedState(const FOnStateChangedDelegate& InOnStateChanged,
-											const TSharedRef<FMqttifyClientContext>& InContext);
+		explicit FMqttifyClientDisconnectedState(
+			const FOnStateChangedDelegate& InOnStateChanged,
+			const TSharedRef<FMqttifyClientContext>& InContext,
+			const FMqttifySocketPtr& InSocket
+			);
 
-		EMqttifyState GetState() override { return EMqttifyState::Disconnected; }
-		TFuture<TMqttifyResult<void>> ConnectAsync(bool bCleanSession = false) override;
-		IMqttifyConnectableAsync* AsConnectable() override { return this; }
+		// FMqttifyClientState
+		virtual EMqttifyState GetState() override { return EMqttifyState::Disconnected; }
+		virtual IMqttifyConnectableAsync* AsConnectable() override { return this; }
+		virtual IMqttifyDisconnectableAsync* AsDisconnectable() override { return this; }
+		// ~ FMqttifyClientState
 
-		TFuture<TMqttifyResult<void>> DisconnectAsync() override
+		// IMqttifyConnectableAsync
+		virtual TFuture<TMqttifyResult<void>> ConnectAsync(bool bCleanSession = false) override;
+		// ~ IMqttifyConnectableAsync
+
+		// IMqttifyDisconnectableAsync
+		virtual TFuture<TMqttifyResult<void>> DisconnectAsync() override
 		{
-			return MakeFulfilledPromise<TMqttifyResult<void>>(TMqttifyResult<void>{ true }).GetFuture();
+			return MakeFulfilledPromise<TMqttifyResult<void>>(TMqttifyResult<void>{true}).GetFuture();
 		}
 
-		IMqttifyDisconnectableAsync* AsDisconnectable() override { return this; }
+		// ~ IMqttifyDisconnectableAsync
 	};
 } // namespace Mqttify

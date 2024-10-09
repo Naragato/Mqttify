@@ -151,8 +151,7 @@ namespace Mqttify
 		FScopeLock Lock(&ClientMapLock);
 		for (auto& Client : MqttifyClients)
 		{
-			auto ClientPtr = Client.Value.Pin();
-			if (nullptr != ClientPtr)
+			if (const auto ClientPtr = Client.Value.Pin())
 			{
 				ClientPtr->Tick();
 			}

@@ -1,7 +1,5 @@
 #pragma once
 
-#include <bitset>
-#include "CoreSharedPCH.h"
 #include "MqttifyThreadMode.h"
 #include "Mqtt/MqttifyProtocolVersion.h"
 

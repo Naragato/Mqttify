@@ -19,16 +19,16 @@
 
 namespace Mqttify
 {
-	FMqttifyClientState::FMqttifyClientState(const FOnStateChangedDelegate& InOnStateChanged,
-											const TSharedRef<FMqttifyClientContext>& InContext)
-		: Context(InContext), OnStateChanged(InOnStateChanged)
+	FMqttifyClientState::FMqttifyClientState(const FOnStateChangedDelegate& InOnStateChanged, const TSharedRef<FMqttifyClientContext>& InContext)
+		: OnStateChanged(InOnStateChanged)
+		, Context(InContext)
 	{
 	}
 
-	void FMqttifyClientState::TransitionTo(TUniquePtr<FMqttifyClientState>&& InState)
+	void FMqttifyClientState::TransitionTo(const TSharedPtr<FMqttifyClientState>& InState) const
 	{
-		FScopeLock Lock(&StateTransitionLock);
-		OnStateChanged.ExecuteIfBound(MoveTemp(InState));
+		// ReSharper disable once CppExpressionWithoutSideEffects
+		OnStateChanged.ExecuteIfBound(InState);
 	}
 
 	FMqttifyPacketPtr FMqttifyClientState::CreatePacket(const TSharedPtr<FArrayReader>& InData)
@@ -93,21 +93,17 @@ namespace Mqttify
 				break;
 			}
 		case EMqttifyPacketType::Max:
-		case EMqttifyPacketType::None:
-		default:
-			checkNoEntry();
-			LOG_MQTTIFY(Error,
-						TEXT("Unknown packet type: %s, for protocol: %s."),
-						EnumToTCharString(GMqttifyProtocol),
-						EnumToTCharString(FixedHeader.GetPacketType()));
+		case EMqttifyPacketType::None: default: checkNoEntry();
+			LOG_MQTTIFY(
+				Error,
+				TEXT("Unknown packet type: %s, for protocol: %s."),
+				EnumToTCharString(GMqttifyProtocol),
+				EnumToTCharString(FixedHeader.GetPacketType()));
 			Result = nullptr;
 			break;
 		}
 
-		LOG_MQTTIFY(VeryVerbose,
-					TEXT("Created packet: %s, %d"),
-					EnumToTCharString(Result->GetPacketType()),
-					Result->GetPacketId());
+		LOG_MQTTIFY(VeryVerbose, TEXT("Created packet: %s, %d"), EnumToTCharString(Result->GetPacketType()), Result->GetPacketId());
 		return Result;
 	}
 } // namespace Mqttify

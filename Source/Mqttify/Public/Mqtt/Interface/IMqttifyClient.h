@@ -22,15 +22,14 @@ struct FMqttifyUnsubscribeResult;
 
 using FMqttifyConnectionSettingsRef = TSharedRef<FMqttifyConnectionSettings, ESPMode::ThreadSafe>;
 
-class MQTTIFY_API IMqttifyClient
-	: public Mqttify::IMqttifyDisconnectableAsync,
-	public Mqttify::IMqttifyPublishableAsync,
-	public Mqttify::IMqttifySubscribableAsync,
-	public Mqttify::IMqttifyUnsubscribableAsync,
-	public Mqttify::IMqttifyConnectableAsync
+class MQTTIFY_API IMqttifyClient : public Mqttify::IMqttifyDisconnectableAsync,
+                                   public Mqttify::IMqttifyPublishableAsync,
+                                   public Mqttify::IMqttifySubscribableAsync,
+                                   public Mqttify::IMqttifyUnsubscribableAsync,
+                                   public Mqttify::IMqttifyConnectableAsync
 {
 public:
-	~IMqttifyClient() override = default;
+	virtual ~IMqttifyClient() override = default;
 
 	virtual Mqttify::FOnConnect& OnConnect() = 0;
 	virtual Mqttify::FOnDisconnect& OnDisconnect() = 0;
@@ -50,10 +49,4 @@ public:
 	 * @return Is client currently connected?
 	 */
 	virtual bool IsConnected() const = 0;
-
-	/**
-	 * @brief Update the credentials of a client.
-	 * @param InNewPassword The new password to use.
-	 */
-	virtual void UpdatePassword(const FString& InNewPassword) = 0;
 };

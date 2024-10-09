@@ -156,7 +156,7 @@ namespace Mqttify::Data
 		if (InArchive.IsLoading())
 		{
 			Result.Init(0, PayloadSize);
-			for(int Idx = 0; Idx < PayloadSize; ++Idx)
+			for(uint32 Idx = 0; Idx < PayloadSize; ++Idx)
 			{
 				InArchive << Result[Idx];
 			}

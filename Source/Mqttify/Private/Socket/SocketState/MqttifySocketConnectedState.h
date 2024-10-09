@@ -22,15 +22,15 @@ namespace Mqttify
 			, RemainingLength{ 0 } {}
 
 
-		void Tick() override;
-		void Send(const uint8* Data, uint32 Size) override;
-		void Disconnect() override;
+		virtual void Tick() override;
+		virtual void Send(const uint8* Data, uint32 Size) override;
+		virtual void Disconnect() override;
 
-		IMqttifySocketDisconnectable* AsDisconnectable() override { return this; }
-		IMqttifySocketSendable* AsSendable() override { return this; }
-		IMqttifySocketTickable* AsTickable() override { return this; }
+		virtual IMqttifySocketDisconnectable* AsDisconnectable() override { return this; }
+		virtual IMqttifySocketSendable* AsSendable() override { return this; }
+		virtual IMqttifySocketTickable* AsTickable() override { return this; }
 
-		EMqttifySocketState GetState() const override { return EMqttifySocketState::Connected; }
+		virtual EMqttifySocketState GetState() const override { return EMqttifySocketState::Connected; }
 
 	private:
 		enum class EInitializeResult : uint8

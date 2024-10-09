@@ -10,23 +10,24 @@ namespace Mqttify
 		const FOnStateChangedDelegate& InOnStateChanged,
 		const TSharedRef<FMqttifyClientContext>& InContext,
 		const FMqttifySocketPtr& InSocket)
-		: FMqttifyClientState{ InOnStateChanged, InContext }
-		, Socket{ InSocket }
+		: FMqttifyClientState{InOnStateChanged, InContext}
+		, Socket{InSocket}
 	{
-		Socket->GetOnDisconnectDelegate().AddRaw(this, &FMqttifyClientDisconnectingState::OnSocketDisconnect);
-
-		if (Socket->IsConnected())
+		if (Socket.IsValid())
 		{
-			TMqttifyDisconnectPacket<GMqttifyProtocol> DisconnectPacket;
-			TArray<uint8> ActualBytes;
-			FMemoryWriter Writer(ActualBytes);
-			DisconnectPacket.Encode(Writer);
-			Socket->Send(ActualBytes.GetData(), ActualBytes.Num());
-			Socket->Disconnect();
+			if (Socket->IsConnected())
+			{
+				TMqttifyDisconnectPacket<GMqttifyProtocol> DisconnectPacket;
+				TArray<uint8> ActualBytes;
+				FMemoryWriter Writer(ActualBytes);
+				DisconnectPacket.Encode(Writer);
+				Socket->Send(ActualBytes.GetData(), ActualBytes.Num());
+				Socket->Disconnect();
+			}
 		}
 
 		InContext->CompleteDisconnect();
-		TransitionTo(MakeUnique<FMqttifyDisconnectedState>(OnStateChanged, Context));
+		TransitionTo(MakeShared<FMqttifyClientDisconnectedState>(OnStateChanged, Context, Socket));
 	}
 
 	TFuture<TMqttifyResult<void>> FMqttifyClientDisconnectingState::DisconnectAsync()
@@ -37,6 +38,6 @@ namespace Mqttify
 
 	void FMqttifyClientDisconnectingState::OnSocketDisconnect()
 	{
-		TransitionTo(MakeUnique<FMqttifyDisconnectedState>(OnStateChanged, Context));
+		TransitionTo(MakeShared<FMqttifyClientDisconnectedState>(OnStateChanged, Context, Socket));
 	}
 } // namespace Mqttify

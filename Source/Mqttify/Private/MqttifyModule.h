@@ -6,7 +6,6 @@
 #include "Modules/ModuleManager.h"
 #include "Mqtt/MqttifyClientPool.h"
 #include "Mqtt/MqttifyConnectionSettings.h"
-#include "Mqtt/MqttifyProtocolVersion.h"
 
 class FMqttifyConnectionSettings;
 class IMqttifyClient;
@@ -21,14 +20,14 @@ public:
 	 * @param InConnectionSettings The connection settings to use.
 	 * @return A shared pointer to the MQTT client if the URL was valid
 	 */
-	TSharedPtr<IMqttifyClient> GetOrCreateClient(const FMqttifyConnectionSettingsRef& InConnectionSettings) override;
+	virtual TSharedPtr<IMqttifyClient> GetOrCreateClient(const FMqttifyConnectionSettingsRef& InConnectionSettings) override;
 
 	/**
 	 * @Brief Update the credentials of a client.
 	 * @param InUrl The URL of the client.
 	 * @return A shared pointer to the MQTT client if the URL was valid
 	 */
-	TSharedPtr<IMqttifyClient> GetOrCreateClient(const FString& InUrl) override;
+	virtual TSharedPtr<IMqttifyClient> GetOrCreateClient(const FString& InUrl) override;
 
 private:
 	Mqttify::FMqttifyClientPool ClientPool{};

@@ -1,5 +1,7 @@
 #include "Mqtt/MqttifyTopicFilter.h"
 
+#include "Internationalization/Regex.h"
+
 FMqttifyTopicFilter::FMqttifyTopicFilter()
 	: InQualityOfService{ EMqttifyQualityOfService::AtMostOnce }
 	, bNoLocal{ false }

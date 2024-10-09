@@ -1,7 +1,9 @@
 #pragma once
 
-#if WITH_AUTOMATION_TESTS
+#if WITH_DEV_AUTOMATION_TESTS
 
+#include "HAL/Runnable.h"
+#include "HAL/RunnableThread.h"
 #include "CoreMinimal.h"
 #include "Mqtt/MqttifyConnectionSettingsBuilder.h"
 #include "Socket/Interface/MqttifySocketBase.h"
@@ -29,7 +31,7 @@ namespace Mqttify
 											FPlatformAffinity::GetPoolThreadMask());
 		}
 
-		~FMqttifySocketRunnable() override
+		virtual ~FMqttifySocketRunnable() override
 		{
 			Thread->Kill(true);
 			delete Thread;
@@ -40,7 +42,7 @@ namespace Mqttify
 			return SocketUnderTest;
 		}
 
-		uint32 Run() override
+		virtual uint32 Run() override
 		{
 			while (!bIsStopping.load(std::memory_order_acquire) ||
 				(SocketUnderTest.IsValid() && SocketUnderTest->IsConnected()))
@@ -51,7 +53,7 @@ namespace Mqttify
 			return 0;
 		}
 
-		void Stop() override
+		virtual void Stop() override
 		{
 			FRunnable::Stop();
 			SocketUnderTest->Disconnect();
@@ -59,4 +61,4 @@ namespace Mqttify
 		}
 	};
 } // namespace Mqttify
-#endif // WITH_AUTOMATION_TESTS
+#endif // WITH_DEV_AUTOMATION_TESTS

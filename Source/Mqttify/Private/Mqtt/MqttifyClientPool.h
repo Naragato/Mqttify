@@ -34,7 +34,7 @@ namespace Mqttify
 
 	public:
 		explicit FMqttifyClientPool();
-		~FMqttifyClientPool() override;
+		virtual ~FMqttifyClientPool() override;
 
 		/**
 		 * @brief Get or create a client for the given connection settings.
@@ -47,25 +47,25 @@ namespace Mqttify
 
 		/* Implement FRunnable Begin */
 		/// @brief Run the thread.
-		uint32 Run() override;
+		virtual uint32 Run() override;
 		/// @brief Exits the runnable object. Called in the context of the aggregating thread to perform any cleanup.
-		void Exit() override;
+		virtual void Exit() override;
 		/// @brief Initializes the runnable object.
-		bool Init() override;
+		virtual bool Init() override;
 		/// @brief Stops the runnable object. If a thread is requested to terminate early.
-		void Stop() override;
-		FSingleThreadRunnable* GetSingleThreadInterface() override;
+		virtual void Stop() override;
+		virtual FSingleThreadRunnable* GetSingleThreadInterface() override;
 		/* Implement FRunnable End */
 
 		/* Implement FSingleThreadRunnable Begin */
 		/// @brief Tick the connection (e.g., poll for incoming data, check for timeouts, etc.)
-		void Tick() override;
+		virtual void Tick() override;
 		/* Implement FSingleThreadRunnable End */
 	private:
 		/// @brief Tick the connection on the main thread (e.g., poll for incoming data, check for timeouts, etc.)
 		bool GameThreadTick(float DeltaTime);
 
-		FCriticalSection ClientMapLock;
+		mutable FCriticalSection ClientMapLock;
 		TMap<int32, TWeakPtr<ITickableMqttifyClient>> MqttifyClients;
 
 		FRunnableThread* Thread;

@@ -24,6 +24,7 @@ namespace Mqttify
 
 	void TMqttifyConnectPacket<EMqttifyProtocolVersion::Mqtt_3_1_1>::Encode(FMemoryWriter& InWriter)
 	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("[Encode][Connect]"));
 		InWriter.SetByteSwapping(true);
 		FixedHeader.Encode(InWriter);
 		Data::EncodeString("MQTT", InWriter);
@@ -88,6 +89,7 @@ namespace Mqttify
 
 	void TMqttifyConnectPacket<EMqttifyProtocolVersion::Mqtt_3_1_1>::Decode(FArrayReader& InReader)
 	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("[Decode][Connect]"));
 		InReader.SetByteSwapping(true);
 		if (FixedHeader.GetPacketType() != EMqttifyPacketType::Connect)
 		{
@@ -219,6 +221,7 @@ namespace Mqttify
 
 	void TMqttifyConnectPacket<EMqttifyProtocolVersion::Mqtt_5>::Encode(FMemoryWriter& InWriter)
 	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("[Encode][Connect]"));
 		InWriter.SetByteSwapping(true);
 
 		FixedHeader.Encode(InWriter);
@@ -285,6 +288,7 @@ namespace Mqttify
 
 	void TMqttifyConnectPacket<EMqttifyProtocolVersion::Mqtt_5>::Decode(FArrayReader& InReader)
 	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("[Decode][Connect]"));
 		InReader.SetByteSwapping(true);
 		if (FixedHeader.GetPacketType() != EMqttifyPacketType::Connect)
 		{

@@ -14,6 +14,7 @@ private:
 	uint8 MaxConnectionRetries                  = 5;
 	uint8 MaxPacketRetries                      = 5;
 	uint16 InitialRetryIntervalSeconds          = 3.0f;
+	bool bShouldVerifyCertificate                     = true;
 	EMqttifyProtocolVersion MqttProtocolVersion = EMqttifyProtocolVersion::Mqtt_5;
 	EMqttifyThreadMode ThreadMode               = EMqttifyThreadMode::BackgroundThreadWithCallbackMarshalling;
 
@@ -125,20 +126,30 @@ public:
 	}
 
 	/**
+	 * @brief Sets the verify certificate flag.
+	 * @param InVerifyCertificate The verify certificate flag.
+	 * @return A reference to this builder.
+	 */
+	FMqttifyConnectionSettingsBuilder& SetShouldVerifyCertificate(const bool InVerifyCertificate)
+	{
+		bShouldVerifyCertificate = InVerifyCertificate;
+		return *this;
+	}
+
+	/**
 	 * @brief Builds the connection settings.
 	 * @return The connection settings.
 	 */
 	TSharedPtr<FMqttifyConnectionSettings> Build() const
 	{
 		return FMqttifyConnectionSettings::CreateShared(Url,
-														MqttProtocolVersion,
-														PacketRetryIntervalSeconds,
-														SocketConnectionTimeoutSeconds,
-														KeepAliveIntervalSeconds,
-														MqttConnectionTimeoutSeconds,
-														InitialRetryIntervalSeconds,
-														MaxConnectionRetries,
-														MaxPacketRetries,
-														ThreadMode);
+		                                                PacketRetryIntervalSeconds,
+		                                                SocketConnectionTimeoutSeconds,
+		                                                KeepAliveIntervalSeconds,
+		                                                MqttConnectionTimeoutSeconds,
+		                                                InitialRetryIntervalSeconds,
+		                                                MaxConnectionRetries,
+		                                                MaxPacketRetries,
+		                                                bShouldVerifyCertificate);
 	}
 };
