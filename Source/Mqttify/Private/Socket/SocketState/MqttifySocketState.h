@@ -5,7 +5,6 @@
 
 #define UI UI_ST
 #include <openssl/ssl.h>
-#include "Ssl.h"
 #undef UI
 
 class IMqttifySocket;

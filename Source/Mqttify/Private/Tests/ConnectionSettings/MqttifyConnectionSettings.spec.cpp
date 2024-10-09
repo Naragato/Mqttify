@@ -1,12 +1,12 @@
-#if WITH_AUTOMATION_TESTS
+#if WITH_DEV_AUTOMATION_TESTS
+
+#include "Misc/AutomationTest.h"
 #include "Mqtt/MqttifyConnectionSettings.h"
 #include "Mqtt/MqttifyConnectionSettingsBuilder.h"
 
-namespace Mqttify
-{
-	BEGIN_DEFINE_SPEC(MqttifyConnectionSettingsSpec,
+BEGIN_DEFINE_SPEC(MqttifyConnectionSettingsSpec,
 					"Mqttify.Automation.MqttifyConnectionSettings",
-					EAutomationTestFlags::EngineFilter | EAutomationTestFlags::ApplicationContextMask)
+					EAutomationTestFlags::ProductFilter | EAutomationTestFlags::ApplicationContextMask)
 	END_DEFINE_SPEC(MqttifyConnectionSettingsSpec)
 
 	void MqttifyConnectionSettingsSpec::Define()
@@ -26,10 +26,10 @@ namespace Mqttify
 										EMqttifyConnectionProtocol::Mqtt);
 								TestEqual(TEXT("Host should be localhost"), Settings->GetHost(), TEXT("localhost"));
 								TestEqual(TEXT("Username should be username"),
-										Settings->GetUsername(),
+										Settings->GetCredentialsProvider()->GetCredentials().Username,
 										TEXT("username"));
 								TestEqual(TEXT("Password should be password"),
-										Settings->GetPassword(),
+										Settings->GetCredentialsProvider()->GetCredentials().Username,
 										TEXT("password"));
 								TestEqual(TEXT("Post should be 1883"), Settings->GetPort(), 1883);
 							}
@@ -46,8 +46,8 @@ namespace Mqttify
 										Settings->GetTransportProtocol(),
 										EMqttifyConnectionProtocol::Mqtts);
 								TestEqual(TEXT("Host should be domain.com"), Settings->GetHost(), TEXT("domain.com"));
-								TestEqual(TEXT("Username should be user"), Settings->GetUsername(), TEXT("user"));
-								TestEqual(TEXT("Password should be empty"), Settings->GetPassword(), TEXT(""));
+								TestEqual(TEXT("Username should be user"), Settings->GetCredentialsProvider()->GetCredentials().Username, TEXT("user"));
+								TestEqual(TEXT("Password should be empty"), Settings->GetCredentialsProvider()->GetCredentials().Password, TEXT(""));
 								TestEqual(TEXT("Path to be path"), Settings->GetPath(), TEXT("path"));
 								TestEqual(TEXT("Post should be 8883"), Settings->GetPort(), 8883);
 							}
@@ -72,5 +72,4 @@ namespace Mqttify
 						});
 				});
 	}
-} // namespace Mqttify
-#endif // WITH_AUTOMATION_TESTS
+#endif // WITH_DEV_AUTOMATION_TESTS

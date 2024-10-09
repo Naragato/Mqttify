@@ -1,6 +1,7 @@
 #include "Mqtt/MqttifyClientPool.h"
 
 #include "MqttifyClient.h"
+#include "MqttifyConstants.h"
 #include "Containers/BackgroundableTicker.h"
 #include "HAL/RunnableThread.h"
 #include "Mqtt/Interface/ITickableMqttifyClient.h"
@@ -151,8 +152,7 @@ namespace Mqttify
 		FScopeLock Lock(&ClientMapLock);
 		for (auto& Client : MqttifyClients)
 		{
-			auto ClientPtr = Client.Value.Pin();
-			if (nullptr != ClientPtr)
+			if (const auto ClientPtr = Client.Value.Pin())
 			{
 				ClientPtr->Tick();
 			}

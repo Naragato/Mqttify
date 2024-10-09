@@ -10,7 +10,7 @@ namespace Mqttify
 {
 	void FMqttifySocket::TransitionTo(TUniquePtr<FMqttifySocketState>&& InNewState)
 	{
-		FScopeLock Lock(&SocketAccessLock);
+		FScopeLock Lock{ &SocketAccessLock };
 		if (nullptr == InNewState)
 		{
 			LOG_MQTTIFY(Error, TEXT("InNewState is null"));
@@ -30,7 +30,7 @@ namespace Mqttify
 
 	void FMqttifySocket::Connect()
 	{
-		FScopeLock Lock(&SocketAccessLock);
+		FScopeLock Lock{ &SocketAccessLock };
 		if (nullptr == CurrentState)
 		{
 			LOG_MQTTIFY(Error, TEXT("CurrentState is null"));
@@ -45,7 +45,7 @@ namespace Mqttify
 
 	void FMqttifySocket::Disconnect()
 	{
-		FScopeLock Lock(&SocketAccessLock);
+		FScopeLock Lock{ &SocketAccessLock };
 		if (nullptr == CurrentState)
 		{
 			LOG_MQTTIFY(Error, TEXT("CurrentState is null"));
@@ -60,7 +60,7 @@ namespace Mqttify
 
 	void FMqttifySocket::Send(const uint8* Data, const uint32 Size)
 	{
-		FScopeLock Lock(&SocketAccessLock);
+		FScopeLock Lock{ &SocketAccessLock };
 		if (nullptr == CurrentState)
 		{
 			LOG_MQTTIFY(Error, TEXT("CurrentState is null"));
@@ -75,7 +75,7 @@ namespace Mqttify
 
 	void FMqttifySocket::Tick()
 	{
-		FScopeLock Lock(&SocketAccessLock);
+		FScopeLock Lock{ &SocketAccessLock };
 		if (nullptr == CurrentState)
 		{
 			LOG_MQTTIFY(Error, TEXT("CurrentState is null"));
@@ -90,7 +90,7 @@ namespace Mqttify
 
 	bool FMqttifySocket::IsConnected() const
 	{
-		FScopeLock Lock(&SocketAccessLock);
+		FScopeLock Lock{ &SocketAccessLock };
 		return CurrentState.IsValid() && CurrentState->GetState() == EMqttifySocketState::Connected;
 	}
 } // namespace Mqttify

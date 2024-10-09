@@ -8,82 +8,80 @@ class FArrayReader;
 
 namespace Mqttify
 {
-	class IMqttifyControlPacket;
-}
-
-namespace Mqttify
-{
-	class IMqttifySocketTickable;
-}
-
-namespace Mqttify
-{
-	class FMqttifyClient;
-	class IMqttifySubscribableAsync;
-	class IMqttifyUnsubscribableAsync;
-	class IMqttifyPublishableAsync;
-	class IMqttifyDisconnectableAsync;
-	class IMqttifyConnectableAsync;
-
 	class FMqttifyClientState
 	{
 	public:
-		DECLARE_DELEGATE_OneParam(FOnStateChangedDelegate, TUniquePtr<FMqttifyClientState>&&);
+		DECLARE_DELEGATE_OneParam(FOnStateChangedDelegate, const TSharedPtr<FMqttifyClientState>&);
 
-		explicit FMqttifyClientState(const FOnStateChangedDelegate& InOnStateChanged,
-									const TSharedRef<FMqttifyClientContext>& InContext);
+		explicit FMqttifyClientState(
+			const FOnStateChangedDelegate& InOnStateChanged,
+			const TSharedRef<FMqttifyClientContext>& InContext
+			);
 
 		virtual ~FMqttifyClientState() = default;
 
 	protected:
+		/// @brief Create a new packet
 		static FMqttifyPacketPtr CreatePacket(const TSharedPtr<FArrayReader>& InData);
-
-		TSharedRef<FMqttifyClientContext> Context;
 		/**
 		 * @brief Transition to a new state
 		 * @param InState The new state to transition to
 		 */
-		void TransitionTo(TUniquePtr<FMqttifyClientState>&& InState);
+		void TransitionTo(const TSharedPtr<FMqttifyClientState>& InState) const;
 		FOnStateChangedDelegate OnStateChanged;
 
-	private:
-		FCriticalSection StateTransitionLock;
+		TSharedRef<FMqttifyClientContext> Context;
 
 	public:
 		/**
-		 * @brief Get the state as a IMqttifyConnectableAsync
+		 * @brief Get the state as an IMqttifyConnectableAsync
 		 * @return A pointer to the state as a IMqttifyConnectableAsync
 		 */
-		virtual IMqttifyConnectableAsync* AsConnectable() { return nullptr; }
+		virtual class IMqttifyConnectableAsync* AsConnectable() { return nullptr; }
 		/**
-		 * @brief Get the state as a IMqttifyDisconnectableAsync
+		 * @brief Get the state as an IMqttifyDisconnectableAsync
 		 * @return A pointer to the state as a IMqttifyDisconnectableAsync
 		 */
-		virtual IMqttifyDisconnectableAsync* AsDisconnectable() { return nullptr; }
+		virtual class IMqttifyDisconnectableAsync* AsDisconnectable() { return nullptr; }
 		/**
-		 * @brief Get the state as a IMqttifyPublishableAsync
+		 * @brief Get the state as an IMqttifyPublishableAsync
 		 * @return A pointer to the state as a IMqttifyPublishableAsync
 		 */
-		virtual IMqttifyPublishableAsync* AsPublishable() { return nullptr; }
+		virtual class IMqttifyPublishableAsync* AsPublishable() { return nullptr; }
 		/**
-		 * @brief Get the state as a IMqttifySubscribableAsync
+		 * @brief Get the state as an IMqttifySubscribableAsync
 		 * @return A pointer to the state as a IMqttifySubscribableAsync
 		 */
-		virtual IMqttifySubscribableAsync* AsSubscribable() { return nullptr; }
+		virtual class IMqttifySubscribableAsync* AsSubscribable() { return nullptr; }
 		/**
-		 * @brief Get the state as a IMqttifyUnsubscribableAsync
+		 * @brief Get the state as an IMqttifyUnsubscribableAsync
 		 * @return A pointer to the state as a IMqttifyUnsubscribableAsync
 		 */
-		virtual IMqttifyUnsubscribableAsync* AsUnsubscribable() { return nullptr; }
+		virtual class IMqttifyUnsubscribableAsync* AsUnsubscribable() { return nullptr; }
 		/**
-		 * @brief Get the state as a IMqttifySocketTickable
+		 * @brief Get the state as an IMqttifySocketTickable
 		 * @return A pointer to the state as a IMqttifySocketTickable
 		 */
-		virtual IMqttifySocketTickable* AsSocketTickable() { return nullptr; }
+		virtual class IMqttifySocketTickable* AsSocketTickable() { return nullptr; }
+		/**
+		 * @brief Get the state as an IMqttifySocketDisconnectHandler
+		 * @return A pointer to the state as a IMqttifySocketDisconnectHandler
+		 */
+		virtual class IMqttifySocketDisconnectHandler* AsSocketDisconnectHandler() { return nullptr; }
+		/**
+		 * @brief Get the state as an IMqttifySocketConnectedHandler
+		 * @return A pointer to the state as a IMqttifySocketConnectedHandler
+		 */
+		virtual class IMqttifySocketConnectedHandler* AsSocketConnectedHandler() { return nullptr; }
 		/**
 		 * @brief Get the current state of the client
 		 * @return The current state of the client
 		 */
 		virtual EMqttifyState GetState() = 0;
+		/**
+		 * @brief Get the state as an IMqttifyPacketReceiver
+		 * @return A pointer to the state as a IMqttifyPacketReceiver
+		 */
+		virtual class IMqttifyPacketReceiver* AsPacketReceiver() { return nullptr; }
 	};
 } // namespace Mqttify

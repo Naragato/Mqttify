@@ -7,7 +7,7 @@ namespace Mqttify
 {
 	FMqttifySocketBase::~FMqttifySocketBase()
 	{
-		FScopeLock Lock(&SocketAccessLock);
+		FScopeLock Lock{ &SocketAccessLock };
 		OnConnectDelegate.Clear();
 		OnDisconnectDelegate.Clear();
 		OnDataReceiveDelegate.Clear();

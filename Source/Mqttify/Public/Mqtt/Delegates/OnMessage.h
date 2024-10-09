@@ -3,5 +3,5 @@
 
 namespace Mqttify
 {
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnMessage, const FMqttifyMessage& /* Packet */);
+	DECLARE_TS_MULTICAST_DELEGATE_OneParam(FOnMessage, const FMqttifyMessage& /* Packet */);
 } // namespace Mqttify

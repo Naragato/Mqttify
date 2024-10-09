@@ -12,6 +12,7 @@ namespace Mqttify
 
 	void TMqttifyUnsubAckPacket<EMqttifyProtocolVersion::Mqtt_3_1_1>::Encode(FMemoryWriter& InWriter)
 	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("[Encode][UnsubAck]"));
 		InWriter.SetByteSwapping(true);
 		FixedHeader.Encode(InWriter);
 		InWriter << PacketIdentifier;
@@ -19,6 +20,7 @@ namespace Mqttify
 
 	void TMqttifyUnsubAckPacket<EMqttifyProtocolVersion::Mqtt_3_1_1>::Decode(FArrayReader& InReader)
 	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("[Decode][UnsubAck]"));
 		InReader.SetByteSwapping(true);
 		if (FixedHeader.GetPacketType() != EMqttifyPacketType::UnsubAck)
 		{
@@ -44,6 +46,7 @@ namespace Mqttify
 
 	void TMqttifyUnsubAckPacket<EMqttifyProtocolVersion::Mqtt_5>::Encode(FMemoryWriter& InWriter)
 	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("[Encode][UnsubAck]"));
 		InWriter.SetByteSwapping(true);
 		FixedHeader.Encode(InWriter);
 
@@ -58,6 +61,7 @@ namespace Mqttify
 
 	void TMqttifyUnsubAckPacket<EMqttifyProtocolVersion::Mqtt_5>::Decode(FArrayReader& InReader)
 	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("[Decode][UnsubAck]"));
 		InReader.SetByteSwapping(true);
 		if (FixedHeader.GetPacketType() != EMqttifyPacketType::UnsubAck)
 		{

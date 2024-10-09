@@ -11,8 +11,8 @@ namespace Mqttify
 		explicit FMqttifySocketDisconnectedState(FMqttifySocket* InMqttifySocket)
 			: FMqttifySocketState{ nullptr, InMqttifySocket, nullptr } {}
 
-		EMqttifySocketState GetState() const override { return EMqttifySocketState::Disconnected; }
-		void Connect() override;
-		IMqttifySocketConnectable* AsConnectable() override { return this; }
+		virtual EMqttifySocketState GetState() const override { return EMqttifySocketState::Disconnected; }
+		virtual void Connect() override;
+		virtual IMqttifySocketConnectable* AsConnectable() override { return this; }
 	};
 } // namespace Mqttify

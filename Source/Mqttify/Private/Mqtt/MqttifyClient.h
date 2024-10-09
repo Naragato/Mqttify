@@ -2,9 +2,9 @@
 
 #include "Async/Future.h"
 #include "Interface/ITickableMqttifyClient.h"
-#include "Mqtt/MqttifySubscribeResult.h"
 #include "Mqtt/MqttifyTopicFilter.h"
 #include "Mqtt/Interface/IMqttifyClient.h"
+#include "Socket/Interface/MqttifySocketBase.h"
 #include "State/MqttifyClientContext.h"
 #include "State/MqttifyClientDisconnectedState.h"
 
@@ -24,41 +24,61 @@ namespace Mqttify
 	{
 	public:
 		explicit FMqttifyClient(const FMqttifyConnectionSettingsRef& InConnectionSettings);
+		virtual ~FMqttifyClient() override = default;
 
+		// ITickableMqttifyClient
 		/**
 		 * @brief Tick the MQTT client
 		 */
-		void Tick() override;
+		virtual void Tick() override;
+		// ~ITickableMqttifyClient
 
-		void UpdatePassword(const FString& InPassword) override;
-		~FMqttifyClient() override = default;
+		// IMqttifyPublishableAsync
+		virtual FPublishFuture PublishAsync(FMqttifyMessage&& InMessage) override;
+		// ~IMqttifyPublishableAsync
+
+		// IMqttifySubscribableAsync
+		virtual FSubscribesFuture SubscribeAsync(const TArray<FMqttifyTopicFilter>& InTopicFilters) override;
+		virtual FSubscribeFuture SubscribeAsync(FMqttifyTopicFilter&& InTopicFilter) override;
+		virtual FSubscribeFuture SubscribeAsync(FString& InTopicFilter) override;
+		// ~IMqttifySubscribableAsync
+
+		// IMqttifyUnsubscribableAsync
+		virtual FUnsubscribesFuture UnsubscribeAsync(const TSet<FString>& InTopicFilters) override;
+		// ~IMqttifyUnsubscribableAsync
 
 		// IMqttifyClient
-		TFuture<TMqttifyResult<void>> ConnectAsync(bool bCleanSession) override;
-		TFuture<TMqttifyResult<void>> DisconnectAsync() override;
-		TFuture<TMqttifyResult<void>> PublishAsync(FMqttifyMessage&& InMessage) override;
-		TFuture<TMqttifyResult<TArray<FMqttifySubscribeResult>>> SubscribeAsync(
-			const TArray<FMqttifyTopicFilter>& InTopicFilters) override;
-		TFuture<TMqttifyResult<FMqttifySubscribeResult>> SubscribeAsync(FMqttifyTopicFilter& InTopicFilter) override;
-		TFuture<TMqttifyResult<FMqttifySubscribeResult>> SubscribeAsync(FString& InTopicFilter) override;
-		TFuture<TMqttifyResult<TArray<FMqttifyUnsubscribeResult>>>
-		UnsubscribeAsync(const TSet<FString>& InTopicFilters) override;
-		FOnConnect& OnConnect() override;
-		FOnDisconnect& OnDisconnect() override;
-		FOnPublish& OnPublish() override;
-		FOnSubscribe& OnSubscribe() override;
-		FOnUnsubscribe& OnUnsubscribe() override;
-		FOnMessage& OnMessage() override;
-		const FMqttifyConnectionSettingsRef GetConnectionSettings() const override;
-		bool IsConnected() const override;
+		virtual FOnConnect& OnConnect() override;
+		virtual FOnDisconnect& OnDisconnect() override;
+		virtual FOnPublish& OnPublish() override;
+		virtual FOnSubscribe& OnSubscribe() override;
+		virtual FOnUnsubscribe& OnUnsubscribe() override;
+		virtual FOnMessage& OnMessage() override;
+		virtual const FMqttifyConnectionSettingsRef GetConnectionSettings() const override;
+		virtual bool IsConnected() const override;
+		// ~IMqttifyClient
 
+		// IMqttifyConnectableAsync
+		virtual FConnectFuture ConnectAsync(bool bCleanSession) override;
+		// ~IMqttifyConnectableAsync
+
+		// IMqttifyDisconnectableAsync
+		virtual FDisconnectFuture DisconnectAsync() override;
+		// ~IMqttifyDisconnectableAsync
 	private:
-		void TransitionTo(TUniquePtr<FMqttifyClientState>&& InState);
+		void TransitionTo(const TSharedPtr<FMqttifyClientState>& InState);
 
+		// FMqttifySocketBase Callbacks
+		void OnSocketConnect(bool bWasSuccessful) const;
+		void OnSocketDisconnect() const;
+		void OnReceivePacket(const TSharedPtr<FArrayReader>& InPacket) const;
+		// ~FMqttifySocketBase Callbacks
 	private:
 		/// @brief The current state of the MQTT client.
-		TUniquePtr<FMqttifyClientState> CurrentState;
+		TSharedPtr<FMqttifyClientState> CurrentState;
 		TSharedRef<FMqttifyClientContext> Context;
+		FMqttifySocketPtr Socket;
 		friend class FMqttifyClientState;
+		mutable FCriticalSection StateLock;
 	};
 } // namespace Mqttify

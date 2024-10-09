@@ -16,10 +16,10 @@ namespace Mqttify
 												SSL* InSsl = nullptr)
 			: FMqttifySocketState{ MoveTemp(InSocket), InMqttifySocket, InSsl } {}
 
-		void Tick() override;
-		EMqttifySocketState GetState() const override { return EMqttifySocketState::Disconnecting; }
-		void Connect() override;
-		IMqttifySocketConnectable* AsConnectable() override { return this; }
-		IMqttifySocketTickable* AsTickable() override { return this; }
+		virtual void Tick() override;
+		virtual EMqttifySocketState GetState() const override { return EMqttifySocketState::Disconnecting; }
+		virtual void Connect() override;
+		virtual IMqttifySocketConnectable* AsConnectable() override { return this; }
+		virtual IMqttifySocketTickable* AsTickable() override { return this; }
 	};
 } // namespace Mqttify

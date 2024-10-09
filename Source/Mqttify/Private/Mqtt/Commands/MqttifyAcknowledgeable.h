@@ -1,11 +1,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "MqttifyConstants.h"
 #include "Async/Async.h"
 #include "Mqtt/MqttifyResult.h"
 #include "Socket/Interface/MqttifySocketBase.h"
 #include "Templates/SharedPointer.h"
-#include "Templates/UniquePtr.h"
 
 #include <atomic>
 
@@ -78,7 +78,7 @@ namespace Mqttify
 		FMqttifyConnectionSettingsRef Settings;
 		TWeakPtr<FMqttifySocketBase> Socket;
 		FDateTime RetryWaitTime;
-		mutable FCriticalSection CriticalSection;
+		mutable FCriticalSection CriticalSection{};
 		uint16 PacketId;
 		uint8 PacketTries;
 	};
@@ -97,7 +97,7 @@ namespace Mqttify
 			: FMqttifyAcknowledgeable{ InPacketId, InSocket, InConnectionSettings }
 			, bIsDone{ false } {}
 
-		~TMqttifyAcknowledgeable() override;
+		virtual ~TMqttifyAcknowledgeable() override;
 
 		/**
 		 * @brief Get the future result of the command

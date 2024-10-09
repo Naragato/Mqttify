@@ -1,6 +1,7 @@
 #pragma once
 
-#include <atomic>
+#include "Async/Future.h"
+#include "Containers/Queue.h"
 
 #include "Mqtt/MqttifyConnectionSettings.h"
 #include "Mqtt/MqttifyResult.h"
@@ -29,7 +30,6 @@ namespace Mqttify
 	{
 	public:
 		virtual ~IMqttifyClientContext() = default;
-		virtual void UpdatePassword(const FString& InPassword) = 0;
 		virtual FOnConnect& OnConnect() = 0;
 		virtual FOnDisconnect& OnDisconnect() = 0;
 		virtual FOnPublish& OnPublish() = 0;
@@ -51,29 +51,29 @@ namespace Mqttify
 	private:
 		static constexpr uint32 kMaxCount = std::numeric_limits<uint16>::max();
 		TQueue<uint16> IdPool;
-		mutable FCriticalSection IdPoolCriticalSection;
+		mutable FCriticalSection IdPoolCriticalSection{};
 
 		FMqttifyConnectionSettingsRef ConnectionSettings;
 		mutable FCriticalSection ConnectionSettingsCriticalSection{};
 
 		/// @brief Delegates for when a message is received matching a subscription.
 		TMap<FString, TSharedRef<FOnMessage>> OnMessageDelegates{};
-		FCriticalSection OnMessageDelegatesCriticalSection{};
+		mutable FCriticalSection OnMessageDelegatesCriticalSection{};
 
 		/// @brief Promises for when a disconnect is complete.
 		TArray<TSharedPtr<TPromise<TMqttifyResult<void>>>> OnDisconnectPromises;
-		FCriticalSection OnDisconnectPromisesCriticalSection{};
+		mutable FCriticalSection OnDisconnectPromisesCriticalSection{};
 
 		/// @brief Promise for when a connect is complete.
 		TArray<TSharedPtr<TPromise<TMqttifyResult<void>>>> OnConnectPromises;
-		FCriticalSection OnConnectPromisesCriticalSection{};
+		mutable FCriticalSection OnConnectPromisesCriticalSection{};
 
 		/// @brief Acknowledgeable commands.
 		FAcknowledgeableCommands AcknowledgeableCommands;
 		mutable FCriticalSection AcknowledgeableCommandsCriticalSection{};
 
 	public:
-		~FMqttifyClientContext() override;
+		virtual ~FMqttifyClientContext() override;
 
 		explicit FMqttifyClientContext(const FMqttifyConnectionSettingsRef& InConnectionSettings);
 
@@ -90,14 +90,7 @@ namespace Mqttify
 		void ReleaseId(const uint16 Id);
 
 		/**
-		 * @brief Update the password.
-		 * @param InPassword The new password.
-		 */
-		void UpdatePassword(const FString& InPassword) override;
-
-		/**
 		 * @brief Add an acknowledgeable command.
-		 * @param InPacketIdentifier The packet identifier of the command.
 		 * @param InCommand The acknowledgeable command.
 		 */
 		void AddAcknowledgeableCommand(
@@ -167,36 +160,36 @@ namespace Mqttify
 		 * @brief Get the OnConnect delegate.
 		 * @return The OnConnect delegate.
 		 */
-		FOnConnect& OnConnect() override { return OnConnectDelegate; }
+		virtual FOnConnect& OnConnect() override { return OnConnectDelegate; }
 
 		/**
 		 * @brief Get the OnDisconnect delegate.
 		 * @return The OnDisconnect delegate.
 		 */
-		FOnDisconnect& OnDisconnect() override { return OnDisconnectDelegate; }
+		virtual FOnDisconnect& OnDisconnect() override { return OnDisconnectDelegate; }
 
 		/**
 		 * @brief Get the OnPublish delegate.
 		 * @return The OnPublish delegate.
 		 */
-		FOnPublish& OnPublish() override { return OnPublishDelegate; }
+		virtual FOnPublish& OnPublish() override { return OnPublishDelegate; }
 
 		/**
 		 * @brief Get the OnSubscribe delegate.
 		 * @return The OnSubscribe delegate.
 		 */
-		FOnSubscribe& OnSubscribe() override { return OnSubscribeDelegate; }
+		virtual FOnSubscribe& OnSubscribe() override { return OnSubscribeDelegate; }
 
 		/**
 		 * @brief Get the OnUnsubscribe delegate.
 		 * @return The OnUnsubscribe delegate.
 		 */
-		FOnUnsubscribe& OnUnsubscribe() override { return OnUnsubscribeDelegate; }
+		virtual FOnUnsubscribe& OnUnsubscribe() override { return OnUnsubscribeDelegate; }
 
 		/**
 		 * @brief Get the OnMessage delegate.
 		 * @return The OnMessage delegate.
 		 */
-		FOnMessage& OnMessage() override { return OnMessageDelegate; }
+		virtual FOnMessage& OnMessage() override { return OnMessageDelegate; }
 	};
 } // namespace Mqttify

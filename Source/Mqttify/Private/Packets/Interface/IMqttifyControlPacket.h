@@ -2,6 +2,7 @@
 
 #include "Packets/MqttifyPacketType.h"
 #include "Serialization/Interface/ISerializable.h"
+#include "Templates/UniquePtr.h"
 
 namespace Mqttify
 {
@@ -9,7 +10,7 @@ namespace Mqttify
 	{
 	public:
 		IMqttifyControlPacket()           = default;
-		~IMqttifyControlPacket() override = default;
+		virtual ~IMqttifyControlPacket() override = default;
 
 		/**
 		 * @brief Gets the size of the serialized packet.

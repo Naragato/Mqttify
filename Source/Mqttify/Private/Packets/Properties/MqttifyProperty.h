@@ -4,6 +4,7 @@
 #include "Packets/Properties//MqttifyPropertyIdentifier.h"
 #include "Serialization/ArrayReader.h"
 #include "Serialization/Interface/ISerializable.h"
+#include "Templates/Tuple.h"
 
 namespace Mqttify
 {
@@ -42,45 +43,45 @@ namespace Mqttify
 			return !(*this == Element);
 		}
 
-		void Encode(FMemoryWriter& InWriter) override;
-		void Decode(FArrayReader& InReader) override;
+		virtual void Encode(FMemoryWriter& InWriter) override;
+		virtual void Decode(FArrayReader& InReader) override;
 		EMqttifyPropertyIdentifier GetIdentifier() const { return Identifier; }
 
 		uint32 GetLength() const;
 		/**
 		 * @brief Get the property data length.
 		 * @param OutValue The value of the property.
-		 * @return True if has value, false otherwise.
+		 * @return True when has value, false otherwise.
 		 */
 		bool TryGetValue(uint8& OutValue) const;
 		/**
 		 * @brief Get the property data length.
 		 * @param OutValue The value of the property.
-		 * @return True if has value, false otherwise.
+		 * @return True when has value, false otherwise.
 		 */
 		bool TryGetValue(uint16& OutValue) const;
 		/**
 		 * @brief Get the property data length.
 		 * @param OutValue The value of the property.
-		 * @return True if has value, false otherwise.
+		 * @return True when has value, false otherwise.
 		 */
 		bool TryGetValue(uint32& OutValue) const;
 		/**
 		 * @brief Get the property data length.
 		 * @param OutValue The value of the property.
-		 * @return True if has value, false otherwise.
+		 * @return True when has value, false otherwise.
 		 */
 		bool TryGetValue(TArray<uint8>& OutValue) const;
 		/**
 		 * @brief Get the property data length.
 		 * @param OutValue The value of the property.
-		 * @return True if has value, false otherwise.
+		 * @return True when has value, false otherwise.
 		 */
 		bool TryGetValue(FString& OutValue) const;
 		/**
 		 * @brief Get the property data length.
 		 * @param OutValue The value of the property.
-		 * @return True if has value, false otherwise.
+		 * @return True when has value, false otherwise.
 		 */
 		bool TryGetValue(TTuple<FString, FString>& OutValue) const;
 

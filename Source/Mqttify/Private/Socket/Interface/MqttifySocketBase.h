@@ -5,20 +5,21 @@
 namespace Mqttify
 {
 	using FMqttifySocketPtr = TSharedPtr<class FMqttifySocketBase>;
+	using FMqttifySocketWeakPtr = TWeakPtr<FMqttifySocketBase>;
 
 	/// @brief Interface for MQTT socket.
 	class FMqttifySocketBase
 	{
 	public:
-		DECLARE_MULTICAST_DELEGATE_OneParam(FOnConnectDelegate, const bool /* WasSuccessful */);
+		DECLARE_TS_MULTICAST_DELEGATE_OneParam(FOnConnectDelegate, const bool /* WasSuccessful */);
 		/// @return The OnConnect event.
 		FOnConnectDelegate& GetOnConnectDelegate() { return OnConnectDelegate; }
 
-		DECLARE_MULTICAST_DELEGATE(FOnDisconnectDelegate);
+		DECLARE_TS_MULTICAST_DELEGATE(FOnDisconnectDelegate);
 		/// @return The OnDisconnect event.
 		FOnDisconnectDelegate& GetOnDisconnectDelegate() { return OnDisconnectDelegate; }
 
-		DECLARE_MULTICAST_DELEGATE_OneParam(FOnDataReceivedDelegate, TSharedPtr<FArrayReader> /* Data */)
+		DECLARE_TS_MULTICAST_DELEGATE_OneParam(FOnDataReceivedDelegate, const TSharedPtr<FArrayReader>& /* Data */)
 		/// @return The OnDataReceived event.
 		FOnDataReceivedDelegate& GetOnDataReceivedDelegate() { return OnDataReceiveDelegate; }
 
@@ -49,9 +50,9 @@ namespace Mqttify
 		static FMqttifySocketPtr Create(const FMqttifyConnectionSettingsRef& InConnectionSettings);
 
 	protected:
-		mutable FCriticalSection SocketAccessLock;
-		FOnDataReceivedDelegate OnDataReceiveDelegate;
-		FOnConnectDelegate OnConnectDelegate;
-		FOnDisconnectDelegate OnDisconnectDelegate;
+		mutable FCriticalSection SocketAccessLock{};
+		FOnDataReceivedDelegate OnDataReceiveDelegate{};
+		FOnConnectDelegate OnConnectDelegate{};
+		FOnDisconnectDelegate OnDisconnectDelegate{};
 	};
 } // namespace Mqttify

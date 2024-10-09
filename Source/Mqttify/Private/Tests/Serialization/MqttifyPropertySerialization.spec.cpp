@@ -1,7 +1,8 @@
-#if WITH_AUTOMATION_TESTS
+#if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
 #include "Packets/Properties/MqttifyProperty.h"
+#include "Serialization/MemoryWriter.h"
 
 namespace Mqttify
 {
@@ -203,4 +204,4 @@ namespace Mqttify
 				});
 	}
 } // namespace Mqttify
-#endif // WITH_AUTOMATION_TESTS
+#endif // WITH_DEV_AUTOMATION_TESTS

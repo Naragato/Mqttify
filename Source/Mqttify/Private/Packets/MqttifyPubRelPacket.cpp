@@ -5,6 +5,7 @@ namespace Mqttify
 #pragma region MQTT 3.1.1
 	void TMqttifyPubRelPacket<EMqttifyProtocolVersion::Mqtt_3_1_1>::Encode(FMemoryWriter& InWriter)
 	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("[Encode][PubRel]"));
 		InWriter.SetByteSwapping(true);
 		FixedHeader.Encode(InWriter);
 		InWriter << PacketIdentifier;
@@ -12,6 +13,7 @@ namespace Mqttify
 
 	void TMqttifyPubRelPacket<EMqttifyProtocolVersion::Mqtt_3_1_1>::Decode(FArrayReader& InReader)
 	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("[Decode][PubRel]"));
 		InReader.SetByteSwapping(true);
 		if (FixedHeader.GetPacketType() != EMqttifyPacketType::PubRel)
 		{
@@ -44,6 +46,7 @@ namespace Mqttify
 
 	void TMqttifyPubRelPacket<EMqttifyProtocolVersion::Mqtt_5>::Encode(FMemoryWriter& InWriter)
 	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("[Encode][PubRel]"));
 		InWriter.SetByteSwapping(true);
 		FixedHeader.Encode(InWriter);
 
@@ -59,6 +62,7 @@ namespace Mqttify
 
 	void TMqttifyPubRelPacket<EMqttifyProtocolVersion::Mqtt_5>::Decode(FArrayReader& InReader)
 	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("[Decode][PubRel]"));
 		InReader.SetByteSwapping(true);
 		if (FixedHeader.GetPacketType() != EMqttifyPacketType::PubRel)
 		{

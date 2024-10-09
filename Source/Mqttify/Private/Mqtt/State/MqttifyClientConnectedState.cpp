@@ -15,130 +15,44 @@ namespace Mqttify
 {
 	void FMqttifyClientConnectedState::OnSocketDisconnect()
 	{
-		TransitionTo(MakeUnique<FMqttifyClientConnectingState>(OnStateChanged, Context, Socket));
+		SocketTransitionToState<FMqttifyClientConnectingState>();
 	}
 
-	void FMqttifyClientConnectedState::OnSocketDataReceive(TSharedPtr<FArrayReader> InData)
-	{
-		FMqttifyPacketPtr Packet = CreatePacket(InData);
-
-		if (Packet == nullptr)
-		{
-			LOG_MQTTIFY(Error, TEXT("Failed to parse packet."));
-			return;
-		}
-
-		if (!Packet->IsValid())
-		{
-			LOG_MQTTIFY(Error, TEXT("Malformed packet. %s"), EnumToTCharString(Packet->GetPacketType()));
-			TransitionTo(MakeUnique<FMqttifyClientConnectingState>(OnStateChanged, Context, Socket));
-		}
-
-		switch (Packet->GetPacketType())
-		{
-			case EMqttifyPacketType::PingResp:
-			{
-				if (PingReqCommand != nullptr && PingReqCommand->Acknowledge(Packet))
-				{
-					PingReqCommand = nullptr;
-				}
-				break;
-			}
-			case EMqttifyPacketType::PubAck:
-			case EMqttifyPacketType::PubRec:
-			case EMqttifyPacketType::PubComp:
-			case EMqttifyPacketType::SubAck:
-			case EMqttifyPacketType::UnsubAck:
-				Context->Acknowledge(Packet);
-				break;
-
-			case EMqttifyPacketType::Publish:
-			{
-				const uint32 ServerId                               = static_cast<uint32>(Packet->GetPacketId()) << 16;
-				TUniquePtr<FMqttifyPublishPacketBase> PublishPacket =
-					TUniquePtr<FMqttifyPublishPacketBase>(static_cast<FMqttifyPublishPacketBase*>(Packet.Release()));
-
-				if (PublishPacket->GetIsDuplicate() && Context->HasAcknowledgeableCommand(ServerId))
-				{
-					return;
-				}
-
-				// ReSharper disable once CppIncompleteSwitchStatement
-				// ReSharper disable once CppDefaultCaseNotHandledInSwitchStatement
-				switch (PublishPacket->GetQualityOfService())
-				{
-					case EMqttifyQualityOfService::AtLeastOnce:
-					{
-						TMqttifyPubAckPacket<GMqttifyProtocol> PubAckPacket{ PublishPacket->GetPacketId() };
-						TArray<uint8> ActualBytes;
-						FMemoryWriter Writer(ActualBytes);
-						PubAckPacket.Encode(Writer);
-						Socket->Send(ActualBytes.GetData(), ActualBytes.Num());
-						break;
-					}
-					case EMqttifyQualityOfService::ExactlyOnce:
-					{
-						auto PubRec = MakeShared<FMqttifyPubRec>(
-							PublishPacket->GetPacketId(),
-							EMqttifyReasonCode::Success,
-							Socket,
-							Context->GetConnectionSettings());
-						Context->AddAcknowledgeableCommand(PubRec);
-						break;
-					}
-				}
-
-				Context->OnMessage().Broadcast(FMqttifyPublishPacketBase::ToMqttifyMessage(MoveTemp(PublishPacket)));
-				break;
-			}
-
-			case EMqttifyPacketType::PubRel:
-			{
-				Context->Acknowledge(Packet);
-				break;
-			}
-			default: ;
-		}
-	}
-
-	TFuture<TMqttifyResult<void>> FMqttifyClientConnectedState::ConnectAsync(bool bCleanSession)
+	FConnectFuture FMqttifyClientConnectedState::ConnectAsync(bool bCleanSession)
 	{
 		if (bCleanSession)
 		{
-			TransitionTo(MakeUnique<FMqttifyClientConnectingState>(OnStateChanged, Context, bCleanSession));
+			TransitionTo(MakeShared<FMqttifyClientConnectingState>(OnStateChanged, Context, bCleanSession, Socket));
 			return Context->GetConnectPromise()->GetFuture();
 		}
 
-		return MakeFulfilledPromise<TMqttifyResult<void>>(TMqttifyResult<void>{ true }).GetFuture();
+		return MakeFulfilledPromise<TMqttifyResult<void>>(TMqttifyResult<void>{true}).GetFuture();
 	}
 
-	TFuture<TMqttifyResult<void>> FMqttifyClientConnectedState::DisconnectAsync()
+	FDisconnectFuture FMqttifyClientConnectedState::DisconnectAsync()
 	{
-		TFuture<TMqttifyResult<void>> Future = Context->GetDisconnectPromise()->GetFuture();
-		TransitionTo(
-			MakeUnique<FMqttifyClientDisconnectingState>(OnStateChanged, Context, MoveTemp(Socket)));
+		FDisconnectFuture Future = Context->GetDisconnectPromise()->GetFuture();
+		TransitionTo(MakeShared<FMqttifyClientDisconnectingState>(OnStateChanged, Context, Socket));
 		return Future;
 	}
 
-	TFuture<TMqttifyResult<void>> FMqttifyClientConnectedState::PublishAsync(FMqttifyMessage&& InMessage)
+	FPublishFuture FMqttifyClientConnectedState::PublishAsync(FMqttifyMessage&& InMessage)
 	{
 		switch (InMessage.GetQualityOfService())
 		{
-			case EMqttifyQualityOfService::AtMostOnce:
+		case EMqttifyQualityOfService::AtMostOnce:
 			{
-				TMqttifyPublishPacket PublishPacket = TMqttifyPublishPacket<GMqttifyProtocol>{
-					MoveTemp(InMessage), 0 };
+				TMqttifyPublishPacket PublishPacket = TMqttifyPublishPacket<GMqttifyProtocol>{MoveTemp(InMessage), 0};
 				TArray<uint8> ActualBytes;
 				FMemoryWriter Writer(ActualBytes);
 				PublishPacket.Encode(Writer);
 				Socket->Send(ActualBytes.GetData(), ActualBytes.Num());
-				return MakeFulfilledPromise<TMqttifyResult<void>>(TMqttifyResult<void>{ true }).GetFuture();
+				return MakeFulfilledPromise<TMqttifyResult<void>>(TMqttifyResult<void>{true}).GetFuture();
 			}
-			case EMqttifyQualityOfService::AtLeastOnce:
+		case EMqttifyQualityOfService::AtLeastOnce:
 			{
-				const uint16 PacketId                    = Context->GetNextId();
-				FMqttifyPubAtLeastOnceRef PublishCommand = MakeMqttifyPublish<
-					EMqttifyQualityOfService::AtLeastOnce>(
+				const uint16 PacketId = Context->GetNextId();
+				FMqttifyPubAtLeastOnceRef PublishCommand = MakeMqttifyPublish<EMqttifyQualityOfService::AtLeastOnce>(
 					MoveTemp(InMessage),
 					PacketId,
 					Socket,
@@ -146,11 +60,10 @@ namespace Mqttify
 				Context->AddAcknowledgeableCommand(PublishCommand);
 				return PublishCommand->GetFuture();
 			}
-			case EMqttifyQualityOfService::ExactlyOnce:
+		case EMqttifyQualityOfService::ExactlyOnce:
 			{
-				const uint16 PacketId                    = Context->GetNextId();
-				FMqttifyPubExactlyOnceRef PublishCommand = MakeMqttifyPublish<
-					EMqttifyQualityOfService::ExactlyOnce>(
+				const uint16 PacketId = Context->GetNextId();
+				FMqttifyPubExactlyOnceRef PublishCommand = MakeMqttifyPublish<EMqttifyQualityOfService::ExactlyOnce>(
 					MoveTemp(InMessage),
 					PacketId,
 					Socket,
@@ -158,17 +71,15 @@ namespace Mqttify
 				Context->AddAcknowledgeableCommand(PublishCommand);
 				return PublishCommand->GetFuture();
 			}
-			default:
+		default:
 			{
 				ensureMsgf(false, TEXT("Invalid quality of service"));
-				return MakeFulfilledPromise<TMqttifyResult<void>>(TMqttifyResult<void>{ false }).
-					GetFuture();
+				return MakeFulfilledPromise<TMqttifyResult<void>>(TMqttifyResult<void>{false}).GetFuture();
 			}
 		}
 	}
 
-	TFuture<TMqttifyResult<TArray<FMqttifySubscribeResult>>> FMqttifyClientConnectedState::SubscribeAsync(
-		const TArray<FMqttifyTopicFilter>& InTopicFilters)
+	FSubscribesFuture FMqttifyClientConnectedState::SubscribeAsync(const TArray<FMqttifyTopicFilter>& InTopicFilters)
 	{
 		const uint16 PacketId = Context->GetNextId();
 
@@ -183,13 +94,13 @@ namespace Mqttify
 			TopicFilters,
 			PacketId,
 			Socket,
-			Context->
-			GetConnectionSettings());
+			Context->GetConnectionSettings());
 
 		Context->AddAcknowledgeableCommand(SubscribeCommand);
 		TWeakPtr<FMqttifyClientContext> WeakContext = Context;
 		return SubscribeCommand->GetFuture().Next(
-			[WeakContext](const TMqttifyResult<TArray<FMqttifySubscribeResult>>& InResult) {
+			[WeakContext](const TMqttifyResult<TArray<FMqttifySubscribeResult>>& InResult)
+			{
 				if (InResult.HasSucceeded())
 				{
 					if (const TSharedPtr<FMqttifyClientContext> ContextPtr = WeakContext.Pin())
@@ -209,15 +120,15 @@ namespace Mqttify
 			});
 	}
 
-	TFuture<TMqttifyResult<FMqttifySubscribeResult>> FMqttifyClientConnectedState::SubscribeAsync(
-		FMqttifyTopicFilter& InTopicFilter)
+	FSubscribeFuture FMqttifyClientConnectedState::SubscribeAsync(FMqttifyTopicFilter&& InTopicFilter)
 	{
-		return SubscribeAsync(TArray{ InTopicFilter }).Next(
-			[](const TMqttifyResult<TArray<FMqttifySubscribeResult>>& InResult) {
+		return SubscribeAsync(TArray{InTopicFilter}).Next(
+			[](const TMqttifyResult<TArray<FMqttifySubscribeResult>>& InResult)
+			{
 				if (InResult.HasSucceeded() && InResult.GetResult()->Num() == 1)
 				{
 					FMqttifySubscribeResult OutResult = InResult.GetResult()->operator[](0);
-					return TMqttifyResult{ true, MoveTemp(OutResult) };
+					return TMqttifyResult{true, MoveTemp(OutResult)};
 				}
 
 				LOG_MQTTIFY(
@@ -225,29 +136,25 @@ namespace Mqttify
 					TEXT("Failed to subscribe to topic filter. Success: %s, Number of results: %d"),
 					InResult.HasSucceeded() ? TEXT("true") : TEXT("false"),
 					InResult.GetResult()->Num());
-				return TMqttifyResult<FMqttifySubscribeResult>{ false };
+				return TMqttifyResult<FMqttifySubscribeResult>{false};
 			});
 	}
 
-	TFuture<TMqttifyResult<FMqttifySubscribeResult>> FMqttifyClientConnectedState::SubscribeAsync(
-		FString& InTopicFilter)
+	FSubscribeFuture FMqttifyClientConnectedState::SubscribeAsync(FString& InTopicFilter)
 	{
-		FMqttifyTopicFilter TopicFilter(InTopicFilter);
-		return SubscribeAsync(TopicFilter);
+		FMqttifyTopicFilter TopicFilter{InTopicFilter};
+		return SubscribeAsync(MoveTemp(TopicFilter));
 	}
 
-	TFuture<TMqttifyResult<TArray<FMqttifyUnsubscribeResult>>>
-	FMqttifyClientConnectedState::UnsubscribeAsync(
-		const TSet<FString>& InTopicFilters)
+	FUnsubscribesFuture FMqttifyClientConnectedState::UnsubscribeAsync(const TSet<FString>& InTopicFilters)
 	{
-
 		TArray<FMqttifyTopicFilter> TopicFilters;
 		for (const FString& TopicFilter : InTopicFilters)
 		{
 			TopicFilters.Emplace(TopicFilter);
 		}
 
-		const uint16 PacketId                                    = Context->GetNextId();
+		const uint16 PacketId = Context->GetNextId();
 		const TSharedRef<FMqttifyUnsubscribe> UnsubscribeCommand = MakeShared<FMqttifyUnsubscribe>(
 			TopicFilters,
 			PacketId,
@@ -257,7 +164,8 @@ namespace Mqttify
 		Context->AddAcknowledgeableCommand(UnsubscribeCommand);
 		TWeakPtr<FMqttifyClientContext> WeakContext = Context;
 		return UnsubscribeCommand->GetFuture().Next(
-			[WeakContext](const TMqttifyResult<TArray<FMqttifyUnsubscribeResult>>& InResult) {
+			[WeakContext](const TMqttifyResult<TArray<FMqttifyUnsubscribeResult>>& InResult)
+			{
 				if (InResult.HasSucceeded())
 				{
 					if (const TSharedPtr<FMqttifyClientContext> ContextPtr = WeakContext.Pin())
@@ -280,15 +188,16 @@ namespace Mqttify
 
 	void FMqttifyClientConnectedState::Tick()
 	{
-		if (Socket == nullptr)
+		if (!Socket.IsValid())
 		{
 			LOG_MQTTIFY(Error, TEXT("Socket is null."));
-			TransitionTo(MakeUnique<FMqttifyDisconnectedState>(OnStateChanged, Context));
+			TransitionTo(MakeShared<FMqttifyClientDisconnectedState>(OnStateChanged, Context, Socket));
+			return;
 		}
 
 		if (!Socket->IsConnected())
 		{
-			TransitionTo(MakeUnique<FMqttifyClientConnectingState>(OnStateChanged, Context, Socket));
+			TransitionTo(MakeShared<FMqttifyClientConnectingState>(OnStateChanged, Context, Socket));
 			return;
 		}
 
@@ -296,27 +205,23 @@ namespace Mqttify
 
 		if (Context->GetConnectionSettings()->GetKeepAliveIntervalSeconds() > 0)
 		{
-			const FDateTime Now              = FDateTime::UtcNow();
-			const FDateTime KeepAliveEndTime = LastPingTime +
-				FTimespan::FromSeconds(Context->GetConnectionSettings()->GetKeepAliveIntervalSeconds());
+			const FDateTime Now = FDateTime::UtcNow();
+			const FDateTime KeepAliveEndTime = LastPingTime + FTimespan::FromSeconds(
+				Context->GetConnectionSettings()->GetKeepAliveIntervalSeconds());
 			if (PingReqCommand == nullptr && KeepAliveEndTime < Now)
 			{
-				LastPingTime   = Now;
-				PingReqCommand = MakeShared<FMqttifyPingReq>(
-					Socket,
-					Context->GetConnectionSettings());
+				LastPingTime = Now;
+				PingReqCommand = MakeShared<FMqttifyPingReq>(Socket, Context->GetConnectionSettings());
 
 				TWeakPtr<FMqttifySocketBase> WeakSocket = Socket;
 				PingReqCommand->GetFuture().Next(
-					[this](const TMqttifyResult<void>& InResult) {
+					[this](const TMqttifyResult<void>& InResult)
+					{
 						if (!InResult.HasSucceeded())
 						{
 							LOG_MQTTIFY(Warning, TEXT("Failed to send ping request. Reconnecting."));
 							TransitionTo(
-								MakeUnique<FMqttifyClientConnectingState>(
-									OnStateChanged,
-									Context,
-									false));
+								MakeShared<FMqttifyClientConnectingState>(OnStateChanged, Context, false, Socket));
 						}
 					});
 			}
@@ -327,6 +232,89 @@ namespace Mqttify
 			}
 
 			Context->ProcessAcknowledgeableCommands();
+		}
+	}
+
+	void FMqttifyClientConnectedState::OnReceivePacket(const TSharedPtr<FArrayReader>& InPacket)
+	{
+		FMqttifyPacketPtr Packet = CreatePacket(InPacket);
+
+		if (Packet == nullptr)
+		{
+			LOG_MQTTIFY(Error, TEXT("Failed to parse packet."));
+			return;
+		}
+
+		if (!Packet->IsValid())
+		{
+			LOG_MQTTIFY(Error, TEXT("Malformed packet. %s"), EnumToTCharString(Packet->GetPacketType()));
+			SocketTransitionToState<FMqttifyClientConnectingState>();
+		}
+
+		switch (Packet->GetPacketType())
+		{
+		case EMqttifyPacketType::PingResp:
+			{
+				if (PingReqCommand != nullptr && PingReqCommand->Acknowledge(Packet))
+				{
+					PingReqCommand = nullptr;
+				}
+				break;
+			}
+		case EMqttifyPacketType::PubAck:
+		case EMqttifyPacketType::PubRec:
+		case EMqttifyPacketType::PubComp:
+		case EMqttifyPacketType::SubAck:
+		case EMqttifyPacketType::UnsubAck:
+			Context->Acknowledge(Packet);
+			break;
+
+		case EMqttifyPacketType::Publish:
+			{
+				const uint32 ServerId = static_cast<uint32>(Packet->GetPacketId()) << 16;
+				TUniquePtr<FMqttifyPublishPacketBase> PublishPacket = TUniquePtr<FMqttifyPublishPacketBase>(
+					static_cast<FMqttifyPublishPacketBase*>(Packet.Release()));
+
+				if (PublishPacket->GetIsDuplicate() && Context->HasAcknowledgeableCommand(ServerId))
+				{
+					return;
+				}
+
+				// ReSharper disable once CppIncompleteSwitchStatement
+				// ReSharper disable once CppDefaultCaseNotHandledInSwitchStatement
+				switch (PublishPacket->GetQualityOfService())
+				{
+				case EMqttifyQualityOfService::AtLeastOnce:
+					{
+						TMqttifyPubAckPacket<GMqttifyProtocol> PubAckPacket{PublishPacket->GetPacketId()};
+						TArray<uint8> ActualBytes;
+						FMemoryWriter Writer(ActualBytes);
+						PubAckPacket.Encode(Writer);
+						Socket->Send(ActualBytes.GetData(), ActualBytes.Num());
+						break;
+					}
+				case EMqttifyQualityOfService::ExactlyOnce:
+					{
+						const auto PubRec = MakeShared<FMqttifyPubRec>(
+							PublishPacket->GetPacketId(),
+							EMqttifyReasonCode::Success,
+							Socket,
+							Context->GetConnectionSettings());
+						Context->AddAcknowledgeableCommand(PubRec);
+						break;
+					}
+				}
+
+				Context->OnMessage().Broadcast(FMqttifyPublishPacketBase::ToMqttifyMessage(MoveTemp(PublishPacket)));
+				break;
+			}
+
+		case EMqttifyPacketType::PubRel:
+			{
+				Context->Acknowledge(Packet);
+				break;
+			}
+		default: ;
 		}
 	}
 } // namespace Mqttify

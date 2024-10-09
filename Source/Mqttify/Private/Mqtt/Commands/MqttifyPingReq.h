@@ -1,6 +1,5 @@
 #pragma once
 #include "MqttifyAcknowledgeable.h"
-#include "Mqtt/MqttifyProtocolVersion.h"
 
 namespace Mqttify
 {
@@ -14,13 +13,13 @@ namespace Mqttify
 						const TSharedRef<FMqttifyConnectionSettings>& InConnectionSettings)
 			: TMqttifyAcknowledgeable(0, InSocket, InConnectionSettings) {}
 
-		bool Acknowledge(const FMqttifyPacketPtr& InPacket) override;
+		virtual bool Acknowledge(const FMqttifyPacketPtr& InPacket) override;
 
-		bool NextImpl() override;
+		virtual bool NextImpl() override;
 
-		void Abandon() override;
+		virtual void Abandon() override;
 
 	protected:
-		bool IsDone() const override;
+		virtual bool IsDone() const override;
 	};
 }
