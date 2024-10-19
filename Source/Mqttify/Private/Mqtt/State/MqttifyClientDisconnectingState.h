@@ -4,6 +4,7 @@
 #include "Mqtt/Interface/IMqttifyDisconnectableAsync.h"
 #include "Mqtt/Interface/IMqttifySocketDisconnectHandler.h"
 #include "Mqtt/State/MqttifyClientState.h"
+#include "Socket/Interface/IMqttifySocketTickable.h"
 #include "Socket/Interface/MqttifySocketBase.h"
 
 enum class EMqttifyProtocolVersion : uint8;
@@ -12,7 +13,8 @@ namespace Mqttify
 {
 	class FMqttifyClientDisconnectingState final : public FMqttifyClientState,
 	                                               public IMqttifyDisconnectableAsync,
-	                                               public IMqttifySocketDisconnectHandler
+	                                               public IMqttifySocketDisconnectHandler,
+	                                               public IMqttifySocketTickable
 	{
 	private:
 		FMqttifySocketPtr Socket;
@@ -24,10 +26,13 @@ namespace Mqttify
 			const FMqttifySocketPtr& InSocket
 			);
 
+		virtual ~FMqttifyClientDisconnectingState() override;
+
 		// FMqttifyClientState
 		virtual EMqttifyState GetState() override { return EMqttifyState::Disconnecting; }
 		virtual IMqttifyDisconnectableAsync* AsDisconnectable() override { return this; }
 		virtual IMqttifySocketDisconnectHandler* AsSocketDisconnectHandler() override { return this; }
+		virtual IMqttifySocketTickable* AsSocketTickable() override { return this; }
 		// ~ FMqttifyClientState
 
 		// IMqttifyDisconnectableAsync
@@ -36,6 +41,10 @@ namespace Mqttify
 
 		// IMqttifySocketDisconnectHandler
 		virtual void OnSocketDisconnect() override;
+
 		// ~ IMqttifySocketDisconnectHandler
+
+		// IMqttifySocketTickable
+		virtual void Tick() override;
 	};
 } // namespace Mqttify

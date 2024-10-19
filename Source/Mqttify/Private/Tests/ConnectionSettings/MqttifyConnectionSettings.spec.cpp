@@ -29,7 +29,7 @@ BEGIN_DEFINE_SPEC(MqttifyConnectionSettingsSpec,
 										Settings->GetCredentialsProvider()->GetCredentials().Username,
 										TEXT("username"));
 								TestEqual(TEXT("Password should be password"),
-										Settings->GetCredentialsProvider()->GetCredentials().Username,
+										Settings->GetCredentialsProvider()->GetCredentials().Password,
 										TEXT("password"));
 								TestEqual(TEXT("Post should be 1883"), Settings->GetPort(), 1883);
 							}

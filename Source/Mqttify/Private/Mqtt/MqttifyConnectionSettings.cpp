@@ -10,6 +10,7 @@ FMqttifyConnectionSettings::FMqttifyConnectionSettings(
 	const EMqttifyConnectionProtocol InConnectionProtocol,
 	const int16 InPort,
 	const FMqttifyCredentialsProviderRef& InCredentialsProvider,
+	const uint32 InMaxPacketSize,
 	const uint16 InPacketRetryIntervalSeconds,
 	const uint16 InSocketConnectionTimeoutSeconds,
 	const uint16 InKeepAliveIntervalSeconds,
@@ -20,7 +21,8 @@ FMqttifyConnectionSettings::FMqttifyConnectionSettings(
 	const bool bInShouldVerifyCertificate,
 	FString&& InClientId
 	)
-	: ClientId{InClientId}
+	: MaxPacketSize{InMaxPacketSize}
+	, ClientId{InClientId}
 	, Port{InPort}
 	, Host{InHost}
 	, ConnectionProtocol{InConnectionProtocol}
@@ -52,6 +54,9 @@ uint32 FMqttifyConnectionSettings::GetHashCode() const
 	// as they are not used for equality checks.
 	uint32 Hash = 0;
 
+	// Hash the client Id
+	Hash = HashCombine(Hash, GetTypeHash(ClientId));
+
 	// Hash the transport protocol
 	Hash = HashCombine(Hash, GetTypeHash(ConnectionProtocol));
 
@@ -81,6 +86,7 @@ uint32 FMqttifyConnectionSettings::GetHashCode() const
 
 TSharedPtr<FMqttifyConnectionSettings> FMqttifyConnectionSettings::CreateShared(
 	const FString& InURL,
+	const uint32 InMaxPacketSize,
 	const uint16 InPacketRetryIntervalSeconds,
 	const uint16 InSocketConnectionTimeoutSeconds,
 	const uint16 InKeepAliveIntervalSeconds,
@@ -88,7 +94,8 @@ TSharedPtr<FMqttifyConnectionSettings> FMqttifyConnectionSettings::CreateShared(
 	const uint16 InInitialRetryIntervalSeconds,
 	const uint8 InMaxConnectionRetries,
 	const uint8 InMaxPacketRetries,
-	const bool bInShouldVerifyCertificate
+	const bool bInShouldVerifyCertificate,
+	FString&& InClientId
 	)
 {
 	const FRegexPattern URLPattern(TEXT("(mqtt[s]?|ws[s]?)://(?:([^:/]+)(?::([^@/]+))?@)?([^:/@]+)(?::(\\d+))?(?:/([^?#/]+))?"));
@@ -119,6 +126,7 @@ TSharedPtr<FMqttifyConnectionSettings> FMqttifyConnectionSettings::CreateShared(
 			Protocol,
 			Port,
 			CredentialsProvider,
+			InMaxPacketSize,
 			InPacketRetryIntervalSeconds,
 			InSocketConnectionTimeoutSeconds,
 			InKeepAliveIntervalSeconds,
@@ -126,7 +134,8 @@ TSharedPtr<FMqttifyConnectionSettings> FMqttifyConnectionSettings::CreateShared(
 			InInitialRetryIntervalSeconds,
 			InMaxConnectionRetries,
 			InMaxPacketRetries,
-			bInShouldVerifyCertificate);
+			bInShouldVerifyCertificate,
+			MoveTemp(InClientId));
 	}
 
 	return nullptr;
@@ -136,6 +145,7 @@ TSharedPtr<FMqttifyConnectionSettings> FMqttifyConnectionSettings::CreateShared(
 TSharedPtr<FMqttifyConnectionSettings> FMqttifyConnectionSettings::CreateShared(
 	const FString& InURL,
 	const TSharedRef<IMqttifyCredentialsProvider>& CredentialsProvider,
+	const uint32 InMaxPacketSize,
 	const uint16 InPacketRetryIntervalSeconds,
 	const uint16 InSocketConnectionTimeoutSeconds,
 	const uint16 InKeepAliveIntervalSeconds,
@@ -143,7 +153,8 @@ TSharedPtr<FMqttifyConnectionSettings> FMqttifyConnectionSettings::CreateShared(
 	const uint16 InInitialRetryIntervalSeconds,
 	const uint8 InMaxConnectionRetries,
 	const uint8 InMaxPacketRetries,
-	const bool bInShouldVerifyCertificate
+	const bool bInShouldVerifyCertificate,
+	FString&& InClientId
 	)
 {
 	const FRegexPattern URLPattern(TEXT("(mqtt[s]?|ws[s]?)://(?:([^:/]+)(?::([^@/]+))?@)?([^:/@]+)(?::(\\d+))?(?:/([^?#/]+))?"));
@@ -176,6 +187,7 @@ TSharedPtr<FMqttifyConnectionSettings> FMqttifyConnectionSettings::CreateShared(
 			Protocol,
 			Port,
 			CredentialsProvider,
+			InMaxPacketSize,
 			InPacketRetryIntervalSeconds,
 			InSocketConnectionTimeoutSeconds,
 			InKeepAliveIntervalSeconds,
@@ -183,7 +195,8 @@ TSharedPtr<FMqttifyConnectionSettings> FMqttifyConnectionSettings::CreateShared(
 			InInitialRetryIntervalSeconds,
 			InMaxConnectionRetries,
 			InMaxPacketRetries,
-			bInShouldVerifyCertificate);
+			bInShouldVerifyCertificate,
+			MoveTemp(InClientId));
 	}
 
 	return nullptr;

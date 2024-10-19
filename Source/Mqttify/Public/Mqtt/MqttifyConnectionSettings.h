@@ -1,7 +1,5 @@
 #pragma once
 
-#include "MqttifyProtocolVersion.h"
-#include "MqttifyThreadMode.h"
 #include "Interface/IMqttifyCredentialsProvider.h"
 #include "Misc/Base64.h"
 #include "Mqtt/MqttifyConnectionProtocol.h"
@@ -16,6 +14,9 @@ using FMqttifyConnectionSettingsRef = TSharedRef<class FMqttifyConnectionSetting
 class MQTTIFY_API FMqttifyConnectionSettings final
 {
 private:
+	/// @brief Max Packet Size
+	uint32 MaxPacketSize = 1 * 1024 * 1024; // 1MB
+
 	/// @brief Unique Id for this game instance / credentials.
 	FString ClientId{};
 
@@ -69,6 +70,7 @@ public:
 		MaxConnectionRetries = Other.MaxConnectionRetries;
 		MaxPacketRetries = Other.MaxPacketRetries;
 		bShouldVerifyServerCertificate = Other.bShouldVerifyServerCertificate;
+		MaxPacketSize = Other.MaxPacketSize;
 	}
 
 	FMqttifyConnectionSettings& operator=(const FMqttifyConnectionSettings&)
@@ -90,6 +92,9 @@ public:
 
 	/// @brief Get the port number for the connection.
 	int32 GetPort() const { return Port; }
+
+	/// @brief Get the max packet size
+	uint32 GetMaxPacketSize() const { return MaxPacketSize; }
 
 	/// @brief Returns the socket connection timeout.
 	uint16 GetSocketConnectionTimeoutSeconds() const { return SocketConnectionTimeoutSeconds; }
@@ -133,6 +138,7 @@ public:
 	 */
 	static TSharedPtr<FMqttifyConnectionSettings> CreateShared(
 		const FString& InURL,
+		uint32 InMaxPacketSize,
 		uint16 InPacketRetryIntervalSeconds,
 		uint16 InSocketConnectionTimeoutSeconds,
 		uint16 InKeepAliveIntervalSeconds,
@@ -140,12 +146,14 @@ public:
 		uint16 InInitialRetryIntervalSeconds,
 		uint8 InMaxConnectionRetries,
 		uint8 InMaxPacketRetries,
-		bool bInShouldVerifyCertificate
+		bool bInShouldVerifyCertificate,
+		FString&& InClientId = {}
 		);
 
 	static TSharedPtr<FMqttifyConnectionSettings> CreateShared(
 		const FString& InURL,
 		const TSharedRef<IMqttifyCredentialsProvider>& CredentialsProvider,
+		const uint32 InMaxPacketSize,
 		const uint16 InPacketRetryIntervalSeconds,
 		const uint16 InSocketConnectionTimeoutSeconds,
 		const uint16 InKeepAliveIntervalSeconds,
@@ -153,41 +161,46 @@ public:
 		const uint16 InInitialRetryIntervalSeconds,
 		const uint8 InMaxConnectionRetries,
 		const uint8 InMaxPacketRetries,
-		const bool bInShouldVerifyCertificate
+		const bool bInShouldVerifyCertificate,
+		FString&& InClientId = {}
 		);
 
 	// Helper function to create FMqttifyConnectionSettings
 	static TSharedPtr<FMqttifyConnectionSettings> CreateSharedInternal(
-		FString&& Host,
-		FString&& Path,
-		const EMqttifyConnectionProtocol Protocol,
-		const int32 Port,
-		const TSharedRef<IMqttifyCredentialsProvider>& CredentialsProvider,
-		const uint16 PacketRetryIntervalSeconds,
-		const uint16 SocketConnectionTimeoutSeconds,
-		const uint16 KeepAliveIntervalSeconds,
-		const uint16 MqttConnectionTimeoutSeconds,
-		const uint16 InitialRetryIntervalSeconds,
-		const uint8 MaxConnectionRetries,
-		const uint8 MaxPacketRetries,
-		const bool bShouldVerifyServerCertificate
+		FString&& InHost,
+		FString&& InPath,
+		const EMqttifyConnectionProtocol InProtocol,
+		const int32 InPort,
+		const TSharedRef<IMqttifyCredentialsProvider>& InCredentialsProvider,
+		const uint32 InMaxPacketSize,
+		const uint16 InPacketRetryIntervalSeconds,
+		const uint16 InSocketConnectionTimeoutSeconds,
+		const uint16 InKeepAliveIntervalSeconds,
+		const uint16 InMqttConnectionTimeoutSeconds,
+		const uint16 InInitialRetryIntervalSeconds,
+		const uint8 InMaxConnectionRetries,
+		const uint8 InMaxPacketRetries,
+		const bool bInShouldVerifyServerCertificate,
+		FString&& InClientId
 		)
 	{
 		return MakeShareable(
 			new FMqttifyConnectionSettings(
-				MoveTemp(Host),
-				MoveTemp(Path),
-				Protocol,
-				Port,
-				CredentialsProvider,
-				PacketRetryIntervalSeconds,
-				SocketConnectionTimeoutSeconds,
-				KeepAliveIntervalSeconds,
-				MqttConnectionTimeoutSeconds,
-				InitialRetryIntervalSeconds,
-				MaxConnectionRetries,
-				MaxPacketRetries,
-				bShouldVerifyServerCertificate));
+				MoveTemp(InHost),
+				MoveTemp(InPath),
+				InProtocol,
+				InPort,
+				InCredentialsProvider,
+				InMaxPacketSize,
+				InPacketRetryIntervalSeconds,
+				InSocketConnectionTimeoutSeconds,
+				InKeepAliveIntervalSeconds,
+				InMqttConnectionTimeoutSeconds,
+				InInitialRetryIntervalSeconds,
+				InMaxConnectionRetries,
+				InMaxPacketRetries,
+				bInShouldVerifyServerCertificate,
+				MoveTemp(InClientId)));
 	}
 
 	/**
@@ -206,6 +219,7 @@ private:
 	 * @param InPort The port to connect to.
 	 * @param InHost The host to connect to.
 	 * @param InCredentialsProvider The credential provider to use for authentication.
+	 * @param InMaxPacketSize The max size of the MQTT packet.
 	 * @param InPath The Uri path to use for the connection.
 	 * @param InPacketRetryIntervalSeconds The packet retry interval in seconds.
 	 * @param InSocketConnectionTimeoutSeconds The socket connection timeout in seconds.
@@ -223,6 +237,7 @@ private:
 		const EMqttifyConnectionProtocol InConnectionProtocol,
 		const int16 InPort,
 		const FMqttifyCredentialsProviderRef& InCredentialsProvider,
+		const uint32 InMaxPacketSize,
 		const uint16 InPacketRetryIntervalSeconds,
 		const uint16 InSocketConnectionTimeoutSeconds,
 		const uint16 InKeepAliveIntervalSeconds,

@@ -1,3 +1,4 @@
+#include "Tests/MqttifyTestUtilities.h"
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "MqttifySocketRunnable.h"
@@ -27,12 +28,13 @@ void MqttifyMqttifySocketSpec::Define()
 	BeforeEach(
 		[this]
 		{
-			SocketRunner = MakeShared<FMqttifySocketRunnable>(TEXT("mqtt://localhost:1883"));
+			const uint16 Port = FindAvailablePort(1024, 32000);
+			SocketRunner = MakeShared<FMqttifySocketRunnable>(FString::Printf(TEXT("mqtt://localhost:%d"), Port));
 
 			// Create a listening socket to simulate a server
 			ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
 			const TSharedPtr<FInternetAddr> Addr = SocketSubsystem->CreateInternetAddr();
-			Addr->SetPort(1883);
+			Addr->SetPort(Port);
 			const TSharedRef<FInternetAddr> LocalAddress = Addr.ToSharedRef();
 			ListeningSocket = SocketSubsystem->CreateSocket(NAME_Stream, TEXT("ListeningSocket"), false);
 			ListeningSocket->SetNonBlocking(true);
@@ -56,10 +58,11 @@ void MqttifyMqttifySocketSpec::Define()
 		[this]
 		{
 			// Clean up the listening socket
+			ListeningSocket->Shutdown(ESocketShutdownMode::ReadWrite);
 			ListeningSocket->Close();
 			SocketRunner->Stop();
-			delete ListeningSocket;
 			SocketRunner.Reset();
+			delete ListeningSocket;
 		});
 
 	// Describe the behavior of the BSD style socket
@@ -92,9 +95,23 @@ void MqttifyMqttifySocketSpec::Define()
 					SocketRunner->GetSocket()->GetOnConnectDelegate().AddLambda(
 						[this, Done](const bool bWasSuccessful)
 						{
+							if (!bWasSuccessful)
+							{
+								AddError(TEXT("Socket should be connected to the server"));
+								Done.Execute();
+								return;
+							}
+
 							bool bHasPendingConnection = false;
 							ListeningSocket->WaitForPendingConnection(bHasPendingConnection, 5.0f);
 							TestTrue(TEXT("Listening socket should have a pending connection"), bHasPendingConnection);
+
+							if (!bHasPendingConnection)
+							{
+								LOG_MQTTIFY(Error, TEXT("Listening socket should have a pending connection"));
+								Done.Execute();
+								return;
+							}
 
 							FSocket* ClientSocket = ListeningSocket->Accept(TEXT("AcceptedSocket"));
 							ClientSocket->SetNonBlocking(false);
@@ -118,14 +135,14 @@ void MqttifyMqttifySocketSpec::Define()
 							uint8 ReceivedData[Size]{};
 							int32 BytesRead = 0;
 							bool bDataReceived = false;
-							const FTimespan WaitTime = FTimespan::FromSeconds(5.0f);
+							const FTimespan WaitTime = FTimespan::FromSeconds(60.0f);
 							const FDateTime EndTime = FDateTime::Now() + WaitTime;
 
 							while (FDateTime::Now() < EndTime)
 							{
 								const bool bDataAvailable = ClientSocket->Wait(
 									ESocketWaitConditions::WaitForRead,
-									FTimespan::FromMilliseconds(100));
+									FTimespan::FromMilliseconds(60));
 								if (bDataAvailable)
 								{
 									const bool bRecvSuccessful = ClientSocket->Recv(

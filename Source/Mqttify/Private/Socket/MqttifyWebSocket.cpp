@@ -29,9 +29,10 @@ namespace Mqttify
 		static const TMap<FString, FString> Headers = {
 			{TEXT("Connection"), TEXT("Upgrade")},
 			{TEXT("Upgrade"), TEXT("websocket")},
+			{TEXT("Sec-WebSocket-Protocol"), TEXT("mqtt")},
 		};
 
-		Socket = FWebSocketsModule::Get().CreateWebSocket(ConnectionSettings->ToConnectionString(), Protocols, Headers);
+		Socket = FWebSocketsModule::Get().CreateWebSocket(ConnectionSettings->ToString(), Protocols, Headers);
 
 		if (!Socket.IsValid())
 		{
@@ -86,7 +87,6 @@ namespace Mqttify
 
 		if (!IsConnected() && CurrentState == EMqttifySocketState::Connected)
 		{
-			OnDisconnectDelegate.Broadcast();
 			FinalizeDisconnect();
 			LOG_MQTTIFY(Warning, TEXT("Socket unexpectedly disconnected."));
 			return;
@@ -95,7 +95,6 @@ namespace Mqttify
 		if (DisconnectTime < FDateTime::Now())
 		{
 			LOG_MQTTIFY(Error, TEXT("Socket Connection Timeout: Address %s."), *ConnectionSettings->ToString());
-			OnDisconnectDelegate.Broadcast();
 			FinalizeDisconnect();
 		}
 	}
@@ -128,6 +127,7 @@ namespace Mqttify
 		FScopeLock Lock{&SocketAccessLock};
 		CurrentState = EMqttifySocketState::Disconnected;
 		DisconnectTime = FDateTime::MaxValue();
+		OnDisconnectDelegate.Broadcast();
 		if (Socket.IsValid())
 		{
 			Socket->OnConnected().RemoveAll(this);
@@ -164,7 +164,7 @@ namespace Mqttify
 				*Reason,
 				bWasClean);
 		}
-		OnDisconnectDelegate.Broadcast();
+
 		FinalizeDisconnect();
 	}
 

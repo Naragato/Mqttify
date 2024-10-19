@@ -12,7 +12,7 @@ namespace Mqttify
 {
 	class FMqttifySocketRunnable final : public FRunnable
 	{
-		std::atomic<bool> bIsStopping;
+		std::atomic<bool> bIsStopping = false;
 
 	public:
 		TSharedPtr<FMqttifyConnectionSettings> ConnectionSettings;
@@ -23,12 +23,29 @@ namespace Mqttify
 		explicit FMqttifySocketRunnable(const FString& InUrl)
 		{
 			ConnectionSettings = FMqttifyConnectionSettingsBuilder(InUrl).Build();
-			SocketUnderTest    = FMqttifySocketBase::Create(ConnectionSettings.ToSharedRef());
-			Thread             = FRunnableThread::Create(this,
-											TEXT("SocketRunnable"),
-											0,
-											TPri_Normal,
-											FPlatformAffinity::GetPoolThreadMask());
+			SocketUnderTest = FMqttifySocketBase::Create(ConnectionSettings.ToSharedRef());
+
+			SocketUnderTest->GetOnConnectDelegate().AddLambda(
+				[this](const bool bWasSuccessful)
+				{
+					if (!bWasSuccessful)
+					{
+						bIsStopping.store(true, std::memory_order_release);
+					}
+				});
+
+			SocketUnderTest->GetOnDisconnectDelegate().AddLambda(
+				[this]
+				{
+					bIsStopping.store(true, std::memory_order_release);
+				});
+
+			Thread = FRunnableThread::Create(
+				this,
+				TEXT("SocketRunnable"),
+				0,
+				TPri_Normal,
+				FPlatformAffinity::GetPoolThreadMask());
 		}
 
 		virtual ~FMqttifySocketRunnable() override
@@ -44,11 +61,10 @@ namespace Mqttify
 
 		virtual uint32 Run() override
 		{
-			while (!bIsStopping.load(std::memory_order_acquire) ||
-				(SocketUnderTest.IsValid() && SocketUnderTest->IsConnected()))
+			while (!bIsStopping.load(std::memory_order_acquire) && SocketUnderTest.IsValid())
 			{
 				SocketUnderTest->Tick();
-				FPlatformProcess::YieldThread();
+				FPlatformProcess::SleepNoStats(0.0001f);
 			}
 			return 0;
 		}
