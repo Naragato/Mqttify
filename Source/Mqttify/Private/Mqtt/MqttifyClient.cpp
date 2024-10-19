@@ -12,7 +12,7 @@
 #include "Mqtt/Interface/IMqttifySubscribableAsync.h"
 #include "Mqtt/Interface/IMqttifyUnsubscribableAsync.h"
 #include "Mqtt/State/MqttifyClientDisconnectedState.h"
-#include "Socket/SocketState/IMqttifySocketTickable.h"
+#include "Socket/Interface/IMqttifySocketTickable.h"
 
 namespace Mqttify
 {
@@ -42,7 +42,9 @@ namespace Mqttify
 		if (!CurrentState.IsValid())
 		{
 			TWeakPtr<FMqttifyClient> ThisWeakPtr = AsWeak();
-			auto OnStateChanged = FMqttifyClientState::FOnStateChangedDelegate::CreateSP(this, &FMqttifyClient::TransitionTo);
+			auto OnStateChanged = FMqttifyClientState::FOnStateChangedDelegate::CreateSP(
+				this,
+				&FMqttifyClient::TransitionTo);
 
 			Socket->GetOnConnectDelegate().AddSP(this, &FMqttifyClient::OnSocketConnect);
 			Socket->GetOnDisconnectDelegate().AddSP(this, &FMqttifyClient::OnSocketDisconnect);
@@ -213,7 +215,10 @@ namespace Mqttify
 			}
 		}
 
-		LOG_MQTTIFY(Warning, TEXT("No connected handler found"));
+		LOG_MQTTIFY(
+			Warning,
+			TEXT("No connected handler found current %s"),
+			EnumToTCharString(CurrentState->GetState()));
 	}
 
 	void FMqttifyClient::OnSocketDisconnect() const
@@ -227,7 +232,10 @@ namespace Mqttify
 				return;
 			}
 		}
-		LOG_MQTTIFY(Warning, TEXT("No disconnect handler found"));
+		LOG_MQTTIFY(
+			Warning,
+			TEXT("No disconnected handler found current %s"),
+			EnumToTCharString(CurrentState->GetState()));
 	}
 
 	void FMqttifyClient::OnReceivePacket(const TSharedPtr<FArrayReader>& InPacket) const
@@ -241,6 +249,9 @@ namespace Mqttify
 				return;
 			}
 		}
-		LOG_MQTTIFY(Warning, TEXT("No packet receiver found"));
+		LOG_MQTTIFY(
+			Warning,
+			TEXT("No Packet Receiver handler found current %s"),
+			EnumToTCharString(CurrentState->GetState()));
 	}
 } // namespace Mqttify

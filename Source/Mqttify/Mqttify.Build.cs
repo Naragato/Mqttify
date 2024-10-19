@@ -18,7 +18,7 @@ public class Mqttify : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new[]
 			{
-				"Asio",
+				"Boost",
 				"Engine",
 				"Networking",
 				"Projects",

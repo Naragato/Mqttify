@@ -18,10 +18,10 @@ namespace Mqttify
 
 		switch (InConnectionSettings->GetTransportProtocol())
 		{
-
 			case EMqttifyConnectionProtocol::Mqtt:
+				return MakeShared<TMqttifySocket<FTcpSocket>>(InConnectionSettings);
 			case EMqttifyConnectionProtocol::Mqtts:
-				return MakeShared<FMqttifySocket>(InConnectionSettings);
+				return MakeShared<TMqttifySocket<FSslSocket>>(InConnectionSettings);
 			case EMqttifyConnectionProtocol::Ws:
 			case EMqttifyConnectionProtocol::Wss:
 			default:

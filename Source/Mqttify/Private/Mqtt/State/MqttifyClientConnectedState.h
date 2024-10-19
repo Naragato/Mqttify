@@ -8,8 +8,8 @@
 #include "Mqtt/Interface/IMqttifySubscribableAsync.h"
 #include "Mqtt/Interface/IMqttifyUnsubscribableAsync.h"
 #include "Mqtt/State/MqttifyClientState.h"
+#include "Socket/Interface/IMqttifySocketTickable.h"
 #include "Socket/Interface/MqttifySocketBase.h"
-#include "Socket/SocketState/IMqttifySocketTickable.h"
 
 enum class EMqttifyQualityOfService : uint8;
 

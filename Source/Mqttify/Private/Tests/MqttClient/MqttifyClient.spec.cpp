@@ -1,3 +1,5 @@
+#include "Mqtt/MqttifyConnectionSettingsBuilder.h"
+#include "Tests/MqttifyTestUtilities.h"
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "MqttifyModule.h"
@@ -12,6 +14,7 @@ BEGIN_DEFINE_SPEC(
 	EAutomationTestFlags::ProductFilter | EAutomationTestFlags::ApplicationContextMask)
 
 	static constexpr TCHAR kTopic[] = TEXT("/Test");
+	FString DockerContainerName = TEXT("vernemq_test_container");
 	TSharedPtr<IMqttifyClient> MqttClientA = nullptr;
 	TSharedPtr<IMqttifyClient> MqttClientB = nullptr;
 
@@ -20,7 +23,7 @@ BEGIN_DEFINE_SPEC(
 	FOnSubscribe::FDelegate ClientBOnSubscribeDelegate;
 	FOnMessage::FDelegate ClientBOnMessageDelegate;
 
-	void OnClientConnect(const bool) const
+	void OnClientConnect() const
 	{
 		if (nullptr == MqttClientA)
 		{
@@ -53,147 +56,219 @@ END_DEFINE_SPEC(FMqttifyClientTests)
 
 void FMqttifyClientTests::Define()
 {
-	Describe(
-		TEXT("When MQTT Client connected"),
-		[this]
-		{
-			LatentBeforeEach(
-				[this](const FDoneDelegate& BeforeDone)
-				{
-					auto& MqttifyModule = IMqttifyModule::Get();
+	TArray<FMqttifyTestDockerSpec> Specs = {{8080, FindAvailablePort(5000, 10000), EMqttifyConnectionProtocol::Ws}};
 
-					MqttClientA = MqttifyModule.GetOrCreateClient(FString(TEXT("mqtt://clientA:password@localhost:1883")));
-					MqttClientB = MqttifyModule.GetOrCreateClient(FString(TEXT("mqtt://clientB:password@localhost:1883")));
-					if (nullptr == MqttClientA)
+	for (const FMqttifyTestDockerSpec& Spec : Specs)
+	{
+		Describe(
+			FString::Printf(TEXT("MQTT Client test %s"), GetProtocolString(Spec.Protocol)),
+			[this, Spec]
+			{
+				LatentBeforeEach(
+					[this, Spec](const FDoneDelegate& BeforeDone)
 					{
-						LOG_MQTTIFY(Error, TEXT("MqttClientA is nullptr."));
-						BeforeDone.Execute();
-						return;
-					}
+						auto& MqttifyModule = IMqttifyModule::Get();
 
-					if (nullptr == MqttClientB)
-					{
-						LOG_MQTTIFY(Error, TEXT("MqttClientB is nullptr."));
-						BeforeDone.Execute();
-						return;
-					}
+						FMqttifyConnectionSettingsBuilder ConnectionSettingsBuilderA =
+							FMqttifyConnectionSettingsBuilder(
+								FString::Printf(
+									TEXT("%s://clientA:password@localhost:%d%s"),
+									GetProtocolString(Spec.Protocol),
+									Spec.PublicPort,
+									GetPath(Spec.Protocol)));
+						ConnectionSettingsBuilderA.SetClientId(TEXT("Test - ClientA"));
+						const TSharedRef<FMqttifyConnectionSettings> ConnectionSettingsA = ConnectionSettingsBuilderA.
+							Build().ToSharedRef();
 
-					ClientAOnConnectHandle = MqttClientA->OnConnect().AddRaw(this, &FMqttifyClientTests::OnClientConnect);
+						FMqttifyConnectionSettingsBuilder ConnectionSettingsBuilderB =
+							FMqttifyConnectionSettingsBuilder(
+								FString::Printf(
+									TEXT("%s://clientB:password@localhost:%d%s"),
+									GetProtocolString(Spec.Protocol),
+									Spec.PublicPort,
+									GetPath(Spec.Protocol)));
+						ConnectionSettingsBuilderA.SetClientId(TEXT("Test - ClientB"));
+						const TSharedRef<FMqttifyConnectionSettings> ConnectionSettingsB = ConnectionSettingsBuilderA.
+							Build().ToSharedRef();
 
-					ClientBOnConnectHandle = MqttClientB->OnConnect().AddRaw(this, &FMqttifyClientTests::OnClientConnect);
+						MqttClientA = MqttifyModule.GetOrCreateClient(ConnectionSettingsA);
+						MqttClientB = MqttifyModule.GetOrCreateClient(ConnectionSettingsB);
 
-					ClientBOnSubscribeDelegate = FOnSubscribe::FDelegate::CreateLambda(
-						[this, BeforeDone](const TSharedPtr<TArray<FMqttifySubscribeResult>>& InResult)
+						if (nullptr == MqttClientA)
 						{
-							if (nullptr == InResult)
-							{
-								LOG_MQTTIFY(Error, TEXT("InResult is nullptr."));
-								BeforeDone.Execute();
-								return;
-							}
-
-							if (InResult->IsEmpty())
-							{
-								LOG_MQTTIFY(Error, TEXT("InResult is empty."));
-							}
-
-							if (!InResult->IsEmpty() && InResult->Top().GetFilter().GetFilter() != kTopic)
-							{
-								LOG_MQTTIFY(Error, TEXT("InResult contains wrong topic."));
-							}
+							LOG_MQTTIFY(Error, TEXT("MqttClientA is nullptr."));
 							BeforeDone.Execute();
-						});
-					MqttClientB->OnSubscribe().Add(ClientBOnSubscribeDelegate);
+							return;
+						}
 
-					MqttClientA->ConnectAsync(false);
-					MqttClientB->ConnectAsync(false);
-				});
-
-			LatentIt(
-				"Client B should unsubscribe",
-				[this](const FDoneDelegate& TestDone)
-				{
-					MqttClientB->UnsubscribeAsync({FString(kTopic)}).Then(
-						[this, TestDone](const TFuture<TMqttifyResult<TArray<FMqttifyUnsubscribeResult>>>& InFuture)
+						if (nullptr == MqttClientB)
 						{
-							const TSharedPtr<TArray<FMqttifyUnsubscribeResult>> Result = InFuture.Get().GetResult();
-							TestValid(TEXT("Result should not be null"), Result);
-							TestFalse(TEXT("Result should be empty"), Result->IsEmpty());
-							TestEqual(TEXT("Result should have 1 element"), Result->Num(), 1);
-							TestTrue(TEXT("Result should be successful"), Result->Top().WasSuccessful());
-							TestEqual(TEXT("Topic should match"), Result->Top().GetFilter().GetFilter(), kTopic);
-							TestDone.Execute();
-						});
-				});
+							LOG_MQTTIFY(Error, TEXT("MqttClientB is nullptr."));
+							BeforeDone.Execute();
+							return;
+						}
 
-			LatentIt(
-				TEXT("Client A should successfully send a message to Client B  QoS AtMostOnce"),
-				[this](const FDoneDelegate& TestDone)
-				{
-					const TArray<uint8> Payload = TArray<uint8>{0, 1, 2, 3, 4};
-					ClientBOnMessageDelegate = FOnMessage::FDelegate::CreateLambda(
-						[this, TestDone, Payload](const FMqttifyMessage& InMessage)
+						if (!StartBroker(DockerContainerName, Spec))
 						{
-							TestEqual("Topic should match", InMessage.GetTopic(), kTopic);
-							TestEqual("Payload should match", InMessage.GetPayload(), Payload);
-							TestDone.Execute();
-						});
+							AddError(TEXT("Failed to start MQTT broker."));
+							return;
+						}
 
-					MqttClientB->OnMessage().Add(ClientBOnMessageDelegate);
-					MqttClientA->PublishAsync(FMqttifyMessage{FString{kTopic}, TArray<uint8>{Payload}, false, EMqttifyQualityOfService::AtMostOnce});
-				});
+						ClientAOnConnectHandle = MqttClientA->OnConnect().AddLambda(
+							[this, BeforeDone](const bool bIsConnected)
+							{
+								if (bIsConnected)
+								{
+									this->OnClientConnect();
+								}
+								else
+								{
+									BeforeDone.Execute();
+								}
+							});
 
-			LatentIt(
-				TEXT("Client A should successfully send a message AtLeastOnce"),
-				[this](const FDoneDelegate& TestDone)
-				{
-					const TArray<uint8> Payload = TArray<uint8>{0, 1, 2, 3, 4};
-					MqttClientA->PublishAsync(FMqttifyMessage{FString{kTopic}, TArray<uint8>{Payload}, false, EMqttifyQualityOfService::AtLeastOnce}).
-					             Then(
-						             [this, TestDone](const TFuture<TMqttifyResult<void>>& InFuture)
-						             {
-							             TestTrue(TEXT("Future should have result"), InFuture.IsReady());
-							             TestTrue(TEXT("Future should have be successful"), InFuture.Get().HasSucceeded());
-							             TestDone.Execute();
-						             });
-				});
+						ClientBOnConnectHandle = MqttClientB->OnConnect().AddLambda(
+							[this, BeforeDone](const bool bIsConnected)
+							{
+								if (bIsConnected)
+								{
+									this->OnClientConnect();
+								}
+								else
+								{
+									BeforeDone.Execute();
+								}
+							});
 
-			LatentIt(
-				TEXT("Client A should successfully send a message ExactlyOnce"),
-				[this](const FDoneDelegate& TestDone)
-				{
-					const TArray<uint8> Payload = TArray<uint8>{0, 1, 2, 3, 4};
+						ClientBOnSubscribeDelegate = FOnSubscribe::FDelegate::CreateLambda(
+							[this, BeforeDone](const TSharedPtr<TArray<FMqttifySubscribeResult>>& InResult)
+							{
+								if (nullptr == InResult)
+								{
+									LOG_MQTTIFY(Error, TEXT("InResult is nullptr."));
+									BeforeDone.Execute();
+									return;
+								}
 
-					MqttClientA->PublishAsync(FMqttifyMessage{FString{kTopic}, TArray<uint8>{Payload}, false, EMqttifyQualityOfService::ExactlyOnce}).
-					             Then(
-						             [this, TestDone](const TFuture<TMqttifyResult<void>>& InFuture)
-						             {
-							             TestTrue(TEXT("Future should have result"), InFuture.IsReady());
-							             TestTrue(TEXT("Future should have be successful"), InFuture.Get().HasSucceeded());
-							             TestDone.Execute();
-						             });
-				});
+								if (InResult->IsEmpty())
+								{
+									LOG_MQTTIFY(Error, TEXT("InResult is empty."));
+								}
 
-			AfterEach(
-				[this]()
-				{
-					LOG_MQTTIFY(Verbose, TEXT("FMqttifyClientTests::LatentAfterEach"));
-					if (nullptr == MqttClientA)
+								if (!InResult->IsEmpty() && InResult->Top().GetFilter().GetFilter() != kTopic)
+								{
+									LOG_MQTTIFY(Error, TEXT("InResult contains wrong topic."));
+								}
+								BeforeDone.Execute();
+							});
+						MqttClientB->OnSubscribe().Add(ClientBOnSubscribeDelegate);
+
+						MqttClientA->ConnectAsync(false);
+						MqttClientB->ConnectAsync(false);
+					});
+
+				LatentIt(
+					"Client B should unsubscribe",
+					[this](const FDoneDelegate& TestDone)
 					{
-						LOG_MQTTIFY(Error, TEXT("MqttClientA is nullptr."));
-						return;
-					}
+						MqttClientB->UnsubscribeAsync({FString(kTopic)}).Then(
+							[this, TestDone](const TFuture<TMqttifyResult<TArray<FMqttifyUnsubscribeResult>>>& InFuture)
+							{
+								const TSharedPtr<TArray<FMqttifyUnsubscribeResult>> Result = InFuture.Get().GetResult();
+								TestValid(TEXT("Result should not be null"), Result);
+								TestFalse(TEXT("Result should be empty"), Result->IsEmpty());
+								TestEqual(TEXT("Result should have 1 element"), Result->Num(), 1);
+								TestTrue(TEXT("Result should be successful"), Result->Top().WasSuccessful());
+								TestEqual(TEXT("Topic should match"), Result->Top().GetFilter().GetFilter(), kTopic);
+								TestDone.Execute();
+							});
+					});
 
-					if (nullptr == MqttClientB)
+				LatentIt(
+					TEXT("Client A should successfully send a message to Client B  QoS AtMostOnce"),
+					[this](const FDoneDelegate& TestDone)
 					{
-						LOG_MQTTIFY(Error, TEXT("MqttClientB is nullptr."));
-						return;
-					}
+						const TArray<uint8> Payload = TArray<uint8>{0, 1, 2, 3, 4};
+						ClientBOnMessageDelegate = FOnMessage::FDelegate::CreateLambda(
+							[this, TestDone, Payload](const FMqttifyMessage& InMessage)
+							{
+								TestEqual("Topic should match", InMessage.GetTopic(), kTopic);
+								TestEqual("Payload should match", InMessage.GetPayload(), Payload);
+								TestDone.Execute();
+							});
 
-					MqttClientA->DisconnectAsync();
-					MqttClientB->DisconnectAsync();
-				});
-		});
+						MqttClientB->OnMessage().Add(ClientBOnMessageDelegate);
+						MqttClientA->PublishAsync(
+							FMqttifyMessage{
+								FString{kTopic},
+								TArray<uint8>{Payload},
+								false,
+								EMqttifyQualityOfService::AtMostOnce
+							});
+					});
+
+				LatentIt(
+					TEXT("Client A should successfully send a message AtLeastOnce"),
+					[this](const FDoneDelegate& TestDone)
+					{
+						const TArray<uint8> Payload = TArray<uint8>{0, 1, 2, 3, 4};
+						MqttClientA->PublishAsync(
+							FMqttifyMessage{
+								FString{kTopic},
+								TArray<uint8>{Payload},
+								false,
+								EMqttifyQualityOfService::AtLeastOnce
+							}).Then(
+							[this, TestDone](const TFuture<TMqttifyResult<void>>& InFuture)
+							{
+								TestTrue(TEXT("Future should have result"), InFuture.IsReady());
+								TestTrue(TEXT("Future should have be successful"), InFuture.Get().HasSucceeded());
+								TestDone.Execute();
+							});
+					});
+
+				LatentIt(
+					TEXT("Client A should successfully send a message ExactlyOnce"),
+					[this](const FDoneDelegate& TestDone)
+					{
+						const TArray<uint8> Payload = TArray<uint8>{0, 1, 2, 3, 4};
+
+						MqttClientA->PublishAsync(
+							FMqttifyMessage{
+								FString{kTopic},
+								TArray<uint8>{Payload},
+								false,
+								EMqttifyQualityOfService::ExactlyOnce
+							}).Then(
+							[this, TestDone](const TFuture<TMqttifyResult<void>>& InFuture)
+							{
+								TestTrue(TEXT("Future should have result"), InFuture.IsReady());
+								TestTrue(TEXT("Future should have be successful"), InFuture.Get().HasSucceeded());
+								TestDone.Execute();
+							});
+					});
+
+				AfterEach(
+					[this]()
+					{
+						LOG_MQTTIFY(Verbose, TEXT("FMqttifyClientTests::LatentAfterEach"));
+						if (nullptr == MqttClientA)
+						{
+							LOG_MQTTIFY(Error, TEXT("MqttClientA is nullptr."));
+							return;
+						}
+
+						if (nullptr == MqttClientB)
+						{
+							LOG_MQTTIFY(Error, TEXT("MqttClientB is nullptr."));
+							return;
+						}
+
+						MqttClientA->DisconnectAsync();
+						MqttClientB->DisconnectAsync();
+					});
+			});
+	}
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS

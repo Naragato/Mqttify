@@ -1,7 +1,5 @@
 #pragma once
-#include "Mqtt/MqttifyResult.h"
 #include "Mqtt/Interface/IMqttifyClient.h"
-#include "Socket/SocketState/IMqttifySocketTickable.h"
 
 struct FMqttifyUnsubscribeResult;
 

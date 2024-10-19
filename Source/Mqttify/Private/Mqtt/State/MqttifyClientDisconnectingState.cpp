@@ -24,6 +24,7 @@ namespace Mqttify
 				DisconnectPacket.Encode(Writer);
 				Socket->Send(ActualBytes.GetData(), ActualBytes.Num());
 				Socket->Disconnect();
+				return;
 			}
 		}
 
@@ -33,12 +34,12 @@ namespace Mqttify
 
 	TFuture<TMqttifyResult<void>> FMqttifyClientDisconnectingState::DisconnectAsync()
 	{
-		Context->CompleteDisconnect();
 		return Context->GetDisconnectPromise()->GetFuture();
 	}
 
 	void FMqttifyClientDisconnectingState::OnSocketDisconnect()
 	{
+		Context->CompleteDisconnect();
 		TransitionTo(MakeShared<FMqttifyClientDisconnectedState>(OnStateChanged, Context, Socket));
 	}
 } // namespace Mqttify
