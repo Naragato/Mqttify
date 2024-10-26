@@ -1,8 +1,8 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "MqttifyQualityOfService.h"
-
+#include "Mqtt/MqttifyProtocolVersion.h"
+#include "Mqtt/MqttifyQualityOfService.h"
 #include "MqttifyMessage.generated.h"
 
 namespace Mqttify
@@ -11,6 +11,13 @@ namespace Mqttify
 	struct TMqttifyPublishPacket;
 }
 
+/**
+ * @brief Represents an MQTT message.
+ *
+ * This class encapsulates the data and related operations for an MQTT message.
+ * It provides methods to manipulate and access the message content,
+ * topic, and other related properties.
+ */
 USTRUCT(BlueprintType)
 struct MQTTIFY_API FMqttifyMessage
 {
@@ -22,6 +29,16 @@ public:
 		, Topic{ TEXT("") }
 		, bRetain{ false }
 		, QualityOfService(EMqttifyQualityOfService::AtMostOnce) {}
+
+	FMqttifyMessage(const FString& InTopic,
+				const TArray<uint8>& InPayload,
+				const bool bInRetain,
+				const EMqttifyQualityOfService InQualityOfService)
+	: TimeStamp{ FDateTime::UtcNow() }
+	, Topic{ InTopic }
+	, Payload{ InPayload }
+	, bRetain{ bInRetain }
+	, QualityOfService(InQualityOfService) {}
 
 	FMqttifyMessage(FString&& InTopic,
 					TArray<uint8>&& InPayload,
@@ -72,7 +89,9 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MQTT", meta = (AllowPrivateAccess = true))
 	TArray<uint8> Payload;
 
-	/** Retain flag. */
+	/**
+	 * @brief Indicates whether the broker should retain the message for new subscribers.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MQTT", meta = (AllowPrivateAccess = true))
 	bool bRetain;
 

@@ -5,6 +5,7 @@ namespace Mqttify
 #pragma region MQTT 3.1.1
 	void TMqttifyConnAckPacket<EMqttifyProtocolVersion::Mqtt_3_1_1>::Encode(FMemoryWriter& InWriter)
 	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("[Encode][ConnAck]"));
 		InWriter.SetByteSwapping(true);
 		FixedHeader.Encode(InWriter);
 		uint8 Flags = bSessionPresent ? 0x1 : 0;
@@ -15,6 +16,7 @@ namespace Mqttify
 
 	void TMqttifyConnAckPacket<EMqttifyProtocolVersion::Mqtt_3_1_1>::Decode(FArrayReader& InReader)
 	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("[Decode][ConnAck]"));
 		InReader.SetByteSwapping(true);
 		if (FixedHeader.GetPacketType() != EMqttifyPacketType::ConnAck)
 		{

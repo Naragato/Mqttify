@@ -1,5 +1,6 @@
 #pragma once
-#if WITH_AUTOMATION_TESTS
+#include "Misc/Base64.h"
+#if WITH_DEV_AUTOMATION_TESTS
 
 #include "Packets/Interface/IMqttifyControlPacket.h"
 
@@ -29,7 +30,9 @@ namespace Mqttify
 		}
 
 		// Generate hex strings and check each byte
+
 		FString ActualHex, ExpectedHex;
+		FBase64::Encode(ActualBytes);
 		for (int32 i = 0; i < FMath::Max(ActualBytes.Num(), Expected.Num()); ++i)
 		{
 			if (i < ActualBytes.Num())
@@ -62,4 +65,4 @@ namespace Mqttify
 		return bAreEqual;
 	}
 } // namespace Mqttify
-#endif // WITH_AUTOMATION_TESTS
+#endif // WITH_DEV_AUTOMATION_TESTS

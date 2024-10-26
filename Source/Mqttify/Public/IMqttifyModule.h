@@ -4,7 +4,6 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "Mqtt/MqttifyConnectionSettings.h"
-#include "Mqtt/MqttifyProtocolVersion.h"
 
 class FMqttifyConnectionSettings;
 class IMqttifyClient;

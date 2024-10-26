@@ -1,35 +1,83 @@
 #pragma once
 
+#include "boost/asio/ip/tcp.hpp"
 #include "CoreMinimal.h"
 #include "Mqtt/MqttifyConnectionSettings.h"
 #include "Socket/Interface/MqttifySocketBase.h"
-#include "SocketState/MqttifySocketState.h"
+
+#define UI UI_ST
+#include "boost/asio/ssl.hpp"
+#undef UI
 
 namespace Mqttify
 {
-	/// @brief Raw Socket Implementation of FMqttifySocket
-	class FMqttifySocket final : public FMqttifySocketBase
+	enum class EMqttifySocketState;
+
+	using FTcpSocket = boost::asio::ip::tcp::socket;
+	using FSslSocket = boost::asio::ssl::stream<boost::asio::ip::tcp::socket>;
+
+	// TSslContextHolder for non-SSL sockets (empty base class)
+	template <typename TSocketType, typename Enable = void>
+	class TSslContextHolder
+	{
+	protected:
+		TSslContextHolder() = default;
+	};
+
+	template <typename TSocketType>
+	class TSslContextHolder<TSocketType, std::enable_if_t<std::is_same<TSocketType, FSslSocket>::value>>
+	{
+	protected:
+		TUniquePtr<boost::asio::ssl::context> SslContext;
+
+		TSslContextHolder()
+			: SslContext(MakeUnique<boost::asio::ssl::context>(boost::asio::ssl::context::tlsv13_client))
+		{
+		}
+	};
+
+	template <typename TSocketType>
+	class TMqttifySocket final : public FMqttifySocketBase,
+	                             public TSharedFromThis<TMqttifySocket<TSocketType>>,
+	                             private TSslContextHolder<TSocketType>
 	{
 	private:
-		const FMqttifyConnectionSettingsRef ConnectionSettings;
-		TUniquePtr<FMqttifySocketState> CurrentState;
-		mutable FCriticalSection SocketAccessLock;
+		using FSocketPtr = TSharedPtr<TSocketType>;
 
-		void TransitionTo(TUniquePtr<FMqttifySocketState>&& InNewState);
+		const FMqttifyConnectionSettingsRef ConnectionSettings;
+		boost::asio::io_context IoContext{};
+		boost::asio::ip::tcp::resolver Resolver;
+		FSocketPtr Socket;
+		TArray<uint8, TFixedAllocator<4096>> ReadBuffer;
+		TArray<uint8> DataBuffer;
+
+		uint32 RemainingLength;
+		EMqttifySocketState CurrentState;
 
 	public:
-		explicit FMqttifySocket(const FMqttifyConnectionSettingsRef& InConnectionSettings);
+		explicit TMqttifySocket(const FMqttifyConnectionSettingsRef& InConnectionSettings);
 
-		~FMqttifySocket() override = default;
-		void Connect() override;
-		void Disconnect() override;
-		void Send(const uint8* Data, uint32 Size) override;
-		void Tick() override;
-		bool IsConnected() const override;
+		virtual ~TMqttifySocket() override { Disconnect_Internal(); }
+		virtual void Connect() override;
+		void HandleResolve(
+			const boost::system::error_code& InError,
+			const boost::asio::ip::basic_resolver_results<boost::asio::ip::tcp>& InEndpoints
+			);
+		void OnAsyncConnect(const boost::system::error_code& InError);
 
-		FMqttifyConnectionSettingsRef GetConnectionSettings() const { return ConnectionSettings; }
+		// SSL handshake handling
+		void OnSocketConnected(const boost::system::error_code& InError);
 
+		void StartAsyncRead();
+		void HandleRead(const boost::system::error_code& InError, std::size_t InBytesTransferred);
+		void ParsePacket();
+		// FMqttifySocketBase
+		virtual void Disconnect() override;
+		virtual void Send(const uint8* InData, uint32 InSize) override;
+		virtual void Tick() override;
+		virtual bool IsConnected() const override;
+		// ~ FMqttifySocketBase
 	private:
-		friend class FMqttifySocketState;
+		void Disconnect_Internal();
 	};
 } // namespace Mqttify

@@ -19,6 +19,7 @@ uint32 Mqttify::TMqttifySubscribePacket<EMqttifyProtocolVersion::Mqtt_3_1_1>::Ge
 
 void Mqttify::TMqttifySubscribePacket<EMqttifyProtocolVersion::Mqtt_3_1_1>::Encode(FMemoryWriter& InWriter)
 {
+	LOG_MQTTIFY(VeryVerbose, TEXT("[Encode][Subscribe]"));
 	InWriter.SetByteSwapping(true);
 	FixedHeader.Encode(InWriter);
 
@@ -34,6 +35,7 @@ void Mqttify::TMqttifySubscribePacket<EMqttifyProtocolVersion::Mqtt_3_1_1>::Enco
 
 void Mqttify::TMqttifySubscribePacket<EMqttifyProtocolVersion::Mqtt_3_1_1>::Decode(FArrayReader& InReader)
 {
+	LOG_MQTTIFY(VeryVerbose, TEXT("[Decode][Subscribe]"));
 	InReader.SetByteSwapping(true);
 
 	if (FixedHeader.GetPacketType() != EMqttifyPacketType::Subscribe)
@@ -103,6 +105,7 @@ uint32 Mqttify::TMqttifySubscribePacket<EMqttifyProtocolVersion::Mqtt_5>::GetLen
 
 void Mqttify::TMqttifySubscribePacket<EMqttifyProtocolVersion::Mqtt_5>::Encode(FMemoryWriter& InWriter)
 {
+	LOG_MQTTIFY(VeryVerbose, TEXT("[Encode][Subscribe]"));
 	InWriter.SetByteSwapping(true);
 	FixedHeader.Encode(InWriter);
 	InWriter << PacketIdentifier;
@@ -122,6 +125,7 @@ void Mqttify::TMqttifySubscribePacket<EMqttifyProtocolVersion::Mqtt_5>::Encode(F
 
 void Mqttify::TMqttifySubscribePacket<EMqttifyProtocolVersion::Mqtt_5>::Decode(FArrayReader& InReader)
 {
+	LOG_MQTTIFY(VeryVerbose, TEXT("[Decode][Subscribe]"));
 	InReader.SetByteSwapping(true);
 	if (FixedHeader.GetPacketType() != EMqttifyPacketType::Subscribe)
 	{

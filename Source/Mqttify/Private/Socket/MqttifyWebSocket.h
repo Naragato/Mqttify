@@ -10,9 +10,10 @@ namespace Mqttify
 {
 	enum class EMqttifySocketState;
 
-	class FMqttifyWebSocket final : public FMqttifySocketBase
+	class FMqttifyWebSocket final : public FMqttifySocketBase, public TSharedFromThis<FMqttifyWebSocket> 
 	{
 	private:
+		mutable FCriticalSection SocketAccessLock{};
 		const FMqttifyConnectionSettingsRef ConnectionSettings;
 		TSharedPtr<IWebSocket> Socket;
 		EMqttifySocketState CurrentState;
@@ -22,14 +23,15 @@ namespace Mqttify
 	public:
 		explicit FMqttifyWebSocket(const FMqttifyConnectionSettingsRef& InConnectionSettings);
 
-		~FMqttifyWebSocket() override { Disconnect(); }
-		void Connect() override;
-		void Disconnect() override;
-		void Send(const uint8* Data, uint32 Size) override;
-		void Tick() override;
-		bool IsConnected() const override;
+		virtual ~FMqttifyWebSocket() override { Disconnect_Internal(); }
+		virtual void Connect() override;
+		virtual void Disconnect() override;
+		virtual void Send(const uint8* Data, uint32 Size) override;
+		virtual void Tick() override;
+		virtual bool IsConnected() const override;
 
 	private:
+		void Disconnect_Internal();
 		void HandleWebSocketConnected();
 		void HandleWebSocketConnectionError(const FString& Error);
 		void HandleWebSocketConnectionClosed(int32 Status, const FString& Reason, bool bWasClean);

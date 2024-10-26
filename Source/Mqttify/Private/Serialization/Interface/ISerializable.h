@@ -1,5 +1,6 @@
 #pragma once
 #include "Serialization/ArrayReader.h"
+#include "Serialization/MemoryWriter.h"
 
 class FArchive;
 

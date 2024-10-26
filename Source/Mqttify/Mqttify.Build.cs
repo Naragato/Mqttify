@@ -18,7 +18,7 @@ public class Mqttify : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new[]
 			{
-				"Asio",
+				"Boost",
 				"Engine",
 				"Networking",
 				"Projects",
@@ -37,9 +37,6 @@ public class Mqttify : ModuleRules
 
 		// Build
 		CppStandard = CppStandardVersion.Cpp17;
-		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
-
-		PrivatePCHHeaderFile = "Private/MqttifyPCH.h";
 		PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "Public"));
 		PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "Private"));
 

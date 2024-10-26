@@ -6,6 +6,7 @@
 #include "Packets/MqttifyFixedHeader.h"
 #include "Packets/Interface/MqttifyControlPacket.h"
 #include "Properties/MqttifyProperties.h"
+#include "MqttifyConstants.h"
 
 namespace Mqttify
 {
@@ -61,7 +62,7 @@ namespace Mqttify
 		 * @brief Get the packet identifier.
 		 * @return The packet identifier.
 		 */
-		uint16 GetPacketId() const override { return PacketIdentifier; }
+		virtual uint16 GetPacketId() const override { return PacketIdentifier; }
 
 		/**
 		 * @brief Get the payload.
@@ -124,9 +125,9 @@ namespace Mqttify
 			uint32 InTopicNameLength,
 			uint32 InPayloadLength,
 			EMqttifyQualityOfService InQualityOfService);
-		uint32 GetLength() const override;
-		void Encode(FMemoryWriter& InWriter) override;
-		void Decode(FArrayReader& InReader) override;
+		virtual uint32 GetLength() const override;
+		virtual void Encode(FMemoryWriter& InWriter) override;
+		virtual void Decode(FArrayReader& InReader) override;
 
 		/**
 		 * @brief Get a duplicate of the packet. Used when QoS > 0
@@ -202,10 +203,10 @@ namespace Mqttify
 			uint32 InPayloadLength,
 			uint32 InPropertiesLength,
 			EMqttifyQualityOfService InQualityOfService);
-		uint32 GetLength() const override;
+		virtual uint32 GetLength() const override;
 
-		void Encode(FMemoryWriter& InWriter) override;
-		void Decode(FArrayReader& InReader) override;
+		virtual void Encode(FMemoryWriter& InWriter) override;
+		virtual void Decode(FArrayReader& InReader) override;
 
 		/**
 		 * @brief Get the properties.

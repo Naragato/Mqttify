@@ -45,9 +45,9 @@ namespace Mqttify
 			return !(*this == InOther);
 		}
 
-		void Decode(FArrayReader& InReader) override;
+		virtual void Decode(FArrayReader& InReader) override;
 
-		void Encode(FMemoryWriter& InWriter) override;
+		virtual void Encode(FMemoryWriter& InWriter) override;
 
 		/**
 		 * @brief Get the length of the properties.

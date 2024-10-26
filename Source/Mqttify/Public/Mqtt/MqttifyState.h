@@ -1,6 +1,8 @@
 #pragma once
 
+#include "CoreMinimal.h"
 #include "MqttifyEnumToString.h"
+#include "UObject/ObjectMacros.h"
 
 /// @brief The state of the MQTT client
 UENUM(BlueprintType)

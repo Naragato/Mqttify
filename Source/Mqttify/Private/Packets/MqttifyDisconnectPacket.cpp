@@ -5,12 +5,14 @@ namespace Mqttify
 #pragma region MQTT 3.1.1
 	void TMqttifyDisconnectPacket<EMqttifyProtocolVersion::Mqtt_3_1_1>::Encode(FMemoryWriter& InWriter)
 	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("[Encode][Disconnect]"));
 		InWriter.SetByteSwapping(true);
 		FixedHeader.Encode(InWriter);
 	}
 
 	void TMqttifyDisconnectPacket<EMqttifyProtocolVersion::Mqtt_3_1_1>::Decode(FArrayReader& InReader)
 	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("[Decode][Disconnect]"));
 		InReader.SetByteSwapping(true);
 		if (FixedHeader.GetPacketType() != EMqttifyPacketType::Disconnect)
 		{
@@ -38,6 +40,7 @@ namespace Mqttify
 
 	void TMqttifyDisconnectPacket<EMqttifyProtocolVersion::Mqtt_5>::Encode(FMemoryWriter& InWriter)
 	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("[Encode][Disconnect]"));
 		InWriter.SetByteSwapping(true);
 		FixedHeader.Encode(InWriter);
 
@@ -50,6 +53,7 @@ namespace Mqttify
 
 	void TMqttifyDisconnectPacket<EMqttifyProtocolVersion::Mqtt_5>::Decode(FArrayReader& InReader)
 	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("[Decode][Disconnect]"));
 		InReader.SetByteSwapping(true);
 		if (FixedHeader.GetPacketType() != EMqttifyPacketType::Disconnect)
 		{

@@ -1,21 +1,27 @@
 #pragma once
 
+#include "MqttifyProtocolVersion.h"
+#include "MqttifyThreadMode.h"
 #include "Mqtt/MqttifyConnectionSettings.h"
 
 class MQTTIFY_API FMqttifyConnectionSettingsBuilder final
 {
 private:
 	FString Url;
+	FString ClientId{};
+	TSharedPtr<IMqttifyCredentialsProvider> CredentialsProvider = nullptr;
 	// Default values
-	uint16 PacketRetryIntervalSeconds           = 5.0f;
-	uint16 SocketConnectionTimeoutSeconds       = 10;
-	uint16 KeepAliveIntervalSeconds             = 60;
-	uint16 MqttConnectionTimeoutSeconds         = 10;
-	uint8 MaxConnectionRetries                  = 5;
-	uint8 MaxPacketRetries                      = 5;
-	uint16 InitialRetryIntervalSeconds          = 3.0f;
+	uint32 MaxPacketSize = 1 * 1024 * 1024; // 1MB
+	uint16 PacketRetryIntervalSeconds = 5.0f;
+	uint16 SocketConnectionTimeoutSeconds = 10;
+	uint16 KeepAliveIntervalSeconds = 60;
+	uint16 MqttConnectionTimeoutSeconds = 10;
+	uint8 MaxConnectionRetries = 5;
+	uint8 MaxPacketRetries = 5;
+	uint16 InitialRetryIntervalSeconds = 3.0f;
+	bool bShouldVerifyCertificate = true;
 	EMqttifyProtocolVersion MqttProtocolVersion = EMqttifyProtocolVersion::Mqtt_5;
-	EMqttifyThreadMode ThreadMode               = EMqttifyThreadMode::BackgroundThreadWithCallbackMarshalling;
+	EMqttifyThreadMode ThreadMode = EMqttifyThreadMode::BackgroundThreadWithCallbackMarshalling;
 
 public:
 	/**
@@ -23,7 +29,9 @@ public:
 	 * @param InUrl The URL to connect to.
 	 */
 	explicit FMqttifyConnectionSettingsBuilder(const FString& InUrl)
-		: Url(InUrl) {}
+		: Url(InUrl)
+	{
+	}
 
 	/**
 	 * @brief Sets the socket connection timeout in seconds.
@@ -74,7 +82,7 @@ public:
 	 * @param InInterval The initial retry interval in seconds.
 	 * @return A reference to this builder.
 	 */
-	FMqttifyConnectionSettingsBuilder& SetInitialRetryInterval(const uint16 InInterval)
+	FMqttifyConnectionSettingsBuilder& SetInitialRetryConnectionInterval(const uint16 InInterval)
 	{
 		InitialRetryIntervalSeconds = InInterval;
 		return *this;
@@ -125,20 +133,67 @@ public:
 	}
 
 	/**
+	 * @brief Sets the verify certificate flag.
+	 * @param InVerifyCertificate The verify certificate flag.
+	 * @return A reference to this builder.
+	 */
+	FMqttifyConnectionSettingsBuilder& SetShouldVerifyCertificate(const bool InVerifyCertificate)
+	{
+		bShouldVerifyCertificate = InVerifyCertificate;
+		return *this;
+	}
+
+	FMqttifyConnectionSettingsBuilder& SetCredentialsProvider(
+		const TSharedRef<IMqttifyCredentialsProvider>& InCredentialsProvider
+		)
+	{
+		CredentialsProvider = InCredentialsProvider.ToSharedPtr();
+		return *this;
+	}
+
+	FMqttifyConnectionSettingsBuilder& SetMaxPacketSize(const uint32 InMaxPacketSize)
+	{
+		MaxPacketSize = InMaxPacketSize;
+		return *this;
+	}
+
+	FMqttifyConnectionSettingsBuilder& SetClientId(FString&& InClientId)
+	{
+		ClientId = MoveTemp(InClientId);
+		return *this;
+	}
+
+	/**
 	 * @brief Builds the connection settings.
 	 * @return The connection settings.
 	 */
 	TSharedPtr<FMqttifyConnectionSettings> Build() const
 	{
-		return FMqttifyConnectionSettings::CreateShared(Url,
-														MqttProtocolVersion,
-														PacketRetryIntervalSeconds,
-														SocketConnectionTimeoutSeconds,
-														KeepAliveIntervalSeconds,
-														MqttConnectionTimeoutSeconds,
-														InitialRetryIntervalSeconds,
-														MaxConnectionRetries,
-														MaxPacketRetries,
-														ThreadMode);
+		return CredentialsProvider == nullptr
+			       ? FMqttifyConnectionSettings::CreateShared(
+				       Url,
+				       MaxPacketSize,
+				       PacketRetryIntervalSeconds,
+				       SocketConnectionTimeoutSeconds,
+				       KeepAliveIntervalSeconds,
+				       MqttConnectionTimeoutSeconds,
+				       InitialRetryIntervalSeconds,
+				       MaxConnectionRetries,
+				       MaxPacketRetries,
+				       bShouldVerifyCertificate,
+				       FString{ClientId})
+			       : FMqttifyConnectionSettings::CreateShared(
+				       Url,
+				       CredentialsProvider.ToSharedRef(),
+				       MaxPacketSize,
+				       PacketRetryIntervalSeconds,
+				       SocketConnectionTimeoutSeconds,
+				       KeepAliveIntervalSeconds,
+				       MqttConnectionTimeoutSeconds,
+				       InitialRetryIntervalSeconds,
+				       MaxConnectionRetries,
+				       MaxPacketRetries,
+				       bShouldVerifyCertificate,
+					   FString{ClientId});
 	}
 };

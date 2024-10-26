@@ -36,9 +36,9 @@ namespace Mqttify
 			Decode(InReader);
 		}
 
-		uint32 GetLength() const override { return 0; }
-		void Encode(FMemoryWriter& InWriter) override;
-		void Decode(FArrayReader& InReader) override;
+		virtual uint32 GetLength() const override { return 0; }
+		virtual void Encode(FMemoryWriter& InWriter) override;
+		virtual void Decode(FArrayReader& InReader) override;
 	};
 
 	template <>
@@ -70,10 +70,10 @@ namespace Mqttify
 			Decode(InReader);
 		}
 
-		uint32 GetLength() const override;
+		virtual uint32 GetLength() const override;
 
-		void Encode(FMemoryWriter& InWriter) override;
-		void Decode(FArrayReader& InReader) override;
+		virtual void Encode(FMemoryWriter& InWriter) override;
+		virtual void Decode(FArrayReader& InReader) override;
 
 		/**
 		 * @brief Get the reason code.

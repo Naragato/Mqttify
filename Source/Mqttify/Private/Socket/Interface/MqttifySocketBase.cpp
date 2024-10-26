@@ -7,7 +7,7 @@ namespace Mqttify
 {
 	FMqttifySocketBase::~FMqttifySocketBase()
 	{
-		FScopeLock Lock(&SocketAccessLock);
+		FScopeLock Lock{ &SocketAccessLock };
 		OnConnectDelegate.Clear();
 		OnDisconnectDelegate.Clear();
 		OnDataReceiveDelegate.Clear();
@@ -18,10 +18,10 @@ namespace Mqttify
 
 		switch (InConnectionSettings->GetTransportProtocol())
 		{
-
 			case EMqttifyConnectionProtocol::Mqtt:
+				return MakeShared<TMqttifySocket<FTcpSocket>>(InConnectionSettings);
 			case EMqttifyConnectionProtocol::Mqtts:
-				return MakeShared<FMqttifySocket>(InConnectionSettings);
+				return MakeShared<TMqttifySocket<FSslSocket>>(InConnectionSettings);
 			case EMqttifyConnectionProtocol::Ws:
 			case EMqttifyConnectionProtocol::Wss:
 			default:

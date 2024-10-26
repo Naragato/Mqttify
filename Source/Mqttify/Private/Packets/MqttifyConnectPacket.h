@@ -150,9 +150,9 @@ namespace Mqttify
 			Decode(InReader);
 		}
 
-		uint32 GetLength() const override;
-		void Encode(FMemoryWriter& InWriter) override;
-		void Decode(FArrayReader& InReader) override;
+		virtual uint32 GetLength() const override;
+		virtual void Encode(FMemoryWriter& InWriter) override;
+		virtual void Decode(FArrayReader& InReader) override;
 
 		/**
 		 * @brief Get the return code.
@@ -201,7 +201,7 @@ namespace Mqttify
 			Decode(InReader);
 		}
 
-		uint32 GetLength() const override;
+		virtual uint32 GetLength() const override;
 
 		/**
 		 * @brief Get the will properties.
@@ -214,8 +214,8 @@ namespace Mqttify
 		 * @return The connect properties.
 		 */
 		const FMqttifyProperties& GetProperties() const { return Properties; }
-		void Encode(FMemoryWriter& InWriter) override;
-		void Decode(FArrayReader& InReader) override;
+		virtual void Encode(FMemoryWriter& InWriter) override;
+		virtual void Decode(FArrayReader& InReader) override;
 
 		/**
 		 * @brief Get the reason code.

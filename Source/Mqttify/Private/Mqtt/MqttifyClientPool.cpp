@@ -1,6 +1,7 @@
 #include "Mqtt/MqttifyClientPool.h"
 
 #include "MqttifyClient.h"
+#include "MqttifyConstants.h"
 #include "Containers/BackgroundableTicker.h"
 #include "HAL/RunnableThread.h"
 #include "Mqtt/Interface/ITickableMqttifyClient.h"
@@ -9,13 +10,15 @@ namespace Mqttify
 {
 	TSharedPtr<ITickableMqttifyClient> FMqttifyClientPool::Create(
 		const FMqttifyConnectionSettingsRef& InConnectionSettings,
-		FDeleter&& InDeleter)
+		FDeleter&& InDeleter
+		)
 	{
 		return MakeShareable<FMqttifyClient>(new FMqttifyClient(InConnectionSettings), MoveTemp(InDeleter));
 	}
 
 	TSharedPtr<IMqttifyClient> FMqttifyClientPool::GetOrCreateClient(
-		const FMqttifyConnectionSettingsRef& InConnectionSettings)
+		const FMqttifyConnectionSettingsRef& InConnectionSettings
+		)
 	{
 		FScopeLock Lock(&ClientMapLock);
 		const uint32 Hash = InConnectionSettings->GetHashCode();
@@ -28,10 +31,11 @@ namespace Mqttify
 			}
 		}
 
-		auto Deleter = [this](const IMqttifyClient* InClient) {
+		auto Deleter = [this](const IMqttifyClient* InClient)
+		{
 			FScopeLock DeleterLock(&ClientMapLock);
 			const FMqttifyConnectionSettingsRef ConnectionSettings = InClient->GetConnectionSettings();
-			// Find client and remove it from the list of clients.
+			// Find a client and remove it from the list of clients.
 			const uint32 DeleterHash = ConnectionSettings->GetHashCode();
 			MqttifyClients.Remove(DeleterHash);
 			delete InClient;
@@ -53,15 +57,15 @@ namespace Mqttify
 
 		if constexpr (GMqttifyThreadMode != EMqttifyThreadMode::GameThread)
 		{
-			if (nullptr == Thread &&
-				bIsRunning.compare_exchange_strong(bExpected, true, std::memory_order_acq_rel))
+			if (nullptr == Thread && bIsRunning.compare_exchange_strong(bExpected, true, std::memory_order_acq_rel))
 			{
 				// Here we create the thread that will tick the clients.
-				Thread = FRunnableThread::Create(this,
-												TEXT("FMqttifyClientPool"),
-												0,
-												TPri_Normal,
-												FPlatformAffinity::GetPoolThreadMask());
+				Thread = FRunnableThread::Create(
+					this,
+					TEXT("FMqttifyClientPool"),
+					0,
+					TPri_Normal,
+					FPlatformAffinity::GetPoolThreadMask());
 			}
 		}
 
@@ -70,7 +74,7 @@ namespace Mqttify
 	}
 
 	FMqttifyClientPool::FMqttifyClientPool()
-		: Thread{ nullptr }
+		: Thread{nullptr}
 	{
 		// Setup our game thread tick
 		const FTickerDelegate TickDelegate = FTickerDelegate::CreateRaw(this, &FMqttifyClientPool::GameThreadTick);
@@ -98,7 +102,7 @@ namespace Mqttify
 		{
 			const double StartTime = FPlatformTime::Seconds();
 			Tick();
-			const double EndTime  = FPlatformTime::Seconds();
+			const double EndTime = FPlatformTime::Seconds();
 			const float SleepTime = MaxTickRate - static_cast<float>(EndTime - StartTime);
 			FPlatformProcess::SleepNoStats(FMath::Max(MinWaitTime, SleepTime));
 		}
@@ -151,8 +155,7 @@ namespace Mqttify
 		FScopeLock Lock(&ClientMapLock);
 		for (auto& Client : MqttifyClients)
 		{
-			auto ClientPtr = Client.Value.Pin();
-			if (nullptr != ClientPtr)
+			if (const auto ClientPtr = Client.Value.Pin())
 			{
 				ClientPtr->Tick();
 			}

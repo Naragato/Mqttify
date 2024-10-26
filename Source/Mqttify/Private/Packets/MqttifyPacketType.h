@@ -1,6 +1,7 @@
 #pragma once
 
 #include "MqttifyEnumToString.h"
+#include "HAL/Platform.h"
 
 namespace Mqttify
 {

@@ -8,7 +8,7 @@
  * @brief Enum class for MQTT retain handling options. For Mqtt v5.
  */
 UENUM(BlueprintType)
-enum class EMqttifyRetainHandlingOptions
+enum class EMqttifyRetainHandlingOptions : uint8
 {
 
 	SendRetainedMessagesAtSubscribeTime = 0 UMETA(DisplayName = "Send retained messages",

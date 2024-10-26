@@ -6,6 +6,8 @@ struct FMqttifySubscribeResult;
 
 namespace Mqttify
 {
+	using FSubscribesFuture = TFuture<TMqttifyResult<TArray<FMqttifySubscribeResult>>>;
+	using FSubscribeFuture = TFuture<TMqttifyResult<FMqttifySubscribeResult>>;
 	/**
 	 * @brief Interface for a client that can subscribe to topics
 	 */
@@ -19,15 +21,14 @@ namespace Mqttify
 		 * @return A future that contains the result of the connection, which can be checked for success.
 		 * the result contains a result for each topic filter
 		 */
-		virtual TFuture<TMqttifyResult<TArray<FMqttifySubscribeResult>>> SubscribeAsync(
-			const TArray<FMqttifyTopicFilter>& InTopicFilters) = 0;
+		virtual FSubscribesFuture SubscribeAsync(const TArray<FMqttifyTopicFilter>& InTopicFilters) = 0;
 
 		/**
 		 * @param InTopicFilter The topic to subscribe to
 		 * @return A future that contains the result of the connection, which can be checked for success.
 		 * the result contains a result for this topic filter
 		 */
-		virtual TFuture<TMqttifyResult<FMqttifySubscribeResult>> SubscribeAsync(FMqttifyTopicFilter& InTopicFilter) = 0;
+		virtual FSubscribeFuture SubscribeAsync(FMqttifyTopicFilter&& InTopicFilter) = 0;
 
 
 		/**
@@ -35,16 +36,16 @@ namespace Mqttify
 		 * @return A future that contains the result of the connection, which can be checked for success.
 		 * the result contains a result for this topic filter
 		 */
-		 TFuture<TMqttifyResult<FMqttifySubscribeResult>> SubscribeAsync(FString&& InTopicFilter)
-		 {
-			 return SubscribeAsync(InTopicFilter);
-		 }
+		FSubscribeFuture SubscribeAsync(FString&& InTopicFilter)
+		{
+			return SubscribeAsync(InTopicFilter);
+		}
 
 		/**
 		 * @param InTopicFilter The topic to subscribe to
 		 * @return A future that contains the result of the connection, which can be checked for success.
 		 * the result contains a result for this topic filter
 		 */
-		virtual TFuture<TMqttifyResult<FMqttifySubscribeResult>> SubscribeAsync(FString& InTopicFilter) = 0;
+		virtual FSubscribeFuture SubscribeAsync(FString& InTopicFilter) = 0;
 	};
 } // namespace Mqttify
