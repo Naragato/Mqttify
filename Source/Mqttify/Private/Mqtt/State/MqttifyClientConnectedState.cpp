@@ -213,14 +213,15 @@ namespace Mqttify
 				LastPingTime = Now;
 				PingReqCommand = MakeShared<FMqttifyPingReq>(Socket, Context->GetConnectionSettings());
 
-				TWeakPtr<FMqttifySocketBase> WeakSocket = Socket;
+				TWeakPtr<FMqttifyClientConnectedState> WeakConnectedPtr = AsWeak();
 				PingReqCommand->GetFuture().Next(
-					[this](const TMqttifyResult<void>& InResult)
+					[this, WeakConnectedPtr](const TMqttifyResult<void>& InResult)
 					{
-						if (!InResult.HasSucceeded())
+						const TSharedPtr<FMqttifyClientConnectedState> SharedConnectedPtr = WeakConnectedPtr.Pin();
+						if (!InResult.HasSucceeded() && SharedConnectedPtr.IsValid())
 						{
 							LOG_MQTTIFY(Warning, TEXT("Failed to send ping request. Reconnecting."));
-							TransitionTo(
+							SharedConnectedPtr->TransitionTo(
 								MakeShared<FMqttifyClientConnectingState>(OnStateChanged, Context, false, Socket));
 						}
 					});
