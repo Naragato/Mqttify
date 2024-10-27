@@ -16,7 +16,6 @@ enum class EMqttifyQualityOfService : uint8;
 namespace Mqttify
 {
 	class FMqttifyAcknowledgeable;
-	class IMqttifyClient;
 	class IMqttifyControlPacket;
 
 	class FMqttifyClientConnectedState final : public FMqttifyClientState,

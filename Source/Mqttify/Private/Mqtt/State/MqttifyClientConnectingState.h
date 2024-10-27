@@ -10,7 +10,6 @@
 
 namespace Mqttify
 {
-	class IMqttifyClient;
 	class IMqttifyControlPacket;
 
 	class FMqttifyClientConnectingState final : public FMqttifyClientState,
