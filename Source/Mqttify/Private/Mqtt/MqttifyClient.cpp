@@ -216,7 +216,7 @@ namespace Mqttify
 		}
 
 		LOG_MQTTIFY(
-			Warning,
+			VeryVerbose,
 			TEXT("No connected handler found current %s"),
 			EnumToTCharString(CurrentState->GetState()));
 	}
@@ -233,7 +233,7 @@ namespace Mqttify
 			}
 		}
 		LOG_MQTTIFY(
-			Warning,
+			VeryVerbose,
 			TEXT("No disconnected handler found current %s"),
 			EnumToTCharString(CurrentState->GetState()));
 	}
