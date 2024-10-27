@@ -62,8 +62,11 @@ void FMqttifyClientTests::Define()
 						Client->PublishAsync(MoveTemp(Message)).Next(
 							[this, TestDone](const TMqttifyResult<void>& InResult)
 							{
-								TestTrue(TEXT("PublishAsync.Next should be called"), InResult.HasSucceeded());
-								TestDone.Execute();
+								Async(EAsyncExecution::TaskGraphMainThread, [InResult, TestDone, this]
+								{
+									TestTrue(TEXT("PublishAsync.Next should be called"), InResult.HasSucceeded());
+									TestDone.Execute();
+								});
 							});
 					});
 			}
