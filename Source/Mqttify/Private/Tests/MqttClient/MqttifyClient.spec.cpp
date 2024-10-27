@@ -15,24 +15,11 @@ BEGIN_DEFINE_SPEC(
 	EAutomationTestFlags::ProductFilter | EAutomationTestFlags::ApplicationContextMask)
 
 	static constexpr TCHAR kTopic[] = TEXT("/Test");
-	bool bSubscribeSent = false;
 	FString DockerContainerName = TEXT("vernemq_test_container");
-	TSharedPtr<IMqttifyClient> MqttClientA = nullptr;
-	TSharedPtr<IMqttifyClient> MqttClientB = nullptr;
+	TArray<TSharedPtr<IMqttifyClient>> MqttClients;
 
-	FDelegateHandle ClientAOnConnectHandle;
-	FDelegateHandle ClientBOnConnectHandle;
-	FOnSubscribe::FDelegate ClientBOnSubscribeDelegate;
-
-	void SetupClients(const FMqttifyTestDockerSpec& Spec, const FDoneDelegate& BeforeDone);
-	void OnClientConnect();
-	void UnsubscribeClientB(const FDoneDelegate& TestDone);
-	void PublishMessage(EMqttifyQualityOfService QualityOfService);
-	void DisconnectClients(const FDoneDelegate& AfterDone) const;
-	static void DisconnectClient(
-		const TSharedPtr<IMqttifyClient>& MqttClient,
-		const TFunction<void()>& OnDisconnectComplete
-		);
+	void SetupClients(const FMqttifyTestDockerSpec& InSpec, const FDoneDelegate& InBeforeDone, int32 InNumClients);
+	void DisconnectClients(const FDoneDelegate& InAfterDone) const;
 
 END_DEFINE_SPEC(FMqttifyClientTests)
 
@@ -40,233 +27,265 @@ void FMqttifyClientTests::Define()
 {
 	FMqttifyTestDockerSpec Spec{8080, FindAvailablePort(5000, 10000), EMqttifyConnectionProtocol::Ws};
 
+	TArray QualityOfServices = {
+		EMqttifyQualityOfService::AtMostOnce,
+		EMqttifyQualityOfService::AtLeastOnce,
+		EMqttifyQualityOfService::ExactlyOnce
+	};
+
 	Describe(
-		"MQTT Client test",
-		[this, Spec]()
+		"MQTT single client test",
+		[this, Spec, QualityOfServices]()
 		{
 			LatentBeforeEach(
 				[this, Spec](const FDoneDelegate& BeforeDone)
 				{
-					SetupClients(Spec, BeforeDone);
+					if (!StartBroker(DockerContainerName, Spec))
+					{
+						AddError(TEXT("Failed to start MQTT broker."));
+						BeforeDone.Execute();
+						return;
+					}
+					SetupClients(Spec, BeforeDone, 1);
 				});
-
-			LatentIt(
-				"Client B should unsubscribe",
-				FTimespan::FromSeconds(120.0f),
-				[this](const FDoneDelegate& TestDone)
-				{
-					UnsubscribeClientB(TestDone);
-				});
-
-			TArray QualityOfServices = {
-				EMqttifyQualityOfService::AtLeastOnce,
-				EMqttifyQualityOfService::ExactlyOnce,
-				EMqttifyQualityOfService::AtMostOnce
-			};
 
 			for (const EMqttifyQualityOfService& QoS : QualityOfServices)
 			{
 				LatentIt(
-					FString::Printf(TEXT("Client A should publish %s"), EnumToTCharString(QoS)),
+					FString::Printf(TEXT("PublishAsync.Next is called for QoS %s"), EnumToTCharString(QoS)),
 					FTimespan::FromSeconds(120.0f),
 					[this, QoS](const FDoneDelegate& TestDone)
 					{
-						MqttClientB->OnMessage().AddLambda(
-							[this, TestDone](const FMqttifyMessage& InMessage)
+						const TSharedPtr<IMqttifyClient> Client = MqttClients.Top();
+
+						FMqttifyMessage Message{FString{kTopic}, TArray<uint8>{1, 2, 3}, false, QoS};
+						Client->PublishAsync(MoveTemp(Message)).Next(
+							[this, TestDone](const TMqttifyResult<void>& InResult)
 							{
-								LOG_MQTTIFY(VeryVerbose, TEXT("Received message on topic: %s"), *InMessage.GetTopic());
-								LOG_MQTTIFY_PACKET_DATA(
-									VeryVerbose,
-									InMessage.GetPayload().GetData(),
-									static_cast<uint32>(InMessage.GetPayload().Num()));
+								TestTrue(TEXT("PublishAsync.Next should be called"), InResult.HasSucceeded());
 								TestDone.Execute();
 							});
-						PublishMessage(QoS);
 					});
+			}
+
+			LatentIt(
+				TEXT("SubscribeAsync.Next is called for FString&& InTopicFilter"),
+				FTimespan::FromSeconds(120.0f),
+				[this](const FDoneDelegate& TestDone)
+				{
+					const TSharedPtr<IMqttifyClient> Client = MqttClients.Top();
+					Client->SubscribeAsync(FString{kTopic}).Next(
+						[this, TestDone](const TMqttifyResult<FMqttifySubscribeResult>& InResult)
+						{
+							TestTrue(TEXT("SubscribeAsync.Next should be called"), InResult.HasSucceeded());
+							TestDone.Execute();
+						});
+				});
+
+			LatentIt(
+				TEXT("SubscribeAsync.Next is called for FMqttifyTopicFilter&& InTopicFilter"),
+				FTimespan::FromSeconds(120.0f),
+				[this](const FDoneDelegate& TestDone)
+				{
+					const TSharedPtr<IMqttifyClient> Client = MqttClients.Top();
+					FMqttifyTopicFilter TopicFilter{FString{kTopic}};
+					Client->SubscribeAsync(MoveTemp(TopicFilter)).Next(
+						[this, TestDone](const TMqttifyResult<FMqttifySubscribeResult>& InResult)
+						{
+							TestTrue(TEXT("SubscribeAsync.Next should be called"), InResult.HasSucceeded());
+							TestDone.Execute();
+						});
+				});
+
+			LatentIt(
+				TEXT("SubscribeAsync.Next is called for const TArray<FMqttifyTopicFilter>& InTopicFilters"),
+				FTimespan::FromSeconds(120.0f),
+				[this](const FDoneDelegate& TestDone)
+				{
+					const TSharedPtr<IMqttifyClient> Client = MqttClients.Top();
+					const TArray TopicFilters = {FMqttifyTopicFilter{FString{kTopic}}};
+					Client->SubscribeAsync(TopicFilters).Next(
+						[this, TestDone](const TMqttifyResult<TArray<FMqttifySubscribeResult>>& InResult)
+						{
+							TestTrue(TEXT("SubscribeAsync.Next should be called"), InResult.HasSucceeded());
+							TestDone.Execute();
+						});
+				});
+
+			LatentIt(
+				TEXT("UnsubscribeAsync.Next is called for const TSet<FString>& InTopicFilters"),
+				FTimespan::FromSeconds(120.0f),
+				[this](const FDoneDelegate& TestDone)
+				{
+					const TSharedPtr<IMqttifyClient> Client = MqttClients[0];
+					const TSet TopicFilters = {FString{kTopic}};
+					Client->UnsubscribeAsync(TopicFilters).Next(
+						[this, TestDone](const TMqttifyResult<TArray<FMqttifyUnsubscribeResult>>& InResult)
+						{
+							TestTrue(TEXT("UnsubscribeAsync.Next should be called"), InResult.HasSucceeded());
+							TestDone.Execute();
+						});
+				});
+
+			LatentAfterEach(
+				[this](const FDoneDelegate& AfterDone)
+				{
+					DisconnectClients(AfterDone);
+				});
+		});
+
+	Describe(
+		TEXT("MQTT multi client test"),
+		[this, Spec, QualityOfServices]
+		{
+			LatentBeforeEach(
+				[this, Spec](const FDoneDelegate& BeforeDone)
+				{
+					if (!StartBroker(DockerContainerName, Spec))
+					{
+						AddError(TEXT("Failed to start MQTT broker."));
+						BeforeDone.Execute();
+						return;
+					}
+					SetupClients(Spec, BeforeDone, 2);
+				});
+
+			for (const EMqttifyQualityOfService& PublisherQoS : QualityOfServices)
+			{
+				for (const EMqttifyQualityOfService& SubscriberQoS : QualityOfServices)
+				{
+					LatentIt(
+						FString::Printf(
+							TEXT("Publisher's %s messages are received by a Subscriber %s client"),
+							EnumToTCharString(PublisherQoS),
+							EnumToTCharString(SubscriberQoS)),
+						FTimespan::FromSeconds(120.0f),
+						[this, Spec, SubscriberQoS, PublisherQoS](const FDoneDelegate& TestDone)
+						{
+							if (MqttClients.Num() != 2)
+							{
+								AddError(TEXT("Expected 2 client pointers"));
+								TestDone.Execute();
+								return;
+							}
+							TSharedPtr<IMqttifyClient> Publisher = MqttClients[0];
+							TSharedPtr<IMqttifyClient> Subscriber = MqttClients[1];
+							FMqttifyTopicFilter TopicFilter{FString{kTopic}, SubscriberQoS};
+							Subscriber->SubscribeAsync(MoveTemp(TopicFilter)).Next(
+								[this, Publisher, Subscriber, TestDone, PublisherQoS](
+								const TMqttifyResult<FMqttifySubscribeResult>& InResult
+								)
+								{
+									if (!InResult.HasSucceeded())
+									{
+										AddError(TEXT("SubscribeAsync failed."));
+										TestDone.Execute();
+										return;
+									}
+
+									Subscriber->OnMessage().AddLambda(
+										[this, TestDone](const FMqttifyMessage& InMessage)
+										{
+											TestEqual(
+												TEXT("Received message topic matches"),
+												InMessage.GetTopic(),
+												FString{kTopic});
+											TestDone.Execute();
+										});
+
+									FMqttifyMessage Message{
+										FString{kTopic},
+										TArray<uint8>{1, 2, 3},
+										false,
+										PublisherQoS
+									};
+									Publisher->PublishAsync(MoveTemp(Message));
+								});
+						});
+				}
 			}
 
 			LatentAfterEach(
 				[this](const FDoneDelegate& AfterDone)
 				{
-					bSubscribeSent = false;
 					DisconnectClients(AfterDone);
 				});
 		});
 }
 
-void FMqttifyClientTests::SetupClients(const FMqttifyTestDockerSpec& Spec, const FDoneDelegate& BeforeDone)
-{
-	auto& MqttifyModule = IMqttifyModule::Get();
-
-	// Build ConnectionSettingsA
-	FMqttifyConnectionSettingsBuilder ConnectionSettingsBuilderA(
-		FString::Printf(
-			TEXT("%s://clientA:password@localhost:%d%s"),
-			GetProtocolString(Spec.Protocol),
-			Spec.PublicPort,
-			GetPath(Spec.Protocol)));
-	ConnectionSettingsBuilderA.SetClientId(TEXT("Test - ClientA"));
-	const TSharedRef<FMqttifyConnectionSettings> ConnectionSettingsA = ConnectionSettingsBuilderA.Build().ToSharedRef();
-
-	// Build ConnectionSettingsB
-	FMqttifyConnectionSettingsBuilder ConnectionSettingsBuilderB(
-		FString::Printf(
-			TEXT("%s://clientB:password@localhost:%d%s"),
-			GetProtocolString(Spec.Protocol),
-			Spec.PublicPort,
-			GetPath(Spec.Protocol)));
-	ConnectionSettingsBuilderB.SetClientId(TEXT("Test - ClientB"));
-	const TSharedRef<FMqttifyConnectionSettings> ConnectionSettingsB = ConnectionSettingsBuilderB.Build().ToSharedRef();
-
-	// Create clients
-	MqttClientA = MqttifyModule.GetOrCreateClient(ConnectionSettingsA);
-	MqttClientB = MqttifyModule.GetOrCreateClient(ConnectionSettingsB);
-
-	if (!MqttClientA || !MqttClientB)
-	{
-		AddError(TEXT("Failed to create MQTT clients."));
-		BeforeDone.Execute();
-		return;
-	}
-
-	// Start broker
-	if (!StartBroker(DockerContainerName, Spec))
-	{
-		AddError(TEXT("Failed to start MQTT broker."));
-		BeforeDone.Execute();
-		return;
-	}
-
-	// Set up OnConnect handlers
-	MqttClientA->OnConnect().AddLambda(
-		[this](bool bIsConnected)
-		{
-			if (bIsConnected)
-			{
-				OnClientConnect();
-			}
-			else
-			{
-				AddError(TEXT("MqttClientA failed to connect."));
-			}
-		});
-
-	MqttClientB->OnConnect().AddLambda(
-		[this](bool bIsConnected)
-		{
-			if (bIsConnected)
-			{
-				OnClientConnect();
-			}
-			else
-			{
-				AddError(TEXT("MqttClientB failed to connect."));
-			}
-		});
-
-	// Set up OnSubscribe handler
-	ClientBOnSubscribeDelegate = FOnSubscribe::FDelegate::CreateLambda(
-		[this, BeforeDone](const TSharedPtr<TArray<FMqttifySubscribeResult>>& InResult)
-		{
-			if (!InResult || InResult->IsEmpty() || InResult->Top().GetFilter().GetFilter() != kTopic)
-			{
-				AddError(TEXT("ClientB subscription failed."));
-				BeforeDone.Execute();
-				return;
-			}
-
-			LOG_MQTTIFY(VeryVerbose, TEXT("ClientB subscribed successfully."));
-			BeforeDone.Execute();
-		});
-	MqttClientB->OnSubscribe().Add(ClientBOnSubscribeDelegate);
-
-	// Connect clients
-	MqttClientA->ConnectAsync(false);
-	MqttClientB->ConnectAsync(false);
-}
-
-void FMqttifyClientTests::OnClientConnect()
-{
-	LOG_MQTTIFY(VeryVerbose, TEXT("On Client Connected"));
-	if (MqttClientA && MqttClientB && MqttClientA->IsConnected() && MqttClientB->IsConnected() && !bSubscribeSent)
-	{
-		bSubscribeSent = true;
-		MqttClientB->SubscribeAsync(FString(kTopic));
-	}
-}
-
-void FMqttifyClientTests::UnsubscribeClientB(const FDoneDelegate& TestDone)
-{
-	MqttClientB->UnsubscribeAsync({FString(kTopic)}).Next(
-		[this, TestDone](const TMqttifyResult<TArray<FMqttifyUnsubscribeResult>>& InResult)
-		{
-			const auto Result = InResult.GetResult();
-			if (!Result.IsValid() || Result->IsEmpty())
-			{
-				AddError(TEXT("Unsubscribe failed: Result is null or empty."));
-				TestDone.Execute();
-				return;
-			}
-
-			const auto& UnsubscribeResult = Result->Top();
-			TestTrue(TEXT("Unsubscribe should be successful"), UnsubscribeResult.WasSuccessful());
-			TestEqual(TEXT("Topic should match"), UnsubscribeResult.GetFilter().GetFilter(), kTopic);
-			TestDone.Execute();
-		});
-}
-
-void FMqttifyClientTests::PublishMessage(EMqttifyQualityOfService QualityOfService)
-{
-	const TArray<uint8> Payload = {0, 1, 2, 3, 4};
-	FMqttifyMessage Message{FString(kTopic), Payload, false, QualityOfService};
-
-	MqttClientA->PublishAsync(MoveTemp(Message)).Next(
-		[this](const TMqttifyResult<void>& InResult)
-		{
-			if (!InResult.HasSucceeded())
-			{
-				AddError(TEXT("Publish failed."));
-			}
-			else
-			{
-				LOG_MQTTIFY(VeryVerbose, TEXT("Publish succeeded."));
-			}
-		});
-}
-
-void FMqttifyClientTests::DisconnectClients(const FDoneDelegate& AfterDone) const
-{
-	DisconnectClient(
-		MqttClientA,
-		[this, AfterDone]()
-		{
-			LOG_MQTTIFY(VeryVerbose, TEXT("MqttClientA is disconnected, disconnecting B."));
-			DisconnectClient(
-				MqttClientB,
-				[AfterDone]()
-				{
-					LOG_MQTTIFY(VeryVerbose, TEXT("MqttClientB is disconnected, completing test."));
-					AfterDone.Execute();
-				});
-		});
-}
-
-void FMqttifyClientTests::DisconnectClient(
-	const TSharedPtr<IMqttifyClient>& MqttClient,
-	const TFunction<void()>& OnDisconnectComplete
+void FMqttifyClientTests::SetupClients(
+	const FMqttifyTestDockerSpec& InSpec,
+	const FDoneDelegate& InBeforeDone,
+	const int32 InNumClients
 	)
 {
-	if (MqttClient)
+	auto& MqttifyModule = IMqttifyModule::Get();
+	MqttClients.Empty();
+	for (int32 i = 0; i < InNumClients; ++i)
 	{
-		MqttClient->DisconnectAsync().Next(
-			[OnDisconnectComplete](const TMqttifyResult<void>&)
+		FString ClientName = FString::Printf(TEXT("client%d"), i);
+		FString Username = FString::Printf(TEXT("client%d"), i);
+		FString Password = TEXT("password");
+
+		FMqttifyConnectionSettingsBuilder ConnectionSettingsBuilder(
+			FString::Printf(
+				TEXT("%s://%s:%s@localhost:%d%s"),
+				GetProtocolString(InSpec.Protocol),
+				*Username,
+				*Password,
+				InSpec.PublicPort,
+				GetPath(InSpec.Protocol)));
+		ConnectionSettingsBuilder.SetClientId(FString::Printf(TEXT("Test - Client%d"), i));
+		const TSharedRef<FMqttifyConnectionSettings> ConnectionSettings = ConnectionSettingsBuilder.Build().
+			ToSharedRef();
+
+		TSharedPtr<IMqttifyClient> MqttClient = MqttifyModule.GetOrCreateClient(ConnectionSettings);
+
+		if (!MqttClient)
+		{
+			AddError(FString::Printf(TEXT("Failed to create MQTT client %d."), i));
+			InBeforeDone.Execute();
+			return;
+		}
+
+		MqttClients.Add(MqttClient);
+		MqttClient->OnConnect().AddLambda(
+			[this, InBeforeDone](const bool bIsConnected)
 			{
-				OnDisconnectComplete();
+				if (!bIsConnected)
+				{
+					AddError(TEXT("Client failed to connect"));
+				}
+
+				if (MqttClients.ContainsByPredicate(
+					[](const TSharedPtr<IMqttifyClient>& Client) { return !Client->IsConnected(); }))
+				{
+					return;
+				}
+				InBeforeDone.Execute();
 			});
 	}
-	else
+
+	for (const auto& MqttClient : MqttClients)
 	{
-		OnDisconnectComplete();
+		MqttClient->ConnectAsync(false);
+	}
+}
+
+void FMqttifyClientTests::DisconnectClients(const FDoneDelegate& InAfterDone) const
+{
+	for (const TSharedPtr<IMqttifyClient>& MqttClient : MqttClients)
+	{
+		MqttClient->DisconnectAsync().Next(
+			[this, InAfterDone](const TMqttifyResult<void>&)
+			{
+				if (MqttClients.ContainsByPredicate(
+					[](const TSharedPtr<IMqttifyClient>& Client) { return Client->IsConnected(); }))
+				{
+					return;
+				}
+				InAfterDone.Execute();
+			});
 	}
 }
 
