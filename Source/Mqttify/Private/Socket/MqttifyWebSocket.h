@@ -10,7 +10,7 @@ namespace Mqttify
 {
 	enum class EMqttifySocketState;
 
-	class FMqttifyWebSocket final : public FMqttifySocketBase, public TSharedFromThis<FMqttifyWebSocket> 
+	class FMqttifyWebSocket final : public FMqttifySocketBase, public TSharedFromThis<FMqttifyWebSocket>
 	{
 	private:
 		mutable FCriticalSection SocketAccessLock{};
@@ -18,7 +18,7 @@ namespace Mqttify
 		TSharedPtr<IWebSocket> Socket;
 		EMqttifySocketState CurrentState;
 		FDateTime DisconnectTime;
-		TSharedPtr<FArrayReader> Packet;
+		TArray<uint8> DataBuffer;
 
 	public:
 		explicit FMqttifyWebSocket(const FMqttifyConnectionSettingsRef& InConnectionSettings);
@@ -37,5 +37,7 @@ namespace Mqttify
 		void HandleWebSocketConnectionClosed(int32 Status, const FString& Reason, bool bWasClean);
 		void HandleWebSocketData(const void* Data, SIZE_T Length, SIZE_T BytesRemaining);
 		void FinalizeDisconnect();
+
+		void ParsePacket();
 	};
 } // namespace Mqttify

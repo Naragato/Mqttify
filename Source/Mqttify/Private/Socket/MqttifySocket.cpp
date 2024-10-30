@@ -259,7 +259,7 @@ namespace Mqttify
 				return;
 			}
 
-			uint8 EncodedByte = DataBuffer[Index];
+			const uint8 EncodedByte = DataBuffer[Index];
 			RemainingLength += (EncodedByte & 127) * Multiplier;
 			Multiplier *= 128;
 
@@ -273,7 +273,6 @@ namespace Mqttify
 
 		if (!bHaveRemainingLength)
 		{
-			// The Remaining Length field is incomplete
 			LOG_MQTTIFY(VeryVerbose, TEXT("Header not complete yet"));
 			return;
 		}
@@ -298,25 +297,16 @@ namespace Mqttify
 			return;
 		}
 
-		// We have a complete packet
 		const TSharedPtr<FArrayReader> Packet = MakeShared<FArrayReader>(false);
 		Packet->Append(&DataBuffer[PacketStartIndex], TotalPacketSize);
-
-		// Remove the packet from the data buffer
 		DataBuffer.RemoveAt(0, TotalPacketSize);
-
 		RemainingLength = 0;
-
-		// Handle the complete packet
 		if (GetOnDataReceivedDelegate().IsBound())
 		{
 			GetOnDataReceivedDelegate().Broadcast(Packet);
 		}
-		else
-		{
-			// Default behavior if no delegate is bound
-			LOG_MQTTIFY(VeryVerbose, TEXT("Packet received of size %d"), TotalPacketSize);
-		}
+
+		LOG_MQTTIFY(VeryVerbose, TEXT("Packet received of size %d"), TotalPacketSize);
 	}
 
 	template <typename TSocketType>
