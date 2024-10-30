@@ -1,6 +1,7 @@
 #include "Mqtt/State/MqttifyClientConnectedState.h"
 
 #include "LogMqttify.h"
+#include "MqttifyAsync.h"
 #include "Mqtt/Commands/MqttifyPublish.h"
 #include "Mqtt/Commands/MqttifyPubRec.h"
 #include "Mqtt/Commands/MqttifySubscribe.h"
@@ -26,7 +27,7 @@ namespace Mqttify
 			return Context->GetConnectPromise()->GetFuture();
 		}
 
-		return MakeFulfilledPromise<TMqttifyResult<void>>(TMqttifyResult<void>{true}).GetFuture();
+		return MakeThreadAwareFulfilledPromise<TMqttifyResult<void>>(TMqttifyResult<void>{true});
 	}
 
 	FDisconnectFuture FMqttifyClientConnectedState::DisconnectAsync()
@@ -47,7 +48,7 @@ namespace Mqttify
 				FMemoryWriter Writer(ActualBytes);
 				PublishPacket.Encode(Writer);
 				Socket->Send(ActualBytes.GetData(), ActualBytes.Num());
-				return MakeFulfilledPromise<TMqttifyResult<void>>(TMqttifyResult<void>{true}).GetFuture();
+				return MakeThreadAwareFulfilledPromise<TMqttifyResult<void>>(TMqttifyResult<void>{true});
 			}
 		case EMqttifyQualityOfService::AtLeastOnce:
 			{
@@ -74,7 +75,7 @@ namespace Mqttify
 		default:
 			{
 				ensureMsgf(false, TEXT("Invalid quality of service"));
-				return MakeFulfilledPromise<TMqttifyResult<void>>(TMqttifyResult<void>{false}).GetFuture();
+				return MakeThreadAwareFulfilledPromise<TMqttifyResult<void>>(TMqttifyResult<void>{false});
 			}
 		}
 	}
@@ -110,10 +111,7 @@ namespace Mqttify
 				}
 				else
 				{
-					LOG_MQTTIFY(
-						Warning,
-						TEXT("Failed to subscribe to topic filter. Number of results: %d"),
-						InResult.GetResult()->Num());
+					LOG_MQTTIFY(Error, TEXT("Failed to subscribe to topic filter"));
 				}
 
 				return InResult;
@@ -133,9 +131,8 @@ namespace Mqttify
 
 				LOG_MQTTIFY(
 					Error,
-					TEXT("Failed to subscribe to topic filter. Success: %s, Number of results: %d"),
-					InResult.HasSucceeded() ? TEXT("true") : TEXT("false"),
-					InResult.GetResult()->Num());
+					TEXT("Failed to subscribe to topic filter. Success: %s"),
+					InResult.HasSucceeded() ? TEXT("true") : TEXT("false"));
 				return TMqttifyResult<FMqttifySubscribeResult>{false};
 			});
 	}
@@ -176,10 +173,7 @@ namespace Mqttify
 				}
 				else
 				{
-					LOG_MQTTIFY(
-						Warning,
-						TEXT("Failed to unsubscribe from topic filter. Number of results: %d"),
-						InResult.GetResult()->Num());
+					LOG_MQTTIFY(Warning, TEXT("Failed to unsubscribe from topic filter"));
 				}
 
 				return InResult;
@@ -190,7 +184,7 @@ namespace Mqttify
 	{
 		if (!Socket.IsValid())
 		{
-			LOG_MQTTIFY(Error, TEXT("Socket is null."));
+			LOG_MQTTIFY(Error, TEXT("Socket is null"));
 			TransitionTo(MakeShared<FMqttifyClientDisconnectedState>(OnStateChanged, Context, Socket));
 			return;
 		}
@@ -220,7 +214,7 @@ namespace Mqttify
 						const TSharedPtr<FMqttifyClientConnectedState> SharedConnectedPtr = WeakConnectedPtr.Pin();
 						if (!InResult.HasSucceeded() && SharedConnectedPtr.IsValid())
 						{
-							LOG_MQTTIFY(Warning, TEXT("Failed to send ping request. Reconnecting."));
+							LOG_MQTTIFY(Warning, TEXT("Failed to send ping request. Reconnecting"));
 							SharedConnectedPtr->TransitionTo(
 								MakeShared<FMqttifyClientConnectingState>(OnStateChanged, Context, false, Socket));
 						}
@@ -242,7 +236,7 @@ namespace Mqttify
 
 		if (Packet == nullptr)
 		{
-			LOG_MQTTIFY(Error, TEXT("Failed to parse packet."));
+			LOG_MQTTIFY(Error, TEXT("Failed to parse packet"));
 			return;
 		}
 
@@ -306,7 +300,7 @@ namespace Mqttify
 					}
 				}
 
-				Context->OnMessage().Broadcast(FMqttifyPublishPacketBase::ToMqttifyMessage(MoveTemp(PublishPacket)));
+				Context->CompleteMessage(FMqttifyPublishPacketBase::ToMqttifyMessage(MoveTemp(PublishPacket)));
 				break;
 			}
 

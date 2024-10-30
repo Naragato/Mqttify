@@ -2,6 +2,7 @@
 
 #include "Packets/Interface/IMqttifyControlPacket.h"
 #include <bitset>
+#include <type_traits>
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMqttify, VeryVerbose, All);
 
@@ -109,8 +110,11 @@ LogPacket.GetPacketId(),\
 do {\
 if (UE_LOG_ACTIVE(LogMqttify, Level))\
 {\
+using LengthType = decltype(Length);\
+using UnsignedLengthType = typename std::make_unsigned<LengthType>::type;\
+UnsignedLengthType LengthUnsigned = static_cast<UnsignedLengthType>(Length);\
 FString BitString;\
-for (uint32 i = 0; i < Length; ++i)\
+for (uint64 i = 0; i < LengthUnsigned; ++i)\
 {\
 std::bitset<8> Bits(Data[i]);\
 BitString += FString::Printf(TEXT("%hs "), Bits.to_string().c_str());\

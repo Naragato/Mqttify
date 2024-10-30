@@ -18,7 +18,7 @@ namespace Mqttify
 		{
 			LOG_MQTTIFY(
 				Error,
-				TEXT("[Disconnect] %s %s."),
+				TEXT("[Disconnect] %s %s"),
 				MqttifyPacketType::InvalidPacketType,
 				EnumToTCharString(FixedHeader.GetPacketType()));
 			bIsValid = false;

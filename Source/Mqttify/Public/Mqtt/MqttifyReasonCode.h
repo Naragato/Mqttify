@@ -170,7 +170,7 @@ enum class EMqttifyReasonCode : uint8
 
 namespace MqttifyReasonCode
 {
-	constexpr TCHAR InvalidReasonCode[] = TEXT("Invalid Reason code.");
+	constexpr TCHAR InvalidReasonCode[] = TEXT("Invalid Reason code");
 }
 
 namespace Mqttify

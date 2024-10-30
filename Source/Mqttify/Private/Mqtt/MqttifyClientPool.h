@@ -43,7 +43,7 @@ namespace Mqttify
 		 */
 		TSharedPtr<IMqttifyClient> GetOrCreateClient(const FMqttifyConnectionSettingsRef& InConnectionSettings);
 
-		void Clear();
+		void Kill();
 
 		/* Implement FRunnable Begin */
 		/// @brief Run the thread.
@@ -62,7 +62,11 @@ namespace Mqttify
 		virtual void Tick() override;
 		/* Implement FSingleThreadRunnable End */
 	private:
-		/// @brief Tick the connection on the main thread (e.g., poll for incoming data, check for timeouts, etc.)
+
+		/// @brief Tick the connection  (e.g., poll for incoming data, check for timeouts, etc.)
+		void TickInternal();
+
+		/// @brief Tick the connection on the main thread
 		bool GameThreadTick(float DeltaTime);
 
 		mutable FCriticalSection ClientMapLock;

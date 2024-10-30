@@ -13,7 +13,7 @@ namespace Mqttify
 	{
 		if (AttemptCount >= Context->GetConnectionSettings()->GetMaxConnectionRetries())
 		{
-			LOG_MQTTIFY(Error, TEXT("Failed to connect after %d attempts."), AttemptCount);
+			LOG_MQTTIFY(Error, TEXT("Failed to connect after %d attempts"), AttemptCount);
 			Context->ClearConnectPromises();
 			SocketTransitionToState<FMqttifyClientDisconnectingState>();
 			return;
@@ -59,7 +59,7 @@ namespace Mqttify
 		if (bInCleanSession == true)
 		{
 			LOG_MQTTIFY(Error, TEXT("Cannot connect with clean session while already connecting."));
-			return MakeFulfilledPromise<TMqttifyResult<void>>(TMqttifyResult<void>{false}).GetFuture();
+			return MakeThreadAwareFulfilledPromise<TMqttifyResult<void>>(TMqttifyResult<void>{false});
 		}
 		// We're already connecting. so just return the promise.
 		const TSharedPtr<TPromise<TMqttifyResult<void>>> Promise = Context->GetConnectPromise();

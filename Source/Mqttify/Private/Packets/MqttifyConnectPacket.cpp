@@ -95,7 +95,7 @@ namespace Mqttify
 		{
 			LOG_MQTTIFY(
 				Error,
-				TEXT("[Connect] %s %s."),
+				TEXT("[Connect] %s %s"),
 				MqttifyPacketType::InvalidPacketType,
 				EnumToTCharString(FixedHeader.GetPacketType()));
 			ReturnCode = EMqttifyConnectReturnCode::RefusedProtocolVersion;
@@ -106,7 +106,7 @@ namespace Mqttify
 		const FString ProtocolName = Data::DecodeString(InReader);
 		if (ProtocolName != "MQTT")
 		{
-			LOG_MQTTIFY(Error, TEXT("[Connect] %s %s."), InvalidProtocolName, *ProtocolName);
+			LOG_MQTTIFY(Error, TEXT("[Connect] %s %s"), InvalidProtocolName, *ProtocolName);
 			ReturnCode = EMqttifyConnectReturnCode::RefusedProtocolVersion;
 			bIsValid   = false;
 			return;
@@ -116,7 +116,7 @@ namespace Mqttify
 		InReader << ProtocolLevel;
 		if (ProtocolLevel != static_cast<uint8>(EMqttifyProtocolVersion::Mqtt_3_1_1))
 		{
-			LOG_MQTTIFY(Error, TEXT("[Connect] %s %d."), InvalidProtocolVersion, ProtocolLevel);
+			LOG_MQTTIFY(Error, TEXT("[Connect] %s %d"), InvalidProtocolVersion, ProtocolLevel);
 			ReturnCode = EMqttifyConnectReturnCode::RefusedProtocolVersion;
 			bIsValid   = false;
 			return;

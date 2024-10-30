@@ -2,5 +2,5 @@
 
 namespace Mqttify::ErrorStrings
 {
-	constexpr TCHAR ArchiveTooSmall[] = TEXT("Archive too small.");
+	constexpr TCHAR ArchiveTooSmall[] = TEXT("Archive too small");
 }

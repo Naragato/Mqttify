@@ -1,11 +1,11 @@
-#include "Mqtt/MqttifyConnectionSettingsBuilder.h"
-#include "Tests/MqttifyTestUtilities.h"
-
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "MqttifyModule.h"
 #include "Misc/AutomationTest.h"
 #include "Mqtt/MqttifyClient.h"
+#include "Mqtt/MqttifyConnectionSettingsBuilder.h"
+#include "Tests/MqttifyTestUtilities.h"
+#include "Tests/Packets/PacketComparision.h"
 
 using namespace Mqttify;
 
@@ -42,7 +42,7 @@ void FMqttifyClientTests::Define()
 				{
 					if (!StartBroker(DockerContainerName, Spec))
 					{
-						AddError(TEXT("Failed to start MQTT broker."));
+						AddError(TEXT("Failed to start MQTT broker"));
 						BeforeDone.Execute();
 						return;
 					}
@@ -62,11 +62,13 @@ void FMqttifyClientTests::Define()
 						Client->PublishAsync(MoveTemp(Message)).Next(
 							[this, TestDone](const TMqttifyResult<void>& InResult)
 							{
-								Async(EAsyncExecution::TaskGraphMainThread, [InResult, TestDone, this]
-								{
-									TestTrue(TEXT("PublishAsync.Next should be called"), InResult.HasSucceeded());
-									TestDone.Execute();
-								});
+								Async(
+									EAsyncExecution::TaskGraphMainThread,
+									[InResult, TestDone, this]
+									{
+										TestTrue(TEXT("PublishAsync.Next should be called"), InResult.HasSucceeded());
+										TestDone.Execute();
+									});
 							});
 					});
 			}
@@ -146,7 +148,7 @@ void FMqttifyClientTests::Define()
 				{
 					if (!StartBroker(DockerContainerName, Spec))
 					{
-						AddError(TEXT("Failed to start MQTT broker."));
+						AddError(TEXT("Failed to start MQTT broker"));
 						BeforeDone.Execute();
 						return;
 					}
@@ -181,18 +183,30 @@ void FMqttifyClientTests::Define()
 								{
 									if (!InResult.HasSucceeded())
 									{
-										AddError(TEXT("SubscribeAsync failed."));
+										AddError(TEXT("SubscribeAsync failed"));
 										TestDone.Execute();
 										return;
 									}
 
+									TArray<int> X = {1, 2, 3};
 									Subscriber->OnMessage().AddLambda(
 										[this, TestDone](const FMqttifyMessage& InMessage)
 										{
+											LOG_MQTTIFY(VeryVerbose, TEXT("Received message"));
+											LOG_MQTTIFY_PACKET_DATA(
+												VeryVerbose,
+												InMessage.GetPayload().GetData(),
+												InMessage.GetPayload().Num());
 											TestEqual(
 												TEXT("Received message topic matches"),
 												InMessage.GetTopic(),
 												FString{kTopic});
+
+											TestArrayEqual(
+												TEXT("Received message payload matches"),
+												InMessage.GetPayload(),
+												TArray<uint8>{1, 2, 3},
+												this);
 											TestDone.Execute();
 										});
 
@@ -246,7 +260,7 @@ void FMqttifyClientTests::SetupClients(
 
 		if (!MqttClient)
 		{
-			AddError(FString::Printf(TEXT("Failed to create MQTT client %d."), i));
+			AddError(FString::Printf(TEXT("Failed to create MQTT client %d"), i));
 			InBeforeDone.Execute();
 			return;
 		}

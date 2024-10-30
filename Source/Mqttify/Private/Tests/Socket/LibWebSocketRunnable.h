@@ -85,7 +85,7 @@ namespace Mqttify
 
 		virtual ~FLibWebSocketRunnable() override
 		{
-			LOG_MQTTIFY(Display, TEXT("Destroying websocket."));
+			LOG_MQTTIFY(Display, TEXT("Destroying websocket"));
 			if (Thread)
 			{
 				bIsStopping.store(true, std::memory_order_release);

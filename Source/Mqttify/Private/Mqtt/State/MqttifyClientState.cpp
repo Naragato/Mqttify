@@ -28,14 +28,14 @@ namespace Mqttify
 	void FMqttifyClientState::TransitionTo(const TSharedPtr<FMqttifyClientState>& InState) const
 	{
 		// ReSharper disable once CppExpressionWithoutSideEffects
-		OnStateChanged.ExecuteIfBound(InState);
+		OnStateChanged.ExecuteIfBound(this, InState);
 	}
 
 	FMqttifyPacketPtr FMqttifyClientState::CreatePacket(const TSharedPtr<FArrayReader>& InData)
 	{
 		if (InData == nullptr)
 		{
-			LOG_MQTTIFY(Error, TEXT("Failed to parse packet."));
+			LOG_MQTTIFY(Error, TEXT("Failed to parse packet"));
 			return nullptr;
 		}
 
@@ -96,7 +96,7 @@ namespace Mqttify
 		case EMqttifyPacketType::None: default: checkNoEntry();
 			LOG_MQTTIFY(
 				Error,
-				TEXT("Unknown packet type: %s, for protocol: %s."),
+				TEXT("Unknown packet type: %s, for protocol: %s"),
 				EnumToTCharString(GMqttifyProtocol),
 				EnumToTCharString(FixedHeader.GetPacketType()));
 			Result = nullptr;

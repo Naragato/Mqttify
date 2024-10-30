@@ -14,7 +14,7 @@ void Mqttify::FMqttifyProperties::Decode(FArrayReader& InReader)
 		{
 			LOG_MQTTIFY(
 				Error,
-				TEXT("[Properties] %s Expected: %d, Actual: %d."),
+				TEXT("[Properties] %s Expected: %d, Actual: %d"),
 				ErrorStrings::ArchiveTooSmall,
 				RemainingLength,
 				InReader.Tell() - ReaderPos);

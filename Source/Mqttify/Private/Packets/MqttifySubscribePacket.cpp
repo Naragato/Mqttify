@@ -42,7 +42,7 @@ void Mqttify::TMqttifySubscribePacket<EMqttifyProtocolVersion::Mqtt_3_1_1>::Deco
 	{
 		LOG_MQTTIFY(
 			Error,
-			TEXT("[Subscribe] %s %s."),
+			TEXT("[Subscribe] %s %s"),
 			MqttifyPacketType::InvalidPacketType,
 			EnumToTCharString(FixedHeader.GetPacketType()));
 		bIsValid = false;
@@ -131,7 +131,7 @@ void Mqttify::TMqttifySubscribePacket<EMqttifyProtocolVersion::Mqtt_5>::Decode(F
 	{
 		LOG_MQTTIFY(
 			Error,
-			TEXT("[Subscribe] %s %s."),
+			TEXT("[Subscribe] %s %s"),
 			MqttifyPacketType::InvalidPacketType,
 			EnumToTCharString(FixedHeader.GetPacketType()));
 		bIsValid = false;

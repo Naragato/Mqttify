@@ -9,14 +9,18 @@ namespace Mqttify
 {
 	bool FMqttifyPingReq::Acknowledge(const FMqttifyPacketPtr& InPacket)
 	{
-		FScopeLock Lock{ &CriticalSection };
+		FScopeLock Lock{&CriticalSection};
+		LOG_MQTTIFY(VeryVerbose, TEXT("Acknowledge %s"), EnumToTCharString(InPacket->GetPacketType()));
 		if (InPacket->GetPacketType() != EMqttifyPacketType::PingResp)
 		{
-			LOG_MQTTIFY(Error,
-						TEXT("[PingReq] %s Expected: Actual: %s."),
-						MqttifyPacketType::InvalidPacketType,
-						EnumToTCharString(EMqttifyPacketType::PingResp),
-						EnumToTCharString(InPacket->GetPacketType()));
+			LOG_MQTTIFY(
+				Error,
+				TEXT("[PingReq (Connection %s, ClientId %s)] %s Expected: %s Actual: %s"),
+				*Settings->GetHost(),
+				*Settings->GetClientId(),
+				MqttifyPacketType::InvalidPacketType,
+				EnumToTCharString(EMqttifyPacketType::PingResp),
+				EnumToTCharString(InPacket->GetPacketType()));
 			Abandon();
 			return true;
 		}
@@ -24,7 +28,7 @@ namespace Mqttify
 		if (!bIsDone)
 		{
 			bIsDone = true;
-			SetPromiseValue(TMqttifyResult<void>{ true });
+			SetPromiseValue(TMqttifyResult<void>{true});
 		}
 		return true;
 	}
@@ -37,23 +41,23 @@ namespace Mqttify
 		}
 
 		SendPacketInternal(MakeShared<FMqttifyPingReqPacket>());
+		RetryWaitTime = FDateTime::UtcNow() + FTimespan::FromSeconds(Settings->GetKeepAliveIntervalSeconds());
 		return false;
 	}
 
 	void FMqttifyPingReq::Abandon()
 	{
-		FScopeLock Lock{ &CriticalSection };
+		FScopeLock Lock{&CriticalSection};
 		if (!bIsDone)
 		{
 			bIsDone = true;
-			SetPromiseValue(TMqttifyResult<void>{ false });
+			SetPromiseValue(TMqttifyResult<void>{false});
 		}
 	}
 
 	bool FMqttifyPingReq::IsDone() const
 	{
-		FScopeLock Lock{ &CriticalSection };
+		FScopeLock Lock{&CriticalSection};
 		return bIsDone;
-
 	}
 }

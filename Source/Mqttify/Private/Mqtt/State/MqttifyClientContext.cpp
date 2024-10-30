@@ -1,6 +1,7 @@
 #include "MqttifyClientContext.h"
 
 #include "LogMqttify.h"
+#include "MqttifyAsync.h"
 #include "Mqtt/MqttifyResult.h"
 #include "Mqtt/Commands/MqttifyAcknowledgeable.h"
 #include "Packets/Interface/IMqttifyControlPacket.h"
@@ -133,35 +134,59 @@ namespace Mqttify
 
 	void FMqttifyClientContext::CompleteDisconnect()
 	{
-		FScopeLock Lock(&OnDisconnectPromisesCriticalSection);
-		OnDisconnect().Broadcast(true);
-		for (const auto& Promise : OnDisconnectPromises)
-		{
-			Promise->SetValue(TMqttifyResult<void>{true});
-		}
-		OnDisconnectPromises.Empty();
+		TWeakPtr<FMqttifyClientContext> ThisWeakPtr = AsWeak();
+		DispatchWithThreadHandling(
+			[ThisWeakPtr]
+			{
+				if (const TSharedPtr<FMqttifyClientContext> ThisSharedPtr = ThisWeakPtr.Pin())
+				{
+					FScopeLock Lock(&ThisSharedPtr->OnDisconnectPromisesCriticalSection);
+					ThisSharedPtr->OnDisconnect().Broadcast(true);
+					for (const auto& Promise : ThisSharedPtr->OnDisconnectPromises)
+					{
+						Promise->SetValue(TMqttifyResult<void>{true});
+					}
+					ThisSharedPtr->OnDisconnectPromises.Empty();
+				}
+			});
 	}
 
 	void FMqttifyClientContext::CompleteConnect()
 	{
-		FScopeLock Lock(&OnConnectPromisesCriticalSection);
-		OnConnect().Broadcast(true);
-		for (const auto& Promise : OnConnectPromises)
-		{
-			Promise->SetValue(TMqttifyResult<void>{true});
-		}
-		OnConnectPromises.Empty();
+		TWeakPtr<FMqttifyClientContext> ThisWeakPtr = AsWeak();
+		DispatchWithThreadHandling(
+			[ThisWeakPtr]
+			{
+				if (const TSharedPtr<FMqttifyClientContext> ThisSharedPtr = ThisWeakPtr.Pin())
+				{
+					FScopeLock Lock(&ThisSharedPtr->OnConnectPromisesCriticalSection);
+					ThisSharedPtr->OnConnect().Broadcast(true);
+					for (const auto& Promise : ThisSharedPtr->OnConnectPromises)
+					{
+						Promise->SetValue(TMqttifyResult<void>{true});
+					}
+					ThisSharedPtr->OnConnectPromises.Empty();
+				}
+			});
 	}
 
-	void FMqttifyClientContext::CompleteMessage(const FMqttifyMessage& InMessage)
+	void FMqttifyClientContext::CompleteMessage(FMqttifyMessage&& InMessage)
 	{
-		FScopeLock Lock(&OnMessageDelegatesCriticalSection);
-		OnMessage().Broadcast(InMessage);
-
-		if (const TSharedRef<FOnMessage>* Delegate = OnMessageDelegates.Find(InMessage.GetTopic()))
-		{
-			(*Delegate)->Broadcast(InMessage);
-		}
+		TWeakPtr<FMqttifyClientContext> ThisWeakPtr = AsWeak();
+		DispatchWithThreadHandling(
+			[ThisWeakPtr, Message = MoveTemp(InMessage)]() mutable
+			{
+				if (const TSharedPtr<FMqttifyClientContext> ThisSharedPtr = ThisWeakPtr.Pin())
+				{
+					FScopeLock Lock(&ThisSharedPtr->OnMessageDelegatesCriticalSection);
+					ThisSharedPtr->OnMessage().Broadcast(Message);
+					if (const TSharedRef<FOnMessage>* Delegate = ThisSharedPtr->OnMessageDelegates.Find(
+						Message.GetTopic()))
+					{
+						(*Delegate)->Broadcast(Message);
+					}
+				}
+			});
 	}
 
 	void FMqttifyClientContext::Acknowledge(const FMqttifyPacketPtr& InPacket)
@@ -191,6 +216,11 @@ namespace Mqttify
 		{
 			if ((*Command)->Acknowledge(InPacket))
 			{
+				LOG_MQTTIFY(
+					VeryVerbose,
+					TEXT("Removing packet identifier %d, Type %s"),
+					InPacketIdentifier,
+					EnumToTCharString(InPacket->GetPacketType()));
 				AcknowledgeableCommands.Remove(InPacketIdentifier);
 				if (InPacketIdentifier <= kMaxCount)
 				{
@@ -215,7 +245,11 @@ namespace Mqttify
 		FScopeLock Lock(&OnDisconnectPromisesCriticalSection);
 		for (const auto& Promise : OnDisconnectPromises)
 		{
-			Promise->SetValue(TMqttifyResult<void>{false});
+			DispatchWithThreadHandling(
+				[Promise]
+				{
+					Promise->SetValue(TMqttifyResult<void>{false});
+				});
 		}
 		OnDisconnectPromises.Empty();
 	}
@@ -225,7 +259,11 @@ namespace Mqttify
 		FScopeLock Lock(&OnConnectPromisesCriticalSection);
 		for (const auto& Promise : OnConnectPromises)
 		{
-			Promise->SetValue(TMqttifyResult<void>{false});
+			DispatchWithThreadHandling(
+				[Promise]
+				{
+					Promise->SetValue(TMqttifyResult<void>{false});
+				});
 		}
 		OnConnectPromises.Empty();
 	}

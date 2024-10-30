@@ -45,7 +45,7 @@ namespace Mqttify
 			, LastConnectAttempt{FDateTime::MinValue()}
 			, AttemptCount{0}
 		{
-			checkf(Socket.IsValid(), TEXT("Socket must be valid."));
+			checkf(Socket.IsValid(), TEXT("Socket must be valid"));
 			if (Socket.IsValid())
 			{
 				Socket->Connect();
@@ -63,7 +63,7 @@ namespace Mqttify
 			, LastConnectAttempt{FDateTime::MinValue()}
 			, AttemptCount{0}
 		{
-			checkf(Socket.IsValid(), TEXT("Socket must be valid."));
+			checkf(Socket.IsValid(), TEXT("Socket must be valid"));
 			if (Socket.IsValid())
 			{
 				Socket->Connect();

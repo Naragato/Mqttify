@@ -1,4 +1,5 @@
 #pragma once
+#include "MqttifyAsync.h"
 #include "Async/Future.h"
 #include "Mqtt/MqttifyState.h"
 #include "Mqtt/Interface/IMqttifyConnectableAsync.h"
@@ -39,7 +40,7 @@ namespace Mqttify
 		// IMqttifyDisconnectableAsync
 		virtual TFuture<TMqttifyResult<void>> DisconnectAsync() override
 		{
-			return MakeFulfilledPromise<TMqttifyResult<void>>(TMqttifyResult<void>{true}).GetFuture();
+			return MakeThreadAwareFulfilledPromise<TMqttifyResult<void>>(TMqttifyResult<void>{true});
 		}
 
 		// ~ IMqttifyDisconnectableAsync

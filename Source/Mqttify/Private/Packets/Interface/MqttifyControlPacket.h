@@ -16,7 +16,7 @@ namespace Mqttify
 		: public IMqttifyControlPacket, public TSharedFromThis<TMqttifyControlPacket<TPacketType>>
 	{
 	public:
-		static constexpr TCHAR InvalidPacket[] = TEXT("Invalid packet.");
+		static constexpr TCHAR InvalidPacket[] = TEXT("Invalid packet");
 
 		explicit TMqttifyControlPacket() {}
 

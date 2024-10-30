@@ -26,7 +26,7 @@ namespace Mqttify
 				default:
 					LOG_MQTTIFY(
 						Error,
-						TEXT("[Auth Packet] %s %s."),
+						TEXT("[Auth Packet] %s %s"),
 						MqttifyReasonCode::InvalidReasonCode,
 						EnumToTCharString(ReasonCode));
 					bIsValid = false;
@@ -37,7 +37,7 @@ namespace Mqttify
 			// check properties are valid
 			if (!ArePropertiesValid(InProperties))
 			{
-				LOG_MQTTIFY(Error, TEXT("[Auth Packet] %s."), FMqttifyProperty::FailedToReadPropertyError);
+				LOG_MQTTIFY(Error, TEXT("[Auth Packet] %s"), FMqttifyProperty::FailedToReadPropertyError);
 				bIsValid = false;
 				checkNoEntry();
 			}

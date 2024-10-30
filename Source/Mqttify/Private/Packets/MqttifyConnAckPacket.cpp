@@ -22,7 +22,7 @@ namespace Mqttify
 		{
 			LOG_MQTTIFY(
 				Error,
-				TEXT("[ConnAck] %s %s."),
+				TEXT("[ConnAck] %s %s"),
 				MqttifyPacketType::InvalidPacketType,
 				EnumToTCharString(FixedHeader.GetPacketType()));
 			ReturnCode = EMqttifyConnectReturnCode::RefusedProtocolVersion;

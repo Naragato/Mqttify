@@ -82,7 +82,7 @@ namespace Mqttify
 				bIsValid = false;
 				LOG_MQTTIFY(
 					Error,
-					TEXT("[ConnAck] %s %s."),
+					TEXT("[ConnAck] %s %s"),
 					MqttifyReasonCode::InvalidReasonCode,
 					EnumToTCharString(InReasonCode));
 				ReasonCode = EMqttifyReasonCode::UnspecifiedError;

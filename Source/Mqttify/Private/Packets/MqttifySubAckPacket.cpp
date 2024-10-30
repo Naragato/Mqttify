@@ -34,7 +34,7 @@ namespace Mqttify
 		{
 			LOG_MQTTIFY(
 				Error,
-				TEXT("[SubAck] %s %s."),
+				TEXT("[SubAck] %s %s"),
 				MqttifyPacketType::InvalidPacketType,
 				EnumToTCharString(FixedHeader.GetPacketType()));
 			bIsValid = false;
@@ -93,7 +93,7 @@ namespace Mqttify
 		{
 			LOG_MQTTIFY(
 				Error,
-				TEXT("[SubAck] %s %s."),
+				TEXT("[SubAck] %s %s"),
 				MqttifyPacketType::InvalidPacketType,
 				EnumToTCharString(FixedHeader.GetPacketType()));
 			bIsValid = false;

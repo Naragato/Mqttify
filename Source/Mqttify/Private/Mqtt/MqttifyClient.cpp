@@ -1,6 +1,7 @@
 #include "Mqtt/MqttifyClient.h"
 
 #include "LogMqttify.h"
+#include "MqttifyAsync.h"
 #include "Interface/IMqttifyPacketReceiver.h"
 #include "Interface/IMqttifySocketConnectedHandler.h"
 #include "Interface/IMqttifySocketDisconnectHandler.h"
@@ -38,7 +39,11 @@ namespace Mqttify
 	TFuture<TMqttifyResult<void>> FMqttifyClient::ConnectAsync(const bool bCleanSession)
 	{
 		FScopeLock Lock{&StateLock};
-
+		LOG_MQTTIFY(
+			VeryVerbose,
+			TEXT("[Connect (Connection %s, ClientId %s)]"),
+			*GetConnectionSettings()->GetHost(),
+			*GetConnectionSettings()->GetClientId());
 		if (!CurrentState.IsValid())
 		{
 			TWeakPtr<FMqttifyClient> ThisWeakPtr = AsWeak();
@@ -57,12 +62,18 @@ namespace Mqttify
 			return Connectable->ConnectAsync(bCleanSession);
 		}
 
-		return MakeFulfilledPromise<TMqttifyResult<void>>(TMqttifyResult<void>{false}).GetFuture();
+		return MakeThreadAwareFulfilledPromise<TMqttifyResult<void>>(TMqttifyResult<void>{false});
 	}
 
 	TFuture<TMqttifyResult<void>> FMqttifyClient::DisconnectAsync()
 	{
 		FScopeLock Lock{&StateLock};
+		LOG_MQTTIFY(
+			VeryVerbose,
+			TEXT("[disconnect (Connection %s, ClientId %s)]"),
+			*GetConnectionSettings()->GetHost(),
+			*GetConnectionSettings()->GetClientId());
+
 		if (CurrentState.IsValid())
 		{
 			if (IMqttifyDisconnectableAsync* Disconnectable = CurrentState->AsDisconnectable())
@@ -71,21 +82,36 @@ namespace Mqttify
 			}
 		}
 
-		return MakeFulfilledPromise<TMqttifyResult<void>>(TMqttifyResult<void>{false}).GetFuture();
+		return MakeThreadAwareFulfilledPromise<TMqttifyResult<void>>(TMqttifyResult<void>{false});
 	}
 
 	TFuture<TMqttifyResult<void>> FMqttifyClient::PublishAsync(FMqttifyMessage&& InMessage)
 	{
 		FScopeLock Lock{&StateLock};
+		LOG_MQTTIFY(
+			VeryVerbose,
+			TEXT("[lock (Connection %s, ClientId %s)]"),
+			*GetConnectionSettings()->GetHost(),
+			*GetConnectionSettings()->GetClientId());
 		if (CurrentState.IsValid())
 		{
 			if (IMqttifyPublishableAsync* Publishable = CurrentState->AsPublishable())
 			{
+				LOG_MQTTIFY(
+					VeryVerbose,
+					TEXT("[unlock (Connection %s, ClientId %s)] is in a publishable state"),
+					*GetConnectionSettings()->GetHost(),
+					*GetConnectionSettings()->GetClientId());
 				return Publishable->PublishAsync(MoveTemp(InMessage));
 			}
 		}
 
-		return MakeFulfilledPromise<TMqttifyResult<void>>(TMqttifyResult<void>{false}).GetFuture();
+		LOG_MQTTIFY(
+			VeryVerbose,
+			TEXT("[unlock (Connection %s, ClientId %s)] is not in a publishable state"),
+			*GetConnectionSettings()->GetHost(),
+			*GetConnectionSettings()->GetClientId());
+		return MakeThreadAwareFulfilledPromise<TMqttifyResult<void>>(TMqttifyResult<void>{false});
 	}
 
 	TFuture<TMqttifyResult<TArray<FMqttifySubscribeResult>>> FMqttifyClient::SubscribeAsync(
@@ -93,46 +119,92 @@ namespace Mqttify
 		)
 	{
 		FScopeLock Lock{&StateLock};
+		LOG_MQTTIFY(
+			VeryVerbose,
+			TEXT("[lock (Connection %s, ClientId %s)]"),
+			*GetConnectionSettings()->GetHost(),
+			*GetConnectionSettings()->GetClientId());
 		if (CurrentState.IsValid())
 		{
 			if (IMqttifySubscribableAsync* Subscribable = CurrentState->AsSubscribable())
 			{
+				LOG_MQTTIFY(
+					VeryVerbose,
+					TEXT("[unlock (Connection %s, ClientId %s)] is in a subscribable state"),
+					*GetConnectionSettings()->GetHost(),
+					*GetConnectionSettings()->GetClientId());
 				return Subscribable->SubscribeAsync(InTopicFilters);
 			}
 		}
 
-		return MakeFulfilledPromise<TMqttifyResult<TArray<FMqttifySubscribeResult>>>(
-			TMqttifyResult<TArray<FMqttifySubscribeResult>>{false}).GetFuture();
+		LOG_MQTTIFY(
+			VeryVerbose,
+			TEXT("[unlock (Connection %s, ClientId %s)] is not in a subscribable state"),
+			*GetConnectionSettings()->GetHost(),
+			*GetConnectionSettings()->GetClientId());
+		return MakeThreadAwareFulfilledPromise<TMqttifyResult<TArray<FMqttifySubscribeResult>>>(
+			TMqttifyResult<TArray<FMqttifySubscribeResult>>{false});
 	}
 
 
 	TFuture<TMqttifyResult<FMqttifySubscribeResult>> FMqttifyClient::SubscribeAsync(FMqttifyTopicFilter&& InTopicFilter)
 	{
 		FScopeLock Lock{&StateLock};
+		LOG_MQTTIFY(
+			VeryVerbose,
+			TEXT("[lock (Connection %s, ClientId %s)]"),
+			*GetConnectionSettings()->GetHost(),
+			*GetConnectionSettings()->GetClientId());
 		if (CurrentState.IsValid())
 		{
 			if (IMqttifySubscribableAsync* Subscribable = CurrentState->AsSubscribable())
 			{
+				LOG_MQTTIFY(
+					VeryVerbose,
+					TEXT("[unlock (Connection %s, ClientId %s)] is in a subscribable state"),
+					*GetConnectionSettings()->GetHost(),
+					*GetConnectionSettings()->GetClientId());
 				return Subscribable->SubscribeAsync(MoveTemp(InTopicFilter));
 			}
 		}
-		return MakeFulfilledPromise<TMqttifyResult<FMqttifySubscribeResult>>(
-			TMqttifyResult<FMqttifySubscribeResult>{false}).GetFuture();
+
+		LOG_MQTTIFY(
+			VeryVerbose,
+			TEXT("[unlock (Connection %s, ClientId %s)] is not in a subscribable state"),
+			*GetConnectionSettings()->GetHost(),
+			*GetConnectionSettings()->GetClientId());
+		return MakeThreadAwareFulfilledPromise<TMqttifyResult<FMqttifySubscribeResult>>(
+			TMqttifyResult<FMqttifySubscribeResult>{false});
 	}
 
 	TFuture<TMqttifyResult<FMqttifySubscribeResult>> FMqttifyClient::SubscribeAsync(FString& InTopicFilter)
 	{
 		FScopeLock Lock{&StateLock};
+		LOG_MQTTIFY(
+			VeryVerbose,
+			TEXT("[lock (Connection %s, ClientId %s)]"),
+			*GetConnectionSettings()->GetHost(),
+			*GetConnectionSettings()->GetClientId());
 		if (CurrentState.IsValid())
 		{
 			if (IMqttifySubscribableAsync* Subscribable = CurrentState->AsSubscribable())
 			{
+				LOG_MQTTIFY(
+					VeryVerbose,
+					TEXT("[unlock (Connection %s, ClientId %s)] is in a subscribable state"),
+					*GetConnectionSettings()->GetHost(),
+					*GetConnectionSettings()->GetClientId());
 				return Subscribable->SubscribeAsync(InTopicFilter);
 			}
 		}
 
-		return MakeFulfilledPromise<TMqttifyResult<FMqttifySubscribeResult>>(
-			TMqttifyResult<FMqttifySubscribeResult>{false}).GetFuture();
+		LOG_MQTTIFY(
+			VeryVerbose,
+			TEXT("[unlock (Connection %s, ClientId %s)] is not in a subscribable state"),
+			*GetConnectionSettings()->GetHost(),
+			*GetConnectionSettings()->GetClientId());
+		return MakeThreadAwareFulfilledPromise<TMqttifyResult<FMqttifySubscribeResult>>(
+			TMqttifyResult<FMqttifySubscribeResult>{false});
 	}
 
 	TFuture<TMqttifyResult<TArray<FMqttifyUnsubscribeResult>>> FMqttifyClient::UnsubscribeAsync(
@@ -140,15 +212,27 @@ namespace Mqttify
 		)
 	{
 		FScopeLock Lock{&StateLock};
+		LOG_MQTTIFY(
+			VeryVerbose,
+			TEXT("[lock (Connection %s, ClientId %s)]"),
+			*GetConnectionSettings()->GetHost(),
+			*GetConnectionSettings()->GetClientId());
 		if (CurrentState.IsValid())
 		{
 			if (IMqttifyUnsubscribableAsync* Unsubscribable = CurrentState->AsUnsubscribable())
 			{
+				LOG_MQTTIFY(
+					VeryVerbose,
+					TEXT("[unlock (Connection %s, ClientId %s)] is in an unsubscribable state"),
+					*GetConnectionSettings()->GetHost(),
+					*GetConnectionSettings()->GetClientId());
 				return Unsubscribable->UnsubscribeAsync(InTopicFilters);
 			}
 		}
-		return MakeFulfilledPromise<TMqttifyResult<TArray<FMqttifyUnsubscribeResult>>>(
-			TMqttifyResult<TArray<FMqttifyUnsubscribeResult>>{false}).GetFuture();
+
+
+		return MakeThreadAwareFulfilledPromise<TMqttifyResult<TArray<FMqttifyUnsubscribeResult>>>(
+			TMqttifyResult<TArray<FMqttifyUnsubscribeResult>>{false});
 	}
 
 	FOnConnect& FMqttifyClient::OnConnect()
@@ -192,66 +276,80 @@ namespace Mqttify
 		return CurrentState->GetState() == EMqttifyState::Connected;
 	}
 
-	void FMqttifyClient::TransitionTo(const TSharedPtr<FMqttifyClientState>& InState)
+	void FMqttifyClient::TransitionTo(
+		const FMqttifyClientState* InPrevious,
+		const TSharedPtr<FMqttifyClientState>& InState
+		)
 	{
 		FScopeLock Lock{&StateLock};
+		if (InPrevious != CurrentState.Get())
+		{
+			LOG_MQTTIFY(
+				Warning,
+				TEXT("Transitioning from a different state than the current state. Ignoring transition."));
+			return;
+		}
 		LOG_MQTTIFY(
 			Verbose,
-			TEXT("Client transitioning from %s to %s"),
+			TEXT("(Connection %s, ClientId %s)  Client transitioning from %s to %s"),
+			*GetConnectionSettings()->GetHost(),
+			*GetConnectionSettings()->GetClientId(),
 			EnumToTCharString(CurrentState->GetState()),
 			EnumToTCharString(InState->GetState()));
 		CurrentState = InState;
 	}
 
-	void FMqttifyClient::OnSocketConnect(bool bWasSuccessful) const
+	void FMqttifyClient::OnSocketConnect(const bool bWasSuccessful) const
 	{
 		FScopeLock Lock{&StateLock};
+		LOG_MQTTIFY(
+			VeryVerbose,
+			TEXT("[On Connect (Connection %s, ClientId %s)]"),
+			*GetConnectionSettings()->GetHost(),
+			*GetConnectionSettings()->GetClientId());
+
 		if (CurrentState.IsValid())
 		{
 			if (IMqttifySocketConnectedHandler* ConnectedHandler = CurrentState->AsSocketConnectedHandler())
 			{
 				ConnectedHandler->OnSocketConnect(bWasSuccessful);
-				return;
 			}
 		}
-
-		LOG_MQTTIFY(
-			VeryVerbose,
-			TEXT("No connected handler found current %s"),
-			EnumToTCharString(CurrentState->GetState()));
 	}
 
 	void FMqttifyClient::OnSocketDisconnect() const
 	{
 		FScopeLock Lock{&StateLock};
+		LOG_MQTTIFY(
+			VeryVerbose,
+			TEXT("[On Disconnect (Connection %s, ClientId %s)]"),
+			*GetConnectionSettings()->GetHost(),
+			*GetConnectionSettings()->GetClientId());
+
 		if (CurrentState.IsValid())
 		{
 			if (IMqttifySocketDisconnectHandler* DisconnectHandler = CurrentState->AsSocketDisconnectHandler())
 			{
 				DisconnectHandler->OnSocketDisconnect();
-				return;
 			}
 		}
-		LOG_MQTTIFY(
-			VeryVerbose,
-			TEXT("No disconnected handler found current %s"),
-			EnumToTCharString(CurrentState->GetState()));
 	}
 
 	void FMqttifyClient::OnReceivePacket(const TSharedPtr<FArrayReader>& InPacket) const
 	{
 		FScopeLock Lock{&StateLock};
+		LOG_MQTTIFY(
+			VeryVerbose,
+			TEXT("[On Receive Packet (Connection %s, ClientId %s)]"),
+			*GetConnectionSettings()->GetHost(),
+			*GetConnectionSettings()->GetClientId());
+
 		if (CurrentState.IsValid())
 		{
 			if (IMqttifyPacketReceiver* PacketReceiver = CurrentState->AsPacketReceiver())
 			{
 				PacketReceiver->OnReceivePacket(InPacket);
-				return;
 			}
 		}
-		LOG_MQTTIFY(
-			Warning,
-			TEXT("No Packet Receiver handler found current %s"),
-			EnumToTCharString(CurrentState->GetState()));
 	}
 } // namespace Mqttify

@@ -11,7 +11,10 @@ namespace Mqttify
 	class FMqttifyClientState
 	{
 	public:
-		DECLARE_DELEGATE_OneParam(FOnStateChangedDelegate, const TSharedPtr<FMqttifyClientState>&);
+		DECLARE_DELEGATE_TwoParams(
+			FOnStateChangedDelegate,
+			const FMqttifyClientState*,
+			const TSharedPtr<FMqttifyClientState>&);
 
 		explicit FMqttifyClientState(
 			const FOnStateChangedDelegate& InOnStateChanged,

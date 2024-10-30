@@ -2,7 +2,6 @@
 
 #include "Async/Future.h"
 #include "Containers/Queue.h"
-
 #include "Mqtt/MqttifyConnectionSettings.h"
 #include "Mqtt/MqttifyResult.h"
 #include "Mqtt/Delegates/OnConnect.h"
@@ -93,8 +92,7 @@ namespace Mqttify
 		 * @brief Add an acknowledgeable command.
 		 * @param InCommand The acknowledgeable command.
 		 */
-		void AddAcknowledgeableCommand(
-			const TSharedRef<FMqttifyAcknowledgeable>& InCommand);
+		void AddAcknowledgeableCommand(const TSharedRef<FMqttifyAcknowledgeable>& InCommand);
 
 		bool HasAcknowledgeableCommand(const uint16 InPacketIdentifier) const;
 
@@ -139,7 +137,7 @@ namespace Mqttify
 		 * @brief Complete the given message.
 		 * @param InMessage The message to complete.
 		 */
-		void CompleteMessage(const FMqttifyMessage& InMessage);
+		void CompleteMessage(FMqttifyMessage&& InMessage);
 
 		/**
 		 * @brief Acknowledge the given packet.

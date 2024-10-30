@@ -22,7 +22,7 @@ namespace Mqttify
 		}
 
 	public:
-		static constexpr TCHAR InvalidPropertyIdentifier[] = TEXT("Invalid property identifier.");
+		static constexpr TCHAR InvalidPropertyIdentifier[] = TEXT("Invalid property identifier");
 		static constexpr TCHAR FailedToReadPropertyError[] = TEXT("Failed to read property.");
 
 		FMqttifyProperty() = delete;

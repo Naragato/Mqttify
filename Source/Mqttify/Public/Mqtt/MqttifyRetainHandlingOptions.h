@@ -24,5 +24,5 @@ enum class EMqttifyRetainHandlingOptions : uint8
 
 namespace MqttifyRetainHandlingOptions
 {
-	constexpr TCHAR InvalidRetainHandlingOption[] = TEXT("Invalid Retain handling option.");
+	constexpr TCHAR InvalidRetainHandlingOption[] = TEXT("Invalid Retain handling option");
 } // namespace MqttifyRetainHandlingOptions

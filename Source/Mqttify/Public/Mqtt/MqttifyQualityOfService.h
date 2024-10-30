@@ -30,5 +30,5 @@ enum class EMqttifyQualityOfService : uint8
 
 namespace MqttifyQualityOfService
 {
-	constexpr TCHAR InvalidQualityOfService[] = TEXT("Invalid Quality of Service.");
+	constexpr TCHAR InvalidQualityOfService[] = TEXT("Invalid Quality of Service");
 } // namespace MqttifyQualityOfService

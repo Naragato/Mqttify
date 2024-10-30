@@ -34,7 +34,7 @@ namespace Mqttify
 		{
 			LOG_MQTTIFY(
 				Error,
-				TEXT("[Auth] %s %s."),
+				TEXT("[Auth] %s %s"),
 				MqttifyPacketType::InvalidPacketType,
 				EnumToTCharString(FixedHeader.GetPacketType()));
 			ReasonCode = EMqttifyReasonCode::UnspecifiedError;

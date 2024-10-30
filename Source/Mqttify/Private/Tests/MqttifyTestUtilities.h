@@ -123,7 +123,7 @@ namespace Mqttify
 		LOG_MQTTIFY(Verbose, TEXT("Docker version output: %s"), *OutString);
 		if (ReturnCode != 0)
 		{
-			LOG_MQTTIFY(Warning, TEXT("Docker is not installed or not available in PATH."));
+			LOG_MQTTIFY(Warning, TEXT("Docker is not installed or not available in PATH"));
 			return false;
 		}
 

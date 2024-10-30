@@ -106,6 +106,6 @@ namespace Mqttify
 
 	namespace MqttifyPacketType
 	{
-		constexpr TCHAR InvalidPacketType[] = TEXT("Invalid packet type.");
+		constexpr TCHAR InvalidPacketType[] = TEXT("Invalid packet type");
 	}
 } // namespace Mqttify

@@ -20,6 +20,8 @@ public class Mqttify : ModuleRules
 			{
 				"Boost",
 				"Engine",
+				"Json",
+				"JsonUtilities",
 				"Networking",
 				"Projects",
 				"SSL",
@@ -48,6 +50,6 @@ public class Mqttify : ModuleRules
 		// 0 = game thread,
 		// 1 = worker thread with marshalling of callbacks onto main thread
 		// 2 = worker thread without marshalling of callbacks
-		PrivateDefinitions.Add("MQTTIFY_THREAD=0");
+		PrivateDefinitions.Add("MQTTIFY_THREAD=1");
 	}
 }

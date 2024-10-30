@@ -178,7 +178,7 @@ void MqttifyMqttifySocketSpec::Define()
 							}
 							else
 							{
-								LOG_MQTTIFY(Error, TEXT("Data was not received within the timeout period."));
+								LOG_MQTTIFY(Error, TEXT("Data was not received within the timeout period"));
 							}
 
 							ClientSocket->Close();

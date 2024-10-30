@@ -95,7 +95,7 @@ namespace Mqttify
 		 */
 		EMqttifyQualityOfService GetWillQoS() const { return WillQoS; }
 
-		static constexpr TCHAR InvalidProtocolVersion[]     = TEXT("Invalid protocol version.");
+		static constexpr TCHAR InvalidProtocolVersion[]     = TEXT("Invalid protocol version");
 		static constexpr TCHAR InvalidProtocolName[]        = TEXT("Invalid protocol name.");
 		static constexpr TCHAR TopicEmpty[]                 = TEXT("Topic is empty.");
 		static constexpr TCHAR WillTopicEmpty[]             = TEXT("Will topic is empty.");

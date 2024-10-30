@@ -42,7 +42,7 @@ namespace Mqttify
 
 			if (MqttifyClients.IsEmpty())
 			{
-				Stop();
+				Kill();
 			}
 		};
 
@@ -76,22 +76,33 @@ namespace Mqttify
 	FMqttifyClientPool::FMqttifyClientPool()
 		: Thread{nullptr}
 	{
-		// Setup our game thread tick
-		const FTickerDelegate TickDelegate = FTickerDelegate::CreateRaw(this, &FMqttifyClientPool::GameThreadTick);
-		// This will tick even when the game is suspended (e.g. in the background on mobile) where possible
-		TickHandle = FTSBackgroundableTicker::GetCoreTicker().AddTicker(TickDelegate, 0.0f);
+		if constexpr (GMqttifyThreadMode == EMqttifyThreadMode::GameThread)
+		{
+			// Setup our game thread tick
+			const FTickerDelegate TickDelegate = FTickerDelegate::CreateRaw(this, &FMqttifyClientPool::GameThreadTick);
+			// This will tick even when the game is suspended (e.g. in the background on mobile) where possible
+			TickHandle = FTSBackgroundableTicker::GetCoreTicker().AddTicker(TickDelegate, 0.0f);
+		}
 	}
 
 	FMqttifyClientPool::~FMqttifyClientPool()
 	{
-		Stop();
+		Kill();
 	}
 
-	void FMqttifyClientPool::Clear()
+	void FMqttifyClientPool::Kill()
 	{
-		FScopeLock Lock(&ClientMapLock);
-		Stop();
-		MqttifyClients.Empty();
+		bool bExpected = true;
+		if (nullptr != Thread && bIsRunning.compare_exchange_strong(bExpected, false, std::memory_order_acq_rel))
+		{
+			if (nullptr == Thread)
+			{
+				return;
+			}
+			Thread->Kill(true);
+			delete Thread;
+			Thread = nullptr;
+		}
 	}
 
 	uint32 FMqttifyClientPool::Run()
@@ -126,27 +137,25 @@ namespace Mqttify
 
 	void FMqttifyClientPool::Stop()
 	{
-		FRunnable::Stop();
-		bIsRunning.store(false, std::memory_order_release);
-		if (nullptr == Thread)
+		FScopeLock Lock(&ClientMapLock);
+		MqttifyClients.Empty();
+	}
+
+	void FMqttifyClientPool::TickInternal()
+	{
+		for (auto& Client : MqttifyClients)
 		{
-			return;
+			if (const auto ClientPtr = Client.Value.Pin())
+			{
+				ClientPtr->Tick();
+			}
 		}
-		Thread->Kill(true);
-		delete Thread;
 	}
 
 	void FMqttifyClientPool::Tick()
 	{
 		FScopeLock Lock(&ClientMapLock);
-		for (auto& Client : MqttifyClients)
-		{
-			auto ClientPtr = Client.Value.Pin();
-			if (nullptr != ClientPtr)
-			{
-				ClientPtr->Tick();
-			}
-		}
+		TickInternal();
 	}
 
 	bool FMqttifyClientPool::GameThreadTick(float DeltaTime)

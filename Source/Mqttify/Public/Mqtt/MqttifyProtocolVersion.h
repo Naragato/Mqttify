@@ -27,5 +27,5 @@ enum class EMqttifyProtocolVersion : uint8
 
 namespace MqttifyProtocolVersion
 {
-	constexpr TCHAR InvalidProtocolVersion[] = TEXT("Invalid Protocol version.");
+	constexpr TCHAR InvalidProtocolVersion[] = TEXT("Invalid Protocol version");
 } // namespace MqttifyProtocolVersion

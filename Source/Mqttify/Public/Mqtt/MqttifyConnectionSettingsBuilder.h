@@ -14,7 +14,7 @@ private:
 	uint32 MaxPacketSize = 1 * 1024 * 1024; // 1MB
 	uint16 PacketRetryIntervalSeconds = 5.0f;
 	uint16 SocketConnectionTimeoutSeconds = 10;
-	uint16 KeepAliveIntervalSeconds = 60;
+	uint16 KeepAliveIntervalSeconds = 120;
 	uint16 MqttConnectionTimeoutSeconds = 10;
 	uint8 MaxConnectionRetries = 5;
 	uint8 MaxPacketRetries = 5;

@@ -5,19 +5,17 @@
 
 namespace Mqttify
 {
-
 	TMqttifyPublish<EMqttifyQualityOfService::AtLeastOnce>::TMqttifyPublish(
 		FMqttifyMessage&& InMessage,
 		const uint16 InPacketId,
-		const TWeakPtr<FMqttifySocketBase>&
-		InSocket,
-		const FMqttifyConnectionSettingsRef
-		& InConnectionSettings)
-		: TMqttifyAcknowledgeable{ InPacketId, InSocket, InConnectionSettings }
-		, PublishPacket{
-			MakeShared<TMqttifyPublishPacket<GMqttifyProtocol>>(MoveTemp(InMessage),
-																InPacketId) }
-		, bIsDone{ false } {}
+		const TWeakPtr<FMqttifySocketBase>& InSocket,
+		const FMqttifyConnectionSettingsRef& InConnectionSettings
+		)
+		: TMqttifyAcknowledgeable{InPacketId, InSocket, InConnectionSettings}
+		, PublishPacket{MakeShared<TMqttifyPublishPacket<GMqttifyProtocol>>(MoveTemp(InMessage), InPacketId)}
+		, bIsDone{false}
+	{
+	}
 
 
 	bool TMqttifyPublish<EMqttifyQualityOfService::AtLeastOnce>::NextImpl()
@@ -33,25 +31,28 @@ namespace Mqttify
 
 	void TMqttifyPublish<EMqttifyQualityOfService::AtLeastOnce>::Abandon()
 	{
-		FScopeLock Lock{ &CriticalSection };
+		FScopeLock Lock{&CriticalSection};
 		if (!bIsDone)
 		{
 			bIsDone = true;
-			SetPromiseValue(TMqttifyResult<void>{ false });
+			SetPromiseValue(TMqttifyResult<void>{false});
 		}
 	}
 
-	bool TMqttifyPublish<EMqttifyQualityOfService::AtLeastOnce>::Acknowledge(
-		const FMqttifyPacketPtr& InPacket)
+	bool TMqttifyPublish<EMqttifyQualityOfService::AtLeastOnce>::Acknowledge(const FMqttifyPacketPtr& InPacket)
 	{
-		FScopeLock Lock{ &CriticalSection };
+		FScopeLock Lock{&CriticalSection};
+		LOG_MQTTIFY(VeryVerbose, TEXT("Acknowledge %s"), EnumToTCharString(InPacket->GetPacketType()));
 		if (InPacket->GetPacketType() != EMqttifyPacketType::PubAck)
 		{
-			LOG_MQTTIFY(Error,
-						TEXT("[Publish] %s Expected: Actual: %s."),
-						MqttifyPacketType::InvalidPacketType,
-						EnumToTCharString(EMqttifyPacketType::PubAck),
-						EnumToTCharString(InPacket->GetPacketType()));
+			LOG_MQTTIFY(
+				Error,
+				TEXT("[Publish (Connection %s, ClientId %s)] %s Expected: Actual: %s"),
+				*Settings->GetHost(),
+				*Settings->GetClientId(),
+				MqttifyPacketType::InvalidPacketType,
+				EnumToTCharString(EMqttifyPacketType::PubAck),
+				EnumToTCharString(InPacket->GetPacketType()));
 			Abandon();
 			return true;
 		}
@@ -59,7 +60,7 @@ namespace Mqttify
 		if (!bIsDone)
 		{
 			bIsDone = true;
-			SetPromiseValue(TMqttifyResult<void>{ true });
+			SetPromiseValue(TMqttifyResult<void>{true});
 		}
 
 		return true;
@@ -67,7 +68,7 @@ namespace Mqttify
 
 	bool TMqttifyPublish<EMqttifyQualityOfService::AtLeastOnce>::IsDone() const
 	{
-		FScopeLock Lock{ &CriticalSection };
+		FScopeLock Lock{&CriticalSection};
 		return bIsDone;
 	}
 
@@ -75,30 +76,33 @@ namespace Mqttify
 		FMqttifyMessage&& InMessage,
 		const uint16 InPacketId,
 		const TWeakPtr<FMqttifySocketBase>& InSocket,
-		const FMqttifyConnectionSettingsRef& InConnectionSettings)
-		: TMqttifyAcknowledgeable{ InPacketId, InSocket, InConnectionSettings }
-		, PublishPacket{ MakeShared<TMqttifyPublishPacket<GMqttifyProtocol>>(MoveTemp(InMessage),
-																			InPacketId) }
-		, PublishState{ EPublishState::Unacknowledged } {}
-
-	bool TMqttifyPublish<EMqttifyQualityOfService::ExactlyOnce>::Acknowledge(
-		const FMqttifyPacketPtr& InPacket)
+		const FMqttifyConnectionSettingsRef& InConnectionSettings
+		)
+		: TMqttifyAcknowledgeable{InPacketId, InSocket, InConnectionSettings}
+		, PublishPacket{MakeShared<TMqttifyPublishPacket<GMqttifyProtocol>>(MoveTemp(InMessage), InPacketId)}
+		, PublishState{EPublishState::Unacknowledged}
 	{
-		FScopeLock Lock{ &CriticalSection };
+	}
+
+	bool TMqttifyPublish<EMqttifyQualityOfService::ExactlyOnce>::Acknowledge(const FMqttifyPacketPtr& InPacket)
+	{
+		FScopeLock Lock{&CriticalSection};
 		switch (InPacket->GetPacketType())
 		{
-			case EMqttifyPacketType::PubRec:
-				return HandlePubRec(InPacket);
-			case EMqttifyPacketType::PubComp:
-				return HandlePubComp(InPacket);
-			default:
-				LOG_MQTTIFY(Error,
-							TEXT("[Publish] %s Expected: Actual: %s."),
-							MqttifyPacketType::InvalidPacketType,
-							EnumToTCharString(EMqttifyPacketType::PubRec),
-							EnumToTCharString(InPacket->GetPacketType()));
-				Abandon();
-				return true;
+		case EMqttifyPacketType::PubRec:
+			return HandlePubRec(InPacket);
+		case EMqttifyPacketType::PubComp:
+			return HandlePubComp(InPacket);
+		default: LOG_MQTTIFY(
+				Error,
+				TEXT("[Publish (Connection %s, ClientId %s)] %s Expected: %s Actual: %s"),
+				*Settings->GetHost(),
+				*Settings->GetClientId(),
+				MqttifyPacketType::InvalidPacketType,
+				EnumToTCharString(EMqttifyPacketType::PubRec),
+				EnumToTCharString(InPacket->GetPacketType()));
+			Abandon();
+			return true;
 		}
 	}
 
@@ -106,14 +110,14 @@ namespace Mqttify
 	{
 		switch (PublishState)
 		{
-			case EPublishState::Unacknowledged:
-				SendPacketInternal(PublishPacket);
-				return false;
-			case EPublishState::Received:
-				SendPacketInternal(MakeShared<TMqttifyPubRelPacket<GMqttifyProtocol>>(PacketId));
-				return false;
-			case EPublishState::Complete:
-				return true;
+		case EPublishState::Unacknowledged:
+			SendPacketInternal(PublishPacket);
+			return false;
+		case EPublishState::Received:
+			SendPacketInternal(MakeShared<TMqttifyPubRelPacket<GMqttifyProtocol>>(PacketId));
+			return false;
+		case EPublishState::Complete:
+			return true;
 		}
 		return false;
 	}
@@ -121,13 +125,11 @@ namespace Mqttify
 
 	bool TMqttifyPublish<EMqttifyQualityOfService::ExactlyOnce>::IsDone() const
 	{
-		FScopeLock Lock{ &CriticalSection };
+		FScopeLock Lock{&CriticalSection};
 		return PublishState == EPublishState::Complete;
-
 	}
 
-	bool TMqttifyPublish<EMqttifyQualityOfService::ExactlyOnce>::HandlePubRec(
-		const FMqttifyPacketPtr& InPacket)
+	bool TMqttifyPublish<EMqttifyQualityOfService::ExactlyOnce>::HandlePubRec(const FMqttifyPacketPtr& InPacket)
 	{
 		if (PublishState == EPublishState::Complete)
 		{
@@ -144,16 +146,15 @@ namespace Mqttify
 		{
 			PublishState = EPublishState::Received;
 			SendPacketInternal(MakeShared<TMqttifyPubRelPacket<GMqttifyProtocol>>(PacketId));
-			SetPromiseValue(TMqttifyResult<void>{ true });
+			SetPromiseValue(TMqttifyResult<void>{true});
 			RetryWaitTime = FDateTime::MinValue();
-			PacketTries   = 0;
+			PacketTries = 0;
 		}
 
 		return false;
 	}
 
-	bool TMqttifyPublish<EMqttifyQualityOfService::ExactlyOnce>::HandlePubComp(
-		const FMqttifyPacketPtr& InPacket)
+	bool TMqttifyPublish<EMqttifyQualityOfService::ExactlyOnce>::HandlePubComp(const FMqttifyPacketPtr& InPacket)
 	{
 		if (PublishState == EPublishState::Complete)
 		{
@@ -172,11 +173,11 @@ namespace Mqttify
 
 	void TMqttifyPublish<EMqttifyQualityOfService::ExactlyOnce>::Abandon()
 	{
-		FScopeLock Lock{ &CriticalSection };
+		FScopeLock Lock{&CriticalSection};
 		if (PublishState != EPublishState::Complete)
 		{
 			PublishState = EPublishState::Complete;
-			SetPromiseValue(TMqttifyResult<void>{ false });
+			SetPromiseValue(TMqttifyResult<void>{false});
 		}
 	}
 }

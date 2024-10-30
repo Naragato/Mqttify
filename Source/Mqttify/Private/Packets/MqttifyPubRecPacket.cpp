@@ -19,7 +19,7 @@ namespace Mqttify
 		{
 			LOG_MQTTIFY(
 				Error,
-				TEXT("[PubRec] %s %s."),
+				TEXT("[PubRec] %s %s"),
 				MqttifyPacketType::InvalidPacketType,
 				EnumToTCharString(FixedHeader.GetPacketType()));
 			bIsValid = false;
@@ -68,7 +68,7 @@ namespace Mqttify
 		{
 			LOG_MQTTIFY(
 				Error,
-				TEXT("[PubRec] %s %s."),
+				TEXT("[PubRec] %s %s"),
 				MqttifyPacketType::InvalidPacketType,
 				EnumToTCharString(FixedHeader.GetPacketType()));
 			ReasonCode = EMqttifyReasonCode::UnspecifiedError;
@@ -120,7 +120,7 @@ namespace Mqttify
 				bIsValid = false;
 				LOG_MQTTIFY(
 					Error,
-					TEXT("[PubRec] %s %s."),
+					TEXT("[PubRec] %s %s"),
 					MqttifyReasonCode::InvalidReasonCode,
 					EnumToTCharString(ReasonCode));
 		}

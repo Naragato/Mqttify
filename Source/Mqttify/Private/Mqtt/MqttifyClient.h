@@ -66,7 +66,7 @@ namespace Mqttify
 		virtual FDisconnectFuture DisconnectAsync() override;
 		// ~IMqttifyDisconnectableAsync
 	private:
-		void TransitionTo(const TSharedPtr<FMqttifyClientState>& InState);
+		void TransitionTo(const FMqttifyClientState* InPrevious, const TSharedPtr<FMqttifyClientState>& InState);
 
 		// FMqttifySocketBase Callbacks
 		void OnSocketConnect(bool bWasSuccessful) const;

@@ -115,7 +115,7 @@ namespace Mqttify
 		 */
 		const FMqttifyProperties& GetProperties() const { return Properties; }
 
-		static constexpr TCHAR InvalidSubscribeOptions[] = TEXT("Invalid Subscribe Options.");
+		static constexpr TCHAR InvalidSubscribeOptions[] = TEXT("Invalid Subscribe Options");
 
 	protected:
 		FMqttifyProperties Properties;

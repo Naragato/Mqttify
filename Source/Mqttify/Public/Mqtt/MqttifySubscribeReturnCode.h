@@ -42,5 +42,5 @@ enum class EMqttifySubscribeReturnCode : uint8
 
 namespace MqttifySubscribeReturnCode
 {
-	constexpr TCHAR InvalidSubscribeReturnCode[] = TEXT("Invalid Subscribe return code.");
+	constexpr TCHAR InvalidSubscribeReturnCode[] = TEXT("Invalid Subscribe return code");
 } // namespace MqttifySubscribeReturnCode

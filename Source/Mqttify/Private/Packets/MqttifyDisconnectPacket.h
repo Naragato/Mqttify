@@ -57,7 +57,7 @@ namespace Mqttify
 				bIsValid = false;
 				LOG_MQTTIFY(
 					Error,
-					TEXT("[Disconnect] %s %s."),
+					TEXT("[Disconnect] %s %s"),
 					MqttifyReasonCode::InvalidReasonCode,
 					EnumToTCharString(InReasonCode));
 			}

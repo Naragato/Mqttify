@@ -29,7 +29,7 @@ namespace Mqttify
 
 		if constexpr (std::is_same_v<TSocketType, FSslSocket>)
 		{
-			LOG_MQTTIFY(VeryVerbose, TEXT("Creating SSL context."));
+			LOG_MQTTIFY(VeryVerbose, TEXT("Creating SSL context"));
 			this->SslContext->set_default_verify_paths();
 			if (ConnectionSettings->ShouldVerifyServerCertificate())
 			{
@@ -45,7 +45,7 @@ namespace Mqttify
 		}
 		else
 		{
-			LOG_MQTTIFY(VeryVerbose, TEXT("Creating TCP socket."));
+			LOG_MQTTIFY(VeryVerbose, TEXT("Creating TCP socket"));
 			Socket = MakeShared<TSocketType>(IoContext);
 		}
 
@@ -274,7 +274,7 @@ namespace Mqttify
 		if (!bHaveRemainingLength)
 		{
 			// The Remaining Length field is incomplete
-			LOG_MQTTIFY(VeryVerbose, TEXT("Header not complete yet."));
+			LOG_MQTTIFY(VeryVerbose, TEXT("Header not complete yet"));
 			return;
 		}
 

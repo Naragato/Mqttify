@@ -110,7 +110,7 @@ namespace Mqttify
 		virtual void Encode(FMemoryWriter& InWriter) override;
 		virtual void Decode(FArrayReader& InReader) override;
 
-		static constexpr TCHAR InvalidPacketSize[]      = TEXT("Invalid packet size.");
+		static constexpr TCHAR InvalidPacketSize[]      = TEXT("Invalid packet size");
 		static constexpr TCHAR InvalidRemainingLength[] = TEXT("Invalid Remaining Length.");
 	};
 

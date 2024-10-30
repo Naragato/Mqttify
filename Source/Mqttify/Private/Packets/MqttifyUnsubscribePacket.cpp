@@ -40,7 +40,7 @@ namespace Mqttify
 		{
 			LOG_MQTTIFY(
 				Error,
-				TEXT("[Unsubscribe] %s %s."),
+				TEXT("[Unsubscribe] %s %s"),
 				MqttifyPacketType::InvalidPacketType,
 				EnumToTCharString(FixedHeader.GetPacketType()));
 			bIsValid = false;
@@ -107,7 +107,7 @@ namespace Mqttify
 		{
 			LOG_MQTTIFY(
 				Error,
-				TEXT("[Unsubscribe] %s %s."),
+				TEXT("[Unsubscribe] %s %s"),
 				MqttifyPacketType::InvalidPacketType,
 				EnumToTCharString(FixedHeader.GetPacketType()));
 			bIsValid = false;

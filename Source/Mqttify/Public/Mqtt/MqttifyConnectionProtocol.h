@@ -37,5 +37,5 @@ enum class EMqttifyConnectionProtocol : uint8
 
 namespace MqttifyConnectionProtocol
 {
-	constexpr TCHAR InvalidConnectionProtocol[] = TEXT("Invalid Connection protocol.");
+	constexpr TCHAR InvalidConnectionProtocol[] = TEXT("Invalid Connection protocol");
 }

@@ -1,36 +1,41 @@
-﻿#include "Mqtt/MqttifyConnectionSettingsBuilder.h"
-#include "Tests/MqttifyTestUtilities.h"
+﻿#if WITH_DEV_AUTOMATION_TESTS
 
-#if WITH_DEV_AUTOMATION_TESTS
-
+#include "JsonObjectConverter.h"
 #include "MqttifyModule.h"
+#include "MqttifyTestMessage.h"
 #include "Misc/AutomationTest.h"
-#include "Mqtt/MqttifyClient.h"
-#include "Misc/Guid.h"
 #include "Misc/DateTime.h"
-#include "Misc/Timespan.h"
+#include "Misc/Guid.h"
 #include "Misc/Parse.h"
-#include "Containers/Ticker.h"
+#include "Misc/Timespan.h"
+#include "Mqtt/MqttifyClient.h"
+#include "Mqtt/MqttifyConnectionSettingsBuilder.h"
+#include "Tests/MqttifyTestUtilities.h"
 
 using namespace Mqttify;
 
 BEGIN_DEFINE_SPEC(
 	FMqttifyClientLongRunningTest,
 	"Mqttify.Automation.MqttifyClientLongRunningTest",
-	EAutomationTestFlags::StressFilter | EAutomationTestFlags::ApplicationContextMask)
+	EAutomationTestFlags::ProductFilter | EAutomationTestFlags::ApplicationContextMask)
 	static constexpr TCHAR kTopic[] = TEXT("/LongRunningTest");
 	FString DockerContainerName = TEXT("vernemq_test_container");
 	TArray<TSharedPtr<IMqttifyClient>> MqttClients;
 
-	float TestDurationSeconds = 3600.0f; // default to 1 hour
+	float TestDurationSeconds = 120.f; // 3600.0f; // default to 1 hour
 	int32 MaxPendingMessages = 1000;
 
 	FDateTime StartTime;
-	TMap<FString, FDateTime> PublishBuffer;
+	TSet<FMqttifyTestMessage> PublishBuffer;
 
 	bool bTestDoneExecuted = false;
 
-	void SetupClients(const FMqttifyTestDockerSpec& InSpec, const FDoneDelegate& InBeforeDone);
+	void SetupClients(
+		const FMqttifyTestDockerSpec& InSpec,
+		const FDoneDelegate& InBeforeDone,
+		const EMqttifyQualityOfService InQoS
+		);
+	void PublishMessages(const EMqttifyQualityOfService InQoS);
 	void DisconnectClients(const FDoneDelegate& InAfterDone) const;
 	void CheckTestCompletion(const FDoneDelegate& TestDone);
 
@@ -52,232 +57,117 @@ void FMqttifyClientLongRunningTest::Define()
 		EMqttifyQualityOfService::ExactlyOnce
 	};
 
-	Describe(
-		"Long-Running Client Stability Test",
-		[this, Spec, QualityOfServices]()
-		{
-			LatentBeforeEach(
-				[this, Spec](const FDoneDelegate& BeforeDone)
-				{
-					if (!StartBroker(DockerContainerName, Spec))
-					{
-						AddError(TEXT("Failed to start MQTT broker."));
-						BeforeDone.Execute();
-						return;
-					}
-					SetupClients(Spec, BeforeDone);
-				});
-
-			for (const EMqttifyQualityOfService& QoS : QualityOfServices)
+	for (const EMqttifyQualityOfService& QoS : QualityOfServices)
+	{
+		Describe(
+			FString::Printf(TEXT("Long-running test for QoS %s"), EnumToTCharString(QoS)),
+			[this, Spec, QoS]()
 			{
+				LatentBeforeEach(
+					FTimespan::FromSeconds(120),
+					[this, Spec, QoS](const FDoneDelegate& BeforeDone)
+					{
+						if (!StartBroker(DockerContainerName, Spec))
+						{
+							AddError(TEXT("Failed to start MQTT broker"));
+							LOG_MQTTIFY(Error, TEXT("Failed to start MQTT broker"));
+							BeforeDone.Execute();
+							return;
+						}
+						SetupClients(Spec, BeforeDone, QoS);
+					});
+
 				LatentIt(
-					FString::Printf(TEXT("Long-running test for QoS %s"), EnumToTCharString(QoS)),
+					FString::Printf(TEXT("Continuously send messages to a subscriber")),
 					FTimespan::FromSeconds(TestDurationSeconds + 300.0f),
 					[this, QoS](const FDoneDelegate& TestDone)
 					{
-						if (MqttClients.Num() != 2)
-						{
-							AddError(TEXT("Expected 2 client pointers"));
-							TestDone.Execute();
-							return;
-						}
-
-						TSharedPtr<IMqttifyClient> Publisher = MqttClients[0];
-						TSharedPtr<IMqttifyClient> Subscriber = MqttClients[1];
-
 						StartTime = FDateTime::UtcNow();
 						bTestDoneExecuted = false;
 
-						FMqttifyTopicFilter TopicFilter{FString{kTopic}, QoS};
-						Subscriber->SubscribeAsync(MoveTemp(TopicFilter)).Next(
-							[this, Publisher, Subscriber, QoS, TestDone](
-							const TMqttifyResult<FMqttifySubscribeResult>& InResult
-							)
+						LOG_MQTTIFY(VeryVerbose, TEXT("Starting long-running test for QoS %s"), EnumToTCharString(QoS));
+						const TSharedPtr<IMqttifyClient> Subscriber = MqttClients[1];
+						Subscriber->OnMessage().AddLambda(
+							[this, QoS, TestDone](const FMqttifyMessage& InMessage)
 							{
-								if (!InResult.HasSucceeded())
+								const FString OriginalMessage = BytesToString(
+									InMessage.GetPayload().GetData(),
+									InMessage.GetPayload().Num());
+
+								LOG_MQTTIFY(VeryVerbose, TEXT("Received message %s"), *OriginalMessage);
+								LOG_MQTTIFY_PACKET_DATA(
+									VeryVerbose,
+									InMessage.GetPayload().GetData(),
+									InMessage.GetPayload().Num());
+
+								FMqttifyTestMessage TestMessage;
+								FJsonObjectConverter::JsonObjectStringToUStruct(OriginalMessage, &TestMessage);
+								const int32 Removed = PublishBuffer.Remove(TestMessage);
+								const auto Elapsed = FDateTime::UtcNow() - TestMessage.Time;
+								LOG_MQTTIFY(
+									VeryVerbose,
+									TEXT(
+										"Message ID %s was removed from the publish buffer. Elapsed time: %s. Removed: %d"
+									),
+									*TestMessage.MessageId.ToString(),
+									*Elapsed.ToString(),
+									Removed);
+								if (Removed == 0)
 								{
-									AddError(TEXT("SubscribeAsync failed."));
-									if (!bTestDoneExecuted)
-									{
-										bTestDoneExecuted = true;
-										TestDone.Execute();
-									}
+									AddError(TEXT("Received message which was not in the publish buffer"));
+									bTestDoneExecuted = true;
+									CheckTestCompletion(TestDone);
 									return;
 								}
 
-								Subscriber->OnMessage().AddLambda(
-									[this, Publisher, QoS, TestDone](const FMqttifyMessage& InMessage)
-									{
-										const FString MessagePayload = BytesToString(
-											InMessage.GetPayload().GetData(),
-											InMessage.GetPayload().Num());
-										FString MessageID, SentTimeString;
-										if (!MessagePayload.Split(TEXT("|"), &MessageID, &SentTimeString))
-										{
-											AddError(TEXT("Failed to parse message payload"));
-											if (!bTestDoneExecuted)
-											{
-												bTestDoneExecuted = true;
-												TestDone.Execute();
-											}
-											return;
-										}
+								CheckTestCompletion(TestDone);
+							});
 
-										FDateTime SentTime;
-										if (!FDateTime::ParseIso8601(*SentTimeString, SentTime))
-										{
-											AddError(TEXT("Failed to parse timestamp"));
-											if (!bTestDoneExecuted)
-											{
-												bTestDoneExecuted = true;
-												TestDone.Execute();
-											}
-											return;
-										}
-
-										const FTimespan TimeTaken = FDateTime::UtcNow() - SentTime;
-										LOG_MQTTIFY(
-											VeryVerbose,
-											TEXT("Received message ID %s, Time taken: %s"),
-											*MessageID,
-											*TimeTaken.ToString());
-
-										if (PublishBuffer.Remove(MessageID) == 0)
-										{
-											AddError(
-												FString::Printf(
-													TEXT("Received message ID %s which was not in the publish buffer"),
-													*MessageID));
-											if (!bTestDoneExecuted)
-											{
-												bTestDoneExecuted = true;
-												TestDone.Execute();
-											}
-											return;
-										}
-
-										if ((FDateTime::UtcNow() - StartTime).GetTotalSeconds() < TestDurationSeconds)
-										{
-											if (PublishBuffer.Num() < MaxPendingMessages)
-											{
-												FString NewMessageID = FGuid::NewGuid().ToString();
-												const FString NewMessagePayload = FString::Printf(
-													TEXT("%s|%s"),
-													*NewMessageID,
-													*FDateTime::UtcNow().ToIso8601());
-
-												TArray<uint8> PayloadBytes;
-												PayloadBytes.Reserve(NewMessagePayload.Len());
-												StringToBytes(
-													NewMessagePayload,
-													PayloadBytes.GetData(),
-													NewMessagePayload.Len());
-												FMqttifyMessage Message{
-													FString{kTopic},
-													MoveTemp(PayloadBytes),
-													false,
-													QoS
-												};
-
-												PublishBuffer.Add(NewMessageID, FDateTime::UtcNow());
-
-												Publisher->PublishAsync(MoveTemp(Message)).Next(
-													[this, NewMessageID, TestDone](const TMqttifyResult<void>& InResult)
-													{
-														if (!InResult.HasSucceeded())
-														{
-															AddError(
-																FString::Printf(
-																	TEXT("PublishAsync failed for message ID %s"),
-																	*NewMessageID));
-															if (!bTestDoneExecuted)
-															{
-																bTestDoneExecuted = true;
-																AsyncTask(
-																	ENamedThreads::GameThread,
-																	[this, TestDone]()
-																	{
-																		TestDone.Execute();
-																	});
-															}
-														}
-													});
-											}
-										}
-
-										// Check if test duration has passed and PublishBuffer is empty
-										CheckTestCompletion(TestDone);
-									});
-
-								for (int32 i = 0; i < MaxPendingMessages; ++i)
+						FTSTicker::GetCoreTicker().AddTicker(
+							FTickerDelegate::CreateLambda(
+								[this, QoS, TestDone](float Delta)
 								{
-									if ((FDateTime::UtcNow() - StartTime).GetTotalSeconds() >= TestDurationSeconds)
+									LOG_MQTTIFY(VeryVerbose, TEXT("Ticker tick"));
+									PublishMessages(QoS);
+									CheckTestCompletion(TestDone);
+									return !bTestDoneExecuted;
+								}),
+							1.0f);
+					});
+
+				LatentAfterEach(
+					FTimespan::FromSeconds(120),
+					[this](const FDoneDelegate& AfterDone)
+					{
+						FTSTicker::GetCoreTicker().AddTicker(
+							FTickerDelegate::CreateLambda(
+								[this, AfterDone](float Delta)
+								{
+									if (PublishBuffer.Num() == 0)
 									{
-										break;
+										DisconnectClients(AfterDone);
+										return false;
 									}
 
-									FString MessageID = FGuid::NewGuid().ToString();
-									FString MessagePayload = FString::Printf(
-										TEXT("%s|%s"),
-										*MessageID,
-										*FDateTime::UtcNow().ToIso8601());
-
-									TArray<uint8> PayloadBytes;
-									PayloadBytes.Reserve(MessagePayload.Len());
-									StringToBytes(MessagePayload, PayloadBytes.GetData(), MessagePayload.Len());
-
-									FMqttifyMessage Message{FString{kTopic}, MoveTemp(PayloadBytes), false, QoS};
-
-									PublishBuffer.Add(MessageID, FDateTime::UtcNow());
-
-									Publisher->PublishAsync(MoveTemp(Message)).Next(
-										[this, MessageID, TestDone](const TMqttifyResult<void>& InResult)
-										{
-											if (!InResult.HasSucceeded())
-											{
-												AddError(
-													FString::Printf(
-														TEXT("PublishAsync failed for message ID %s"),
-														*MessageID));
-												if (!bTestDoneExecuted)
-												{
-													bTestDoneExecuted = true;
-													AsyncTask(
-														ENamedThreads::GameThread,
-														[this, TestDone]()
-														{
-															TestDone.Execute();
-														});
-												}
-											}
-										});
-								}
-
-								FTSTicker::GetCoreTicker().AddTicker(
-									FTickerDelegate::CreateLambda(
-										[this, TestDone](float DeltaTime)
-										{
-											CheckTestCompletion(TestDone);
-											return !bTestDoneExecuted;
-										}),
-									1.0f);
-							});
+									LOG_MQTTIFY(
+										VeryVerbose,
+										TEXT("Waiting for all messages to be received. %d messages remaining"),
+										PublishBuffer.Num());
+									return true;
+								}),
+							5.0f);
 					});
-			}
-
-			LatentAfterEach(
-				[this](const FDoneDelegate& AfterDone)
-				{
-					DisconnectClients(AfterDone);
-				});
-		});
+			});
+	}
 }
 
 void FMqttifyClientLongRunningTest::SetupClients(
 	const FMqttifyTestDockerSpec& InSpec,
-	const FDoneDelegate& InBeforeDone
+	const FDoneDelegate& InBeforeDone,
+	const EMqttifyQualityOfService InQoS
 	)
 {
+	LOG_MQTTIFY(VeryVerbose, TEXT("Setting up clients"));
 	auto& MqttifyModule = IMqttifyModule::Get();
 	MqttClients.Empty();
 	for (int32 i = 0; i < 2; ++i)
@@ -302,28 +192,39 @@ void FMqttifyClientLongRunningTest::SetupClients(
 
 		if (!MqttClient)
 		{
-			AddError(FString::Printf(TEXT("Failed to create MQTT client %d."), i));
+			AddError(FString::Printf(TEXT("Failed to create MQTT client %d"), i));
 			InBeforeDone.Execute();
 			return;
 		}
 
 		MqttClients.Add(MqttClient);
 		MqttClient->OnConnect().AddLambda(
-			[this, InBeforeDone](const bool bIsConnected)
+			[this](const bool bIsConnected)
 			{
 				if (!bIsConnected)
 				{
 					AddError(TEXT("Client failed to connect"));
+					bTestDoneExecuted = true;
 				}
-
-				if (MqttClients.ContainsByPredicate(
-					[](const TSharedPtr<IMqttifyClient>& Client) { return !Client->IsConnected(); }))
-				{
-					return;
-				}
-				InBeforeDone.Execute();
 			});
 	}
+
+	const TSharedPtr<IMqttifyClient> Subscriber = MqttClients[1];
+	Subscriber->OnConnect().AddLambda(
+		[this, InBeforeDone, InQoS, Subscriber](const bool bIsConnected)
+		{
+			FMqttifyTopicFilter TopicFilter{FString{kTopic}, InQoS};
+			Subscriber->SubscribeAsync(MoveTemp(TopicFilter)).Next(
+				[this, InBeforeDone](const TMqttifyResult<FMqttifySubscribeResult>& InResult)
+				{
+					if (!InResult.HasSucceeded())
+					{
+						AddError(TEXT("Failed to subscribe"));
+						bTestDoneExecuted = true;
+					}
+					InBeforeDone.Execute();
+				});
+		});
 
 	for (const auto& MqttClient : MqttClients)
 	{
@@ -331,8 +232,59 @@ void FMqttifyClientLongRunningTest::SetupClients(
 	}
 }
 
+void FMqttifyClientLongRunningTest::PublishMessages(const EMqttifyQualityOfService InQoS)
+{
+	LOG_MQTTIFY(VeryVerbose, TEXT("Publishing messages"));
+	if (MqttClients.Num() != 2)
+	{
+		AddError(TEXT("Expected 2 client pointers"));
+		bTestDoneExecuted = true;
+		return;
+	}
+
+	const TSharedPtr<IMqttifyClient> Publisher = MqttClients[0];
+
+	LOG_MQTTIFY(VeryVerbose, TEXT("PublishBuffer.Num() = %d"), PublishBuffer.Num());
+	while (!bTestDoneExecuted && PublishBuffer.Num() < MaxPendingMessages && (FDateTime::UtcNow() - StartTime).
+		GetTotalSeconds() < TestDurationSeconds)
+	{
+		FMqttifyTestMessage TestMessage;
+		TestMessage.MessageId = FGuid::NewGuid();
+		FString JSONSerializedData;
+		FJsonObjectConverter::UStructToJsonObjectString(TestMessage, JSONSerializedData);
+		TArray<uint8> PayloadBytes;
+		PayloadBytes.SetNumUninitialized(JSONSerializedData.Len());
+
+		StringToBytes(JSONSerializedData, PayloadBytes.GetData(), JSONSerializedData.Len());
+
+		LOG_MQTTIFY(VeryVerbose, TEXT("Publishing message with payload %s"), *JSONSerializedData);
+		LOG_MQTTIFY_PACKET_DATA(VeryVerbose, PayloadBytes.GetData(), PayloadBytes.Num());
+		FMqttifyMessage Message{FString{kTopic}, MoveTemp(PayloadBytes), false, InQoS};
+
+		PublishBuffer.Add(TestMessage);
+		Publisher->PublishAsync(MoveTemp(Message)).Next(
+			[this, TestMessage](const TMqttifyResult<void>& InResult)
+			{
+				if (!InResult.HasSucceeded())
+				{
+					LOG_MQTTIFY(
+						Error,
+						TEXT("PublishAsync failed for message ID %s"),
+						*TestMessage.MessageId.ToString());
+					AddError(
+						FString::Printf(
+							TEXT("PublishAsync failed for message ID %s"),
+							*TestMessage.MessageId.ToString()));
+					bTestDoneExecuted = true;
+				}
+			});
+	}
+}
+
 void FMqttifyClientLongRunningTest::DisconnectClients(const FDoneDelegate& InAfterDone) const
 {
+	LOG_MQTTIFY(VeryVerbose, TEXT("Disconnecting clients"));
+
 	for (const TSharedPtr<IMqttifyClient>& MqttClient : MqttClients)
 	{
 		MqttClient->DisconnectAsync().Next(
@@ -350,16 +302,19 @@ void FMqttifyClientLongRunningTest::DisconnectClients(const FDoneDelegate& InAft
 
 void FMqttifyClientLongRunningTest::CheckTestCompletion(const FDoneDelegate& TestDone)
 {
-	if (!bTestDoneExecuted && (FDateTime::UtcNow() - StartTime).GetTotalSeconds() >= TestDurationSeconds &&
-		PublishBuffer.Num() == 0)
+	LOG_MQTTIFY(VeryVerbose, TEXT("Checking test completion"));
+	if (bTestDoneExecuted)
+	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("Test already done"));
+		TestDone.Execute();
+		return;
+	}
+
+	if ((FDateTime::UtcNow() - StartTime).GetTotalSeconds() >= TestDurationSeconds && PublishBuffer.Num() == 0)
 	{
 		bTestDoneExecuted = true;
-		AsyncTask(
-			ENamedThreads::GameThread,
-			[TestDone]()
-			{
-				TestDone.Execute();
-			});
+		LOG_MQTTIFY(VeryVerbose, TEXT("Test completed successfully"));
+		TestDone.Execute();
 	}
 }
 

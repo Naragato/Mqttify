@@ -17,9 +17,18 @@ namespace Mqttify
 	void FMqttifyWebSocket::Connect()
 	{
 		FScopeLock Lock{&SocketAccessLock};
+		LOG_MQTTIFY(
+			VeryVerbose,
+			TEXT("Connecting to socket on %s, ClientId %s"),
+			*ConnectionSettings->ToString(),
+			*ConnectionSettings->GetClientId());
 		if (CurrentState != EMqttifySocketState::Disconnected)
 		{
-			LOG_MQTTIFY(Display, TEXT("Socket already connecting or connected."));
+			LOG_MQTTIFY(
+				Display,
+				TEXT("Socket already connected %s, ClientId %s"),
+				*ConnectionSettings->ToString(),
+				*ConnectionSettings->GetClientId());
 			return;
 		}
 
@@ -35,8 +44,13 @@ namespace Mqttify
 
 		if (!Socket.IsValid())
 		{
-			LOG_MQTTIFY(Error, TEXT("Error creating web socket."));
+			LOG_MQTTIFY(
+				Error,
+				TEXT("Error creating socket socket for %s, ClientId %s"),
+				*ConnectionSettings->ToString(),
+				*ConnectionSettings->GetClientId());
 			OnConnectDelegate.Broadcast(false);
+			return;
 		}
 
 		Socket->OnConnected().AddThreadSafeSP(this, &FMqttifyWebSocket::HandleWebSocketConnected);
@@ -55,7 +69,11 @@ namespace Mqttify
 	{
 		FScopeLock Lock{&SocketAccessLock};
 		CurrentState = EMqttifySocketState::Disconnecting;
-		LOG_MQTTIFY(Display, TEXT("Disconnecting from socket on: %s."), *ConnectionSettings->ToString());
+		LOG_MQTTIFY(
+			Display,
+			TEXT("Disconnecting from socket on %s, ClientId %s"),
+			*ConnectionSettings->ToString(),
+			*ConnectionSettings->GetClientId());
 		if (Socket.IsValid() && Socket->IsConnected())
 		{
 			Socket->Close();
@@ -71,9 +89,18 @@ namespace Mqttify
 	void FMqttifyWebSocket::Send(const uint8* Data, const uint32 Size)
 	{
 		FScopeLock Lock{&SocketAccessLock};
+		LOG_MQTTIFY(
+			VeryVerbose,
+			TEXT("Sending data to socket %s, ClientId %s"),
+			*ConnectionSettings->ToString(),
+			*ConnectionSettings->GetClientId());
 		if (!IsConnected())
 		{
-			LOG_MQTTIFY(Warning, TEXT("Socket not connected."));
+			LOG_MQTTIFY(
+				Warning,
+				TEXT("Socket not connected %s, ClientId %s"),
+				*ConnectionSettings->ToString(),
+				*ConnectionSettings->GetClientId());
 			return;
 		}
 
@@ -83,18 +110,24 @@ namespace Mqttify
 
 	void FMqttifyWebSocket::Tick()
 	{
-		FScopeLock Lock{&SocketAccessLock};
-
 		if (!IsConnected() && CurrentState == EMqttifySocketState::Connected)
 		{
 			FinalizeDisconnect();
-			LOG_MQTTIFY(Warning, TEXT("Socket unexpectedly disconnected."));
+			LOG_MQTTIFY(
+				Error,
+				TEXT("Unexpected Disconnection %s, ClientId %s"),
+				*ConnectionSettings->ToString(),
+				*ConnectionSettings->GetClientId());
 			return;
 		}
 
 		if (DisconnectTime < FDateTime::Now())
 		{
-			LOG_MQTTIFY(Error, TEXT("Socket disconnection timeout: Address %s."), *ConnectionSettings->ToString());
+			LOG_MQTTIFY(
+				Error,
+				TEXT("Timeout Socket Connection %s, ClientId %s"),
+				*ConnectionSettings->ToString(),
+				*ConnectionSettings->GetClientId());
 			FinalizeDisconnect();
 		}
 	}
@@ -102,13 +135,20 @@ namespace Mqttify
 	bool FMqttifyWebSocket::IsConnected() const
 	{
 		FScopeLock Lock{&SocketAccessLock};
+		LOG_MQTTIFY(
+			VeryVerbose,
+			TEXT("Socket Connection %s, ClientId %s. IsConnected: %d, CurrentState: %s"),
+			*ConnectionSettings->ToString(),
+			*ConnectionSettings->GetClientId(),
+			Socket.IsValid() && Socket->IsConnected(),
+			EnumToTCharString(CurrentState));
 		return Socket.IsValid() && Socket->IsConnected() && CurrentState == EMqttifySocketState::Connected;
 	}
 
 	void FMqttifyWebSocket::HandleWebSocketConnected()
 	{
 		FScopeLock Lock{&SocketAccessLock};
-		LOG_MQTTIFY(Display, TEXT("Connected to socket on: %s."), *ConnectionSettings->ToString());
+		LOG_MQTTIFY(Display, TEXT("Connected to socket on: %s"), *ConnectionSettings->ToString());
 		CurrentState = EMqttifySocketState::Connected;
 		DisconnectTime = FDateTime::MaxValue();
 		OnConnectDelegate.Broadcast(true);
@@ -117,7 +157,12 @@ namespace Mqttify
 	void FMqttifyWebSocket::HandleWebSocketConnectionError(const FString& Error)
 	{
 		FScopeLock Lock{&SocketAccessLock};
-		LOG_MQTTIFY(Error, TEXT("Socket Connection %s, Error: %s."), *ConnectionSettings->ToString(), *Error);
+		LOG_MQTTIFY(
+			Error,
+			TEXT("Socket Connection %s, ClientId %s. Error: %s"),
+			*ConnectionSettings->ToString(),
+			*ConnectionSettings->GetClientId(),
+			*Error);
 		FinalizeDisconnect();
 		OnConnectDelegate.Broadcast(false);
 	}
@@ -125,6 +170,11 @@ namespace Mqttify
 	void FMqttifyWebSocket::FinalizeDisconnect()
 	{
 		FScopeLock Lock{&SocketAccessLock};
+		LOG_MQTTIFY(
+			VeryVerbose,
+			TEXT("Finalizing Disconnect Connection %s, ClientId %s"),
+			*ConnectionSettings->ToString(),
+			*ConnectionSettings->GetClientId());
 		CurrentState = EMqttifySocketState::Disconnected;
 		DisconnectTime = FDateTime::MaxValue();
 		OnDisconnectDelegate.Broadcast();
@@ -145,12 +195,22 @@ namespace Mqttify
 		)
 	{
 		FScopeLock Lock{&SocketAccessLock};
+		LOG_MQTTIFY(
+			Verbose,
+			TEXT("Socket Connection Closed Connection %s, ClientId %s: Status %d, Reason %s, bWasClean %d"),
+			*ConnectionSettings->ToString(),
+			*ConnectionSettings->GetClientId(),
+			Status,
+			*Reason,
+			bWasClean);
 
 		if (bWasClean)
 		{
 			LOG_MQTTIFY(
 				Display,
-				TEXT("Socket Connection Closed: Status %d, Reason %s, bWasClean %d."),
+				TEXT("Socket Connection Closed Connection %s, ClientId %s: Status %d, Reason %s, bWasClean %d"),
+				*ConnectionSettings->ToString(),
+				*ConnectionSettings->GetClientId(),
 				Status,
 				*Reason,
 				bWasClean);
@@ -159,7 +219,9 @@ namespace Mqttify
 		{
 			LOG_MQTTIFY(
 				Error,
-				TEXT("Socket Connection Closed: Status %d, Reason %s, bWasClean %d."),
+				TEXT("Socket Connection Closed Connection %s, ClientId %s: Status %d, Reason %s, bWasClean %d"),
+				*ConnectionSettings->ToString(),
+				*ConnectionSettings->GetClientId(),
 				Status,
 				*Reason,
 				bWasClean);
@@ -170,8 +232,13 @@ namespace Mqttify
 
 	void FMqttifyWebSocket::HandleWebSocketData(const void* Data, const SIZE_T Length, const SIZE_T BytesRemaining)
 	{
-		FScopeLock Lock{&SocketAccessLock};
-		LOG_MQTTIFY(Verbose, TEXT("Socket Data Received: Length %llu, BytesRemaining %llu."), Length, BytesRemaining);
+		LOG_MQTTIFY(
+			Verbose,
+			TEXT("Socket Data Received (%s , %s): Length %llu, BytesRemaining %llu"),
+			*ConnectionSettings->ToString(),
+			*ConnectionSettings->GetClientId(),
+			Length,
+			BytesRemaining);
 
 		Packet->Append(static_cast<const uint8*>(Data), Length);
 		if (BytesRemaining == 0)

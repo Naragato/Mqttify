@@ -44,7 +44,7 @@ enum class EMqttifyConnectReturnCode : uint8
 
 namespace MqttifyConnectReturnCode
 {
-	constexpr TCHAR InvalidReturnCode[] = TEXT("Invalid Return code.");
+	constexpr TCHAR InvalidReturnCode[] = TEXT("Invalid Return code");
 }
 
 namespace Mqttify

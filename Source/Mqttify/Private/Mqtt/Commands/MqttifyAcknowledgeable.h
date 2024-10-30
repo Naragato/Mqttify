@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MqttifyConstants.h"
+#include "MqttifyAsync.h"
 #include "Async/Async.h"
 #include "Mqtt/MqttifyResult.h"
 #include "Socket/Interface/MqttifySocketBase.h"
@@ -24,14 +24,18 @@ namespace Mqttify
 	public:
 		virtual ~FMqttifyAcknowledgeable() = default;
 
-		explicit FMqttifyAcknowledgeable(const uint16 InPacketId,
-										const TWeakPtr<FMqttifySocketBase>& InSocket,
-										const TSharedRef<FMqttifyConnectionSettings>& InConnectionSettings)
-			: Settings{ InConnectionSettings }
-			, Socket{ InSocket }
-			, RetryWaitTime{ FDateTime::MinValue() }
-			, PacketId{ InPacketId }
-			, PacketTries{ 0 } {}
+		explicit FMqttifyAcknowledgeable(
+			const uint16 InPacketId,
+			const TWeakPtr<FMqttifySocketBase>& InSocket,
+			const TSharedRef<FMqttifyConnectionSettings>& InConnectionSettings
+			)
+			: Settings{InConnectionSettings}
+			, Socket{InSocket}
+			, RetryWaitTime{FDateTime::MinValue()}
+			, PacketId{InPacketId}
+			, PacketTries{0}
+		{
+		}
 
 		/**
 		 * @brief Trigger the action
@@ -87,15 +91,20 @@ namespace Mqttify
 	class TMqttifyAcknowledgeable : public FMqttifyAcknowledgeable
 	{
 	private:
-		TPromise<TMqttifyResult<TReturnValue>> CommandPromise;
+		TSharedRef<TPromise<TMqttifyResult<TReturnValue>>> CommandPromise;
 		std::atomic_bool bIsDone;
 
 	public:
-		explicit TMqttifyAcknowledgeable(const uint16 InPacketId,
-										const TWeakPtr<FMqttifySocketBase>& InSocket,
-										const FMqttifyConnectionSettingsRef& InConnectionSettings)
-			: FMqttifyAcknowledgeable{ InPacketId, InSocket, InConnectionSettings }
-			, bIsDone{ false } {}
+		explicit TMqttifyAcknowledgeable(
+			const uint16 InPacketId,
+			const TWeakPtr<FMqttifySocketBase>& InSocket,
+			const FMqttifyConnectionSettingsRef& InConnectionSettings
+			)
+			: FMqttifyAcknowledgeable{InPacketId, InSocket, InConnectionSettings}
+			, CommandPromise{MakeShared<TPromise<TMqttifyResult<TReturnValue>>>()}
+			, bIsDone{false}
+		{
+		}
 
 		virtual ~TMqttifyAcknowledgeable() override;
 
@@ -105,18 +114,23 @@ namespace Mqttify
 		 */
 		TFuture<TMqttifyResult<TReturnValue>> GetFuture()
 		{
-			return CommandPromise.GetFuture();
+			return CommandPromise->GetFuture();
 		}
 
 	protected:
+		/**
+		 * @brief Sets the promise value for the MQTT command result.
+		 * @param InValue The result value to set in the promise.
+		 */
 		void SetPromiseValue(TMqttifyResult<TReturnValue>&& InValue);
 	};
 
 	template <typename TReturnValue>
 	TMqttifyAcknowledgeable<TReturnValue>::~TMqttifyAcknowledgeable()
 	{
-		SetPromiseValue(TMqttifyResult<TReturnValue>{ false });
+		SetPromiseValue(TMqttifyResult<TReturnValue>{false});
 	}
+
 
 	template <typename TReturnValue>
 	void TMqttifyAcknowledgeable<TReturnValue>::SetPromiseValue(TMqttifyResult<TReturnValue>&& InValue)
@@ -124,17 +138,27 @@ namespace Mqttify
 		bool Expected = false;
 		if (bIsDone.compare_exchange_strong(Expected, true, std::memory_order_relaxed))
 		{
-			if constexpr (GMqttifyThreadMode != EMqttifyThreadMode::BackgroundThreadWithCallbackMarshalling)
-			{
-				CommandPromise.SetValue(MoveTemp(InValue));
-			}
-			else
-			{
-				AsyncTask(ENamedThreads::GameThread,
-						[CommandPromise = MoveTemp(CommandPromise), InValue]() mutable {
-							CommandPromise.SetValue(MoveTemp(InValue));
-						});
-			}
+			LOG_MQTTIFY(
+				VeryVerbose,
+				TEXT( "Dispatching Promise Value (Connection %s, ClientId %s): Success: %s,PacketId: %d" ),
+				*Settings->GetHost(),
+				*Settings->GetClientId(),
+				InValue.HasSucceeded() ? TEXT("true") : TEXT("false"),
+				PacketId);
+
+			TSharedRef<TPromise<TMqttifyResult<TReturnValue>>> CapturedPromise = CommandPromise;
+			FMqttifyConnectionSettingsRef CapturedSettings = Settings;
+			DispatchWithThreadHandling(
+				[CapturedSettings, CapturedPromise, InValue = MoveTemp(InValue)]() mutable
+				{
+					LOG_MQTTIFY(
+						VeryVerbose,
+						TEXT( "Setting promise value (Connection %s, ClientId %s): Success: %s" ),
+						*CapturedSettings->GetHost(),
+						*CapturedSettings->GetClientId(),
+						InValue.HasSucceeded() ? TEXT("true") : TEXT("false"));
+					CapturedPromise->SetValue(MoveTemp(InValue));
+				});
 		}
 	}
 } // namespace Mqttify

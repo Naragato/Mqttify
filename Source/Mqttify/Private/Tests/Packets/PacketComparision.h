@@ -23,7 +23,7 @@ namespace Mqttify
 		{
 			bAreEqual = false;
 			AutomationSpec->AddError(FString::Printf(
-				TEXT("%s: Length mismatch. Actual: %d, Expected: %d."),
+				TEXT("%s: Length mismatch. Actual: %d, Expected: %d"),
 				What,
 				ActualBytes.Num(),
 				Expected.Num()));
@@ -49,7 +49,7 @@ namespace Mqttify
 			{
 				bAreEqual = false;
 				AutomationSpec->AddError(FString::Printf(
-					TEXT("%s: Byte mismatch at index %d. Actual: %02x, Expected: %02x."),
+					TEXT("%s: Byte mismatch at index %d. Actual: %02x, Expected: %02x"),
 					What,
 					i,
 					ActualBytes[i],
@@ -60,7 +60,59 @@ namespace Mqttify
 		if (!bAreEqual)
 		{
 			AutomationSpec->AddError(
-				FString::Printf(TEXT("%s: Actual: %s, Expected: %s."), What, *ActualHex, *ExpectedHex));
+				FString::Printf(TEXT("%s: Actual: %s, Expected: %s"), What, *ActualHex, *ExpectedHex));
+		}
+		return bAreEqual;
+	}
+
+	FORCEINLINE bool TestArrayEqual(const TCHAR* What,
+	const TArray<uint8>& Actual,
+									const TArray<uint8>& Expected,
+									FAutomationSpecBase* const AutomationSpec)
+	{
+		
+		bool bAreEqual = true;
+		// Check lengths
+		if (Actual.Num() != Expected.Num())
+		{
+			bAreEqual = false;
+			AutomationSpec->AddError(FString::Printf(
+				TEXT("%s: Length mismatch. Actual: %d, Expected: %d"),
+				What,
+				Actual.Num(),
+				Expected.Num()));
+		}
+
+		// Generate hex strings and check each byte
+		FString ActualHex, ExpectedHex;
+		for (int32 i = 0; i < FMath::Max(Actual.Num(), Expected.Num()); ++i)
+		{
+			if (i < Actual.Num())
+			{
+				ActualHex += FString::Printf(TEXT("%02x "), Actual[i]);
+			}
+
+			if (i < Expected.Num())
+			{
+				ExpectedHex += FString::Printf(TEXT("%02x "), Expected[i]);
+			}
+
+			if (i < Actual.Num() && i < Expected.Num() && Actual[i] != Expected[i])
+			{
+				bAreEqual = false;
+				AutomationSpec->AddError(FString::Printf(
+					TEXT("%s: Byte mismatch at index %d. Actual: %02x, Expected: %02x"),
+					What,
+					i,
+					Actual[i],
+					Expected[i]));
+			}
+		}
+
+		if (!bAreEqual)
+		{
+			AutomationSpec->AddError(
+				FString::Printf(TEXT("%s: Actual: %s, Expected: %s"), What, *ActualHex, *ExpectedHex));
 		}
 		return bAreEqual;
 	}

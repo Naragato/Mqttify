@@ -8,7 +8,7 @@ namespace Mqttify
 {
 	bool FMqttifyAcknowledgeable::Next()
 	{
-		FScopeLock Lock{ &CriticalSection };
+		FScopeLock Lock{&CriticalSection};
 
 		if (IsDone())
 		{
@@ -22,7 +22,12 @@ namespace Mqttify
 
 		if (PacketTries >= Settings->GetMaxPacketRetries())
 		{
-			LOG_MQTTIFY(Warning, TEXT("Packet retry limit reached, abandoning packet."));
+			LOG_MQTTIFY(
+				Warning,
+				TEXT( " (Connection %s, ClientId %s) Packet retry limit reached, abandoning packet, PackedId %d" ),
+				*Settings->GetHost(),
+				*Settings->GetClientId(),
+				PacketId);
 			Abandon();
 			return true;
 		}
@@ -35,6 +40,14 @@ namespace Mqttify
 		if (const TSharedPtr<FMqttifySocketBase> PinnedSocket = Socket.Pin())
 		{
 			++PacketTries;
+			LOG_MQTTIFY(
+				VeryVerbose,
+				TEXT( "(Connection %s, ClientId %s) Sending %s, PacketId %d, Attempt %d"),
+				*Settings->GetHost(),
+				*Settings->GetClientId(),
+				EnumToTCharString(InPacket->GetPacketType()),
+				PacketId,
+				PacketTries);
 			TArray<uint8> ActualBytes;
 			FMemoryWriter Writer(ActualBytes);
 			InPacket->Encode(Writer);
