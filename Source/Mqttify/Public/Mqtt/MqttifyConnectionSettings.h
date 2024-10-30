@@ -37,6 +37,10 @@ private:
 
 	/// @brief Min seconds to wait before retrying sending a packet.
 	uint16 PacketRetryIntervalSeconds;
+	/// @brief Backoff multiplier for packet retry interval.
+	double PacketRetryBackoffMultiplier;
+	/// @brief Max seconds to wait before retrying sending a packet.
+	uint16 MaxPacketRetryIntervalSeconds;
 	/// @brief Initial seconds to wait before retrying a connection.
 	uint16 InitialRetryConnectionIntervalSeconds;
 	/// @brief The time to wait before giving up on a connection attempt.
@@ -63,6 +67,8 @@ public:
 		ConnectionProtocol = Other.ConnectionProtocol;
 		Path = Other.Path;
 		PacketRetryIntervalSeconds = Other.PacketRetryIntervalSeconds;
+		PacketRetryBackoffMultiplier = Other.PacketRetryBackoffMultiplier;
+		MaxPacketRetryIntervalSeconds = Other.MaxPacketRetryIntervalSeconds;
 		SocketConnectionTimeoutSeconds = Other.SocketConnectionTimeoutSeconds;
 		KeepAliveIntervalSeconds = Other.KeepAliveIntervalSeconds;
 		MqttConnectionTimeoutSeconds = Other.MqttConnectionTimeoutSeconds;
@@ -108,6 +114,15 @@ public:
 	/// @brief Returns the packet retry interval.
 	uint16 GetPacketRetryIntervalSeconds() const { return PacketRetryIntervalSeconds; }
 
+	/// @brief Returns the packet retry backoff multiplier.
+	double GetPacketRetryBackoffMultiplier() const { return PacketRetryBackoffMultiplier; }
+
+	/// @brief Returns the Max Packet Retry Interval.
+	uint16 GetMaxPacketRetryIntervalSeconds() const { return MaxPacketRetryIntervalSeconds; }
+
+	/// @brief Returns the Initial Retry Interval.
+	uint16 GetInitialRetryIntervalSeconds() const { return InitialRetryConnectionIntervalSeconds; }
+
 	/// @brief Returns the Max Connection Retries.
 	uint8 GetMaxConnectionRetries() const { return MaxConnectionRetries; }
 
@@ -140,10 +155,12 @@ public:
 		const FString& InURL,
 		uint32 InMaxPacketSize,
 		uint16 InPacketRetryIntervalSeconds,
+		double InBackoffMultiplier,
+		uint16 InMaxPacketRetryIntervalSeconds,
 		uint16 InSocketConnectionTimeoutSeconds,
 		uint16 InKeepAliveIntervalSeconds,
 		uint16 InMqttConnectionTimeoutSeconds,
-		uint16 InInitialRetryIntervalSeconds,
+		uint16 InInitialConnectionRetryIntervalSeconds,
 		uint8 InMaxConnectionRetries,
 		uint8 InMaxPacketRetries,
 		bool bInShouldVerifyCertificate,
@@ -153,15 +170,17 @@ public:
 	static TSharedPtr<FMqttifyConnectionSettings> CreateShared(
 		const FString& InURL,
 		const TSharedRef<IMqttifyCredentialsProvider>& CredentialsProvider,
-		const uint32 InMaxPacketSize,
-		const uint16 InPacketRetryIntervalSeconds,
-		const uint16 InSocketConnectionTimeoutSeconds,
-		const uint16 InKeepAliveIntervalSeconds,
-		const uint16 InMqttConnectionTimeoutSeconds,
-		const uint16 InInitialRetryIntervalSeconds,
-		const uint8 InMaxConnectionRetries,
-		const uint8 InMaxPacketRetries,
-		const bool bInShouldVerifyCertificate,
+		uint32 InMaxPacketSize,
+		uint16 InPacketRetryIntervalSeconds,
+		double InBackoffMultiplier,
+		uint16 InMaxPacketRetryIntervalSeconds,
+		uint16 InSocketConnectionTimeoutSeconds,
+		uint16 InKeepAliveIntervalSeconds,
+		uint16 InMqttConnectionTimeoutSeconds,
+		uint16 InInitialRetryIntervalSeconds,
+		uint8 InMaxConnectionRetries,
+		uint8 InMaxPacketRetries,
+		bool bInShouldVerifyCertificate,
 		FString&& InClientId = {}
 		);
 
@@ -174,6 +193,8 @@ public:
 		const TSharedRef<IMqttifyCredentialsProvider>& InCredentialsProvider,
 		const uint32 InMaxPacketSize,
 		const uint16 InPacketRetryIntervalSeconds,
+		const double InPacketRetryBackoffMultiplier,
+		const uint16 InMaxPacketRetryIntervalSeconds,
 		const uint16 InSocketConnectionTimeoutSeconds,
 		const uint16 InKeepAliveIntervalSeconds,
 		const uint16 InMqttConnectionTimeoutSeconds,
@@ -193,6 +214,8 @@ public:
 				InCredentialsProvider,
 				InMaxPacketSize,
 				InPacketRetryIntervalSeconds,
+				InPacketRetryBackoffMultiplier,
+				InMaxPacketRetryIntervalSeconds,
 				InSocketConnectionTimeoutSeconds,
 				InKeepAliveIntervalSeconds,
 				InMqttConnectionTimeoutSeconds,
@@ -222,10 +245,12 @@ private:
 	 * @param InMaxPacketSize The max size of the MQTT packet.
 	 * @param InPath The Uri path to use for the connection.
 	 * @param InPacketRetryIntervalSeconds The packet retry interval in seconds.
+	 * @param InPacketRetryBackoffMultiplier The packet retry backoff multiplier.
+	 * @param InMaxPacketRetryIntervalSeconds The max packet retry interval in seconds.
 	 * @param InSocketConnectionTimeoutSeconds The socket connection timeout in seconds.
 	 * @param InKeepAliveIntervalSeconds The MQTT keep alive interval in seconds.
 	 * @param InMqttConnectionTimeoutSeconds The MQTT connection timeout in seconds.
-	 * @param InInitialRetryIntervalSeconds The initial retry interval in seconds.
+	 * @param InInitialConnectionRetryIntervalSeconds The initial retry interval in seconds.
 	 * @param InMaxConnectionRetries The maximum number of connection retries.
 	 * @param InMaxPacketRetries The maximum number time to retry sending a packet.
 	 * @param bInShouldVerifyCertificate Whether to verify the server certificate.
@@ -234,18 +259,20 @@ private:
 	explicit FMqttifyConnectionSettings(
 		FString&& InHost,
 		FString&& InPath,
-		const EMqttifyConnectionProtocol InConnectionProtocol,
-		const int16 InPort,
+		EMqttifyConnectionProtocol InConnectionProtocol,
+		int16 InPort,
 		const FMqttifyCredentialsProviderRef& InCredentialsProvider,
-		const uint32 InMaxPacketSize,
-		const uint16 InPacketRetryIntervalSeconds,
-		const uint16 InSocketConnectionTimeoutSeconds,
-		const uint16 InKeepAliveIntervalSeconds,
-		const uint16 InMqttConnectionTimeoutSeconds,
-		const uint16 InInitialRetryIntervalSeconds,
-		const uint8 InMaxConnectionRetries,
-		const uint8 InMaxPacketRetries,
-		const bool bInShouldVerifyCertificate,
+		uint32 InMaxPacketSize,
+		uint16 InPacketRetryIntervalSeconds,
+		double InPacketRetryBackoffMultiplier,
+		uint16 InMaxPacketRetryIntervalSeconds,
+		uint16 InSocketConnectionTimeoutSeconds,
+		uint16 InKeepAliveIntervalSeconds,
+		uint16 InMqttConnectionTimeoutSeconds,
+		uint16 InInitialConnectionRetryIntervalSeconds,
+		uint8 InMaxConnectionRetries,
+		uint8 InMaxPacketRetries,
+		bool bInShouldVerifyCertificate,
 		FString&& InClientId = TEXT("")
 		);
 

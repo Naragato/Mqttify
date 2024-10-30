@@ -12,10 +12,12 @@ FMqttifyConnectionSettings::FMqttifyConnectionSettings(
 	const FMqttifyCredentialsProviderRef& InCredentialsProvider,
 	const uint32 InMaxPacketSize,
 	const uint16 InPacketRetryIntervalSeconds,
+	const double InPacketRetryBackoffMultiplier,
+	const uint16 InMaxPacketRetryIntervalSeconds,
 	const uint16 InSocketConnectionTimeoutSeconds,
 	const uint16 InKeepAliveIntervalSeconds,
 	const uint16 InMqttConnectionTimeoutSeconds,
-	const uint16 InInitialRetryIntervalSeconds,
+	const uint16 InInitialConnectionRetryIntervalSeconds,
 	const uint8 InMaxConnectionRetries,
 	const uint8 InMaxPacketRetries,
 	const bool bInShouldVerifyCertificate,
@@ -29,7 +31,9 @@ FMqttifyConnectionSettings::FMqttifyConnectionSettings(
 	, CredentialsProvider{InCredentialsProvider}
 	, Path{InPath}
 	, PacketRetryIntervalSeconds{InPacketRetryIntervalSeconds}
-	, InitialRetryConnectionIntervalSeconds{InInitialRetryIntervalSeconds}
+	, PacketRetryBackoffMultiplier{InPacketRetryBackoffMultiplier}
+	, MaxPacketRetryIntervalSeconds{InMaxPacketRetryIntervalSeconds}
+	, InitialRetryConnectionIntervalSeconds{InInitialConnectionRetryIntervalSeconds}
 	, SocketConnectionTimeoutSeconds{InSocketConnectionTimeoutSeconds}
 	, KeepAliveIntervalSeconds{InKeepAliveIntervalSeconds}
 	, MqttConnectionTimeoutSeconds{InMqttConnectionTimeoutSeconds}
@@ -69,6 +73,15 @@ uint32 FMqttifyConnectionSettings::GetHashCode() const
 	// Hash InitialRetryInterval
 	Hash = HashCombine(Hash, GetTypeHash(InitialRetryConnectionIntervalSeconds));
 
+	// Hash InitialPacketRetryIntervalSeconds
+	Hash = HashCombine(Hash, GetTypeHash(PacketRetryIntervalSeconds));
+
+	// Hash PacketRetryBackoffMultiplier
+	Hash = HashCombine(Hash, GetTypeHash(PacketRetryBackoffMultiplier));
+
+	// Hash MaxPacketRetryIntervalSeconds
+	Hash = HashCombine(Hash, GetTypeHash(MaxPacketRetryIntervalSeconds));
+
 	// Hash SocketConnectionTimeoutSeconds
 	Hash = HashCombine(Hash, GetTypeHash(SocketConnectionTimeoutSeconds));
 
@@ -88,17 +101,20 @@ TSharedPtr<FMqttifyConnectionSettings> FMqttifyConnectionSettings::CreateShared(
 	const FString& InURL,
 	const uint32 InMaxPacketSize,
 	const uint16 InPacketRetryIntervalSeconds,
+	const double InBackoffMultiplier,
+	const uint16 InMaxPacketRetryIntervalSeconds,
 	const uint16 InSocketConnectionTimeoutSeconds,
 	const uint16 InKeepAliveIntervalSeconds,
 	const uint16 InMqttConnectionTimeoutSeconds,
-	const uint16 InInitialRetryIntervalSeconds,
+	const uint16 InInitialConnectionRetryIntervalSeconds,
 	const uint8 InMaxConnectionRetries,
 	const uint8 InMaxPacketRetries,
 	const bool bInShouldVerifyCertificate,
 	FString&& InClientId
 	)
 {
-	const FRegexPattern URLPattern(TEXT("(mqtt[s]?|ws[s]?)://(?:([^:/]+)(?::([^@/]+))?@)?([^:/@]+)(?::(\\d+))?(?:/([^?#/]+))?"));
+	const FRegexPattern URLPattern(
+		TEXT("(mqtt[s]?|ws[s]?)://(?:([^:/]+)(?::([^@/]+))?@)?([^:/@]+)(?::(\\d+))?(?:/([^?#/]+))?"));
 	FRegexMatcher Matcher(URLPattern, InURL);
 	if (Matcher.FindNext())
 	{
@@ -128,10 +144,12 @@ TSharedPtr<FMqttifyConnectionSettings> FMqttifyConnectionSettings::CreateShared(
 			CredentialsProvider,
 			InMaxPacketSize,
 			InPacketRetryIntervalSeconds,
+			InBackoffMultiplier,
+			InMaxPacketRetryIntervalSeconds,
 			InSocketConnectionTimeoutSeconds,
 			InKeepAliveIntervalSeconds,
 			InMqttConnectionTimeoutSeconds,
-			InInitialRetryIntervalSeconds,
+			InInitialConnectionRetryIntervalSeconds,
 			InMaxConnectionRetries,
 			InMaxPacketRetries,
 			bInShouldVerifyCertificate,
@@ -147,6 +165,8 @@ TSharedPtr<FMqttifyConnectionSettings> FMqttifyConnectionSettings::CreateShared(
 	const TSharedRef<IMqttifyCredentialsProvider>& CredentialsProvider,
 	const uint32 InMaxPacketSize,
 	const uint16 InPacketRetryIntervalSeconds,
+	const double InBackoffMultiplier,
+	const uint16 InMaxPacketRetryIntervalSeconds,
 	const uint16 InSocketConnectionTimeoutSeconds,
 	const uint16 InKeepAliveIntervalSeconds,
 	const uint16 InMqttConnectionTimeoutSeconds,
@@ -157,7 +177,8 @@ TSharedPtr<FMqttifyConnectionSettings> FMqttifyConnectionSettings::CreateShared(
 	FString&& InClientId
 	)
 {
-	const FRegexPattern URLPattern(TEXT("(mqtt[s]?|ws[s]?)://(?:([^:/]+)(?::([^@/]+))?@)?([^:/@]+)(?::(\\d+))?(?:/([^?#/]+))?"));
+	const FRegexPattern URLPattern(
+		TEXT("(mqtt[s]?|ws[s]?)://(?:([^:/]+)(?::([^@/]+))?@)?([^:/@]+)(?::(\\d+))?(?:/([^?#/]+))?"));
 	FRegexMatcher Matcher(URLPattern, InURL);
 	if (Matcher.FindNext())
 	{
@@ -189,6 +210,8 @@ TSharedPtr<FMqttifyConnectionSettings> FMqttifyConnectionSettings::CreateShared(
 			CredentialsProvider,
 			InMaxPacketSize,
 			InPacketRetryIntervalSeconds,
+			InBackoffMultiplier,
+			InMaxPacketRetryIntervalSeconds,
 			InSocketConnectionTimeoutSeconds,
 			InKeepAliveIntervalSeconds,
 			InMqttConnectionTimeoutSeconds,
@@ -256,13 +279,8 @@ FString FMqttifyConnectionSettings::GenerateClientId() const
 		FPlatformProcess::UserName(),
 		FPlatformProcess::ComputerName(),
 		FPlatformProcess::GetCurrentProcessId());
-	// 12 bytes for the hash codes of Client, Host, Path, where each hash code is 4 bytes (uint32)
-	constexpr int32 Num = 12 + sizeof(Port) /*Port*/ + sizeof(ConnectionProtocol) + sizeof(MaxPacketRetries) + sizeof(PacketRetryIntervalSeconds) +
-		sizeof(SocketConnectionTimeoutSeconds) + sizeof(KeepAliveIntervalSeconds) + sizeof(MqttConnectionTimeoutSeconds) + sizeof(
-			InitialRetryConnectionIntervalSeconds) + sizeof(MaxConnectionRetries);
 
 	TArray<uint8> Bytes;
-	Bytes.Reserve(Num);
 
 	// Add hash codes of Username, Host, Path
 	int32 CurrentHash = FFnv::MemFnv32(*Client, Client.Len());
@@ -273,16 +291,6 @@ FString FMqttifyConnectionSettings::GenerateClientId() const
 
 	CurrentHash = FFnv::MemFnv32(*Path, Path.Len());
 	AddToBytes(Bytes, &CurrentHash, sizeof(CurrentHash));
-
-	// Add other data
-	AddToBytes(Bytes, &ConnectionProtocol, sizeof(ConnectionProtocol));
-	AddToBytes(Bytes, &Port, sizeof(Port));
-	AddToBytes(Bytes, &PacketRetryIntervalSeconds, sizeof(PacketRetryIntervalSeconds));
-	AddToBytes(Bytes, &SocketConnectionTimeoutSeconds, sizeof(SocketConnectionTimeoutSeconds));
-	AddToBytes(Bytes, &KeepAliveIntervalSeconds, sizeof(KeepAliveIntervalSeconds));
-	AddToBytes(Bytes, &MqttConnectionTimeoutSeconds, sizeof(MqttConnectionTimeoutSeconds));
-	AddToBytes(Bytes, &InitialRetryConnectionIntervalSeconds, sizeof(InitialRetryConnectionIntervalSeconds));
-	AddToBytes(Bytes, &MaxConnectionRetries, sizeof(MaxConnectionRetries));
 
 	FString Result;
 

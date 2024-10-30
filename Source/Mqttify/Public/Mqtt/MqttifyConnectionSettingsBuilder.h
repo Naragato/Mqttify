@@ -12,7 +12,9 @@ private:
 	TSharedPtr<IMqttifyCredentialsProvider> CredentialsProvider = nullptr;
 	// Default values
 	uint32 MaxPacketSize = 1 * 1024 * 1024; // 1MB
-	uint16 PacketRetryIntervalSeconds = 5.0f;
+	uint16 InitialPacketRetryIntervalSeconds = 15;
+	double PacketRetryBackoffMultiplier = 2;
+	uint16 MaxPacketRetryIntervalSeconds = 60;
 	uint16 SocketConnectionTimeoutSeconds = 10;
 	uint16 KeepAliveIntervalSeconds = 120;
 	uint16 MqttConnectionTimeoutSeconds = 10;
@@ -106,7 +108,7 @@ public:
 	 */
 	FMqttifyConnectionSettingsBuilder& SetPacketRetryIntervalSeconds(const uint16 InSeconds)
 	{
-		PacketRetryIntervalSeconds = InSeconds;
+		InitialPacketRetryIntervalSeconds = InSeconds;
 		return *this;
 	}
 
@@ -173,7 +175,9 @@ public:
 			       ? FMqttifyConnectionSettings::CreateShared(
 				       Url,
 				       MaxPacketSize,
-				       PacketRetryIntervalSeconds,
+				       InitialPacketRetryIntervalSeconds,
+				       PacketRetryBackoffMultiplier,
+				       MaxPacketRetryIntervalSeconds,
 				       SocketConnectionTimeoutSeconds,
 				       KeepAliveIntervalSeconds,
 				       MqttConnectionTimeoutSeconds,
@@ -186,7 +190,9 @@ public:
 				       Url,
 				       CredentialsProvider.ToSharedRef(),
 				       MaxPacketSize,
-				       PacketRetryIntervalSeconds,
+				       InitialPacketRetryIntervalSeconds,
+				       PacketRetryBackoffMultiplier,
+				       MaxPacketRetryIntervalSeconds,
 				       SocketConnectionTimeoutSeconds,
 				       KeepAliveIntervalSeconds,
 				       MqttConnectionTimeoutSeconds,
@@ -194,6 +200,6 @@ public:
 				       MaxConnectionRetries,
 				       MaxPacketRetries,
 				       bShouldVerifyCertificate,
-					   FString{ClientId});
+				       FString{ClientId});
 	}
 };

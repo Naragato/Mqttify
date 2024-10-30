@@ -52,7 +52,20 @@ namespace Mqttify
 			FMemoryWriter Writer(ActualBytes);
 			InPacket->Encode(Writer);
 			PinnedSocket->Send(ActualBytes.GetData(), ActualBytes.Num());
-			RetryWaitTime = FDateTime::UtcNow() + FTimespan::FromSeconds(Settings->GetPacketRetryIntervalSeconds());
+
+			const double Jitter = FMath::RandRange(0.0, 1.0);
+			const double Backoff = FMath::Pow(Settings->GetPacketRetryBackoffMultiplier(), PacketTries);
+			const double RetryInterval = FMath::Min(
+				Settings->GetInitialRetryIntervalSeconds() * Backoff,
+				Settings->GetMaxPacketRetryIntervalSeconds());
+			RetryWaitTime = FDateTime::UtcNow() + FTimespan::FromSeconds(RetryInterval + Jitter);
+			LOG_MQTTIFY(
+				VeryVerbose,
+				TEXT( "(Connection %s, ClientId %s) Retry interval %f, Retry wait time %s"),
+				*Settings->GetHost(),
+				*Settings->GetClientId(),
+				RetryInterval,
+				*RetryWaitTime.ToString());
 		}
 	}
 }

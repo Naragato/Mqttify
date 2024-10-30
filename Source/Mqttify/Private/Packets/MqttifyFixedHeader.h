@@ -211,7 +211,7 @@ namespace Mqttify
 		{
 			LOG_MQTTIFY(
 				Error,
-				TEXT("[Fixed Header] %s Expected: %d Actual: %d."),
+				TEXT("[Fixed Header] %s Expected: %d Actual: %lld."),
 				InvalidPacketSize,
 				TotalPacketSize,
 				InReader.TotalSize());

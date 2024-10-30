@@ -22,8 +22,8 @@ BEGIN_DEFINE_SPEC(
 	FString DockerContainerName = TEXT("vernemq_test_container");
 	TArray<TSharedPtr<IMqttifyClient>> MqttClients;
 
-	float TestDurationSeconds = 120.f; // 3600.0f; // default to 1 hour
-	int32 MaxPendingMessages = 1000;
+	float TestDurationSeconds = 3600.0f; // default to 1 hour
+	int32 MaxPendingMessages = 120;
 
 	FDateTime StartTime;
 	TSet<FMqttifyTestMessage> PublishBuffer;
@@ -112,8 +112,9 @@ void FMqttifyClientLongRunningTest::Define()
 									*TestMessage.MessageId.ToString(),
 									*Elapsed.ToString(),
 									Removed);
-								if (Removed == 0)
+								if (Removed == 0 && QoS != EMqttifyQualityOfService::AtLeastOnce)
 								{
+									LOG_MQTTIFY(Error, TEXT("Received message which was not in the publish buffer"));
 									AddError(TEXT("Received message which was not in the publish buffer"));
 									bTestDoneExecuted = true;
 									CheckTestCompletion(TestDone);
@@ -132,7 +133,7 @@ void FMqttifyClientLongRunningTest::Define()
 									CheckTestCompletion(TestDone);
 									return !bTestDoneExecuted;
 								}),
-							1.0f);
+							1.f);
 					});
 
 				LatentAfterEach(

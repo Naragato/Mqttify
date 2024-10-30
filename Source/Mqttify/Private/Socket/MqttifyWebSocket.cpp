@@ -135,13 +135,6 @@ namespace Mqttify
 	bool FMqttifyWebSocket::IsConnected() const
 	{
 		FScopeLock Lock{&SocketAccessLock};
-		LOG_MQTTIFY(
-			VeryVerbose,
-			TEXT("Socket Connection %s, ClientId %s. IsConnected: %d, CurrentState: %s"),
-			*ConnectionSettings->ToString(),
-			*ConnectionSettings->GetClientId(),
-			Socket.IsValid() && Socket->IsConnected(),
-			EnumToTCharString(CurrentState));
 		return Socket.IsValid() && Socket->IsConnected() && CurrentState == EMqttifySocketState::Connected;
 	}
 
