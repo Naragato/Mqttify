@@ -6,7 +6,7 @@
  * @brief A result type that can be used to return a value and whether the operation was successful
  */
 template <typename TResultType>
-class MQTTIFY_API TMqttifyResult
+class TMqttifyResult
 {
 private:
 	TSharedPtr<TResultType> Result;
@@ -47,7 +47,7 @@ public:
  * the void specialization is used to return a result without a value
  */
 template <>
-class MQTTIFY_API TMqttifyResult<void>
+class TMqttifyResult<void>
 {
 private:
 	bool bSuccess;
