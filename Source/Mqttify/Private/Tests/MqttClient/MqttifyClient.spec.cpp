@@ -246,7 +246,7 @@ void FMqttifyClientTests::SetupClients(
 
 		FMqttifyConnectionSettingsBuilder ConnectionSettingsBuilder(
 			FString::Printf(
-				TEXT("%s://%s:%s@localhost:%d%s"),
+				TEXT("%s://%s:%s@127.0.0.1:%d%s"),
 				GetProtocolString(InSpec.Protocol),
 				*Username,
 				*Password,

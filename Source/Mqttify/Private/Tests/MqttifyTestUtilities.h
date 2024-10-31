@@ -72,22 +72,27 @@ namespace Mqttify
 		return -1;
 	}
 
-	inline bool IsBrokerReady(const FString& InDockerContainerName, const float InTimeoutSeconds)
+	inline bool HasContainerStarted(const FString& InDockerContainerName, const float InTimeoutSeconds)
 	{
 		// Wait for broker to startup
-		FPlatformProcess::Sleep(InTimeoutSeconds);
 		const FString RunningParams = FString::Printf(
 			TEXT("inspect -f \"{{.State.Running}}\" %s"),
 			*InDockerContainerName);
 
 		int32 ReturnCode;
 		FString OutString;
-		FPlatformProcess::ExecProcess(*GetDockerExecutable(), *RunningParams, &ReturnCode, &OutString, nullptr);
-		OutString.TrimStartAndEndInline();
 
-		if (ReturnCode == 0 && OutString.Equals(TEXT("true"), ESearchCase::IgnoreCase))
+		const UE::FTimeout Timeout{FTimespan::FromSeconds(InTimeoutSeconds)};
+		while (Timeout.GetRemainingTime() > 0.0f)
 		{
-			return true;
+			FPlatformProcess::ExecProcess(*GetDockerExecutable(), *RunningParams, &ReturnCode, &OutString, nullptr);
+			OutString.TrimStartAndEndInline();
+			if (ReturnCode == 0 && OutString.Equals(TEXT("true"), ESearchCase::IgnoreCase))
+			{
+				return true;
+			}
+			LOG_MQTTIFY(Verbose, TEXT("Docker inspect output: %s, return code: %d"), *OutString, ReturnCode);
+			FPlatformProcess::Sleep(0.1f);
 		}
 
 		return false;
@@ -112,6 +117,52 @@ namespace Mqttify
 		}
 
 		return true;
+	}
+
+	inline bool IsSocketAvailable(const FMqttifyTestDockerSpec& InSpec, const float InTimeoutSeconds)
+	{
+		ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+
+		if (nullptr == SocketSubsystem)
+		{
+			return false;
+		}
+
+		const UE::FTimeout Timeout{FTimespan::FromSeconds(InTimeoutSeconds)};
+		while (Timeout.GetRemainingTime() > 0.0f)
+		{
+			TSharedRef<FInternetAddr> Addr = SocketSubsystem->CreateInternetAddr();
+			bool bIsValid;
+			Addr->SetIp(TEXT("127.0.0.1"), bIsValid);
+			Addr->SetPort(InSpec.PublicPort);
+
+			if (bIsValid)
+			{
+				FSocket* Socket = SocketSubsystem->CreateSocket(
+					NAME_Stream,
+					TEXT("BrokerReadinessCheck"),
+					Addr->GetProtocolType());
+				if (Socket)
+				{
+					Socket->SetNonBlocking(false);
+					Socket->SetReuseAddr(true);
+					Socket->SetRecvErr();
+
+					bool bConnected = Socket->Connect(*Addr);
+					if (bConnected)
+					{
+						SocketSubsystem->DestroySocket(Socket);
+						LOG_MQTTIFY(Verbose, TEXT("Socket available"));
+						return true;
+					}
+					SocketSubsystem->DestroySocket(Socket);
+				}
+			}
+			FPlatformProcess::Sleep(0.5f);
+		}
+
+		LOG_MQTTIFY(Warning, TEXT("Socket not available"));
+		return false;
 	}
 
 	inline bool StartBroker(const FString& InDockerContainerName, const FMqttifyTestDockerSpec& InSpec)
@@ -148,9 +199,17 @@ namespace Mqttify
 			return false;
 		}
 
-		if (!IsBrokerReady(InDockerContainerName, 30.0f))
+		FPlatformProcess::Sleep(30.f);
+
+		if (!HasContainerStarted(InDockerContainerName, 60.0f))
 		{
-			LOG_MQTTIFY(Warning, TEXT("Failed to start MQTT broker."));
+			LOG_MQTTIFY(Warning, TEXT("Container failed to start."));
+			return false;
+		}
+
+		if (!IsSocketAvailable(InSpec, 60.0f))
+		{
+			LOG_MQTTIFY(Warning, TEXT("Failed to connect to MQTT broker."));
 			return false;
 		}
 
