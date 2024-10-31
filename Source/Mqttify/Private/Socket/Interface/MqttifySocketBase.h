@@ -23,6 +23,11 @@ namespace Mqttify
 		/// @return The OnDataReceived event.
 		FOnDataReceivedDelegate& GetOnDataReceivedDelegate() { return OnDataReceiveDelegate; }
 
+		explicit FMqttifySocketBase(const FMqttifyConnectionSettingsRef& InConnectionSettings)
+			: ConnectionSettings{InConnectionSettings}
+		{
+		}
+
 		virtual ~FMqttifySocketBase();
 		/// @brief Connect to the host.
 		virtual void Connect() = 0;
@@ -49,10 +54,14 @@ namespace Mqttify
 		/// @brief Create a Socket based on the connection settings.
 		static FMqttifySocketPtr Create(const FMqttifyConnectionSettingsRef& InConnectionSettings);
 
+		void ReadPacketsFromBuffer();
+
 	protected:
 		mutable FCriticalSection SocketAccessLock{};
 		FOnDataReceivedDelegate OnDataReceiveDelegate{};
 		FOnConnectDelegate OnConnectDelegate{};
 		FOnDisconnectDelegate OnDisconnectDelegate{};
+		TArray<uint8> DataBuffer;
+		const FMqttifyConnectionSettingsRef ConnectionSettings;
 	};
 } // namespace Mqttify

@@ -7,7 +7,7 @@
 namespace Mqttify
 {
 	FMqttifyWebSocket::FMqttifyWebSocket(const FMqttifyConnectionSettingsRef& InConnectionSettings)
-		: ConnectionSettings{InConnectionSettings}
+		: FMqttifySocketBase{InConnectionSettings}
 		, CurrentState{EMqttifySocketState::Disconnected}
 		, DisconnectTime{FDateTime::MaxValue()}
 	{
@@ -222,7 +222,7 @@ namespace Mqttify
 		FinalizeDisconnect();
 	}
 
-	void FMqttifyWebSocket::HandleWebSocketData(const void* Data, SIZE_T Length, SIZE_T BytesRemaining)
+	void FMqttifyWebSocket::HandleWebSocketData(const void* Data, const SIZE_T Length, const SIZE_T BytesRemaining)
 	{
 		LOG_MQTTIFY(
 			Verbose,
@@ -237,75 +237,6 @@ namespace Mqttify
 		{
 			return;
 		}
-		ParsePacket();
-	}
-
-	void FMqttifyWebSocket::ParsePacket()
-	{
-		while (DataBuffer.Num() >= 1)
-		{
-			constexpr int32 PacketStartIndex = 0;
-			uint32 RemainingLength = 0;
-			uint32 Multiplier = 1;
-			int32 Index = 1;
-			bool bHaveRemainingLength = false;
-
-			for (; Index < 5; ++Index)
-			{
-				if (Index >= DataBuffer.Num())
-				{
-					return;
-				}
-
-				const uint8 EncodedByte = DataBuffer[Index];
-				RemainingLength += (EncodedByte & 127) * Multiplier;
-				Multiplier *= 128;
-
-				if ((EncodedByte & 128) == 0)
-				{
-					bHaveRemainingLength = true;
-					++Index;
-					break;
-				}
-			}
-
-			if (!bHaveRemainingLength)
-			{
-				LOG_MQTTIFY(VeryVerbose, TEXT("Header not complete yet"));
-				return;
-			}
-
-			if (RemainingLength > ConnectionSettings->GetMaxPacketSize())
-			{
-				LOG_MQTTIFY(
-					Error,
-					TEXT("Packet too large: %d, Max: %d"),
-					RemainingLength,
-					ConnectionSettings->GetMaxPacketSize());
-				Disconnect();
-				return;
-			}
-
-			const int32 FixedHeaderSize = Index;
-			const int32 TotalPacketSize = FixedHeaderSize + RemainingLength;
-
-			if (DataBuffer.Num() < TotalPacketSize)
-			{
-				// We don't have the full packet yet
-				return;
-			}
-
-			TSharedPtr<FArrayReader> Packet = MakeShared<FArrayReader>(false);
-			Packet->Append(&DataBuffer[PacketStartIndex], TotalPacketSize);
-
-			DataBuffer.RemoveAt(0, TotalPacketSize);
-
-			if (GetOnDataReceivedDelegate().IsBound())
-			{
-				GetOnDataReceivedDelegate().Broadcast(Packet);
-			}
-
-			LOG_MQTTIFY(VeryVerbose, TEXT("Packet received of size %d"), TotalPacketSize);
-		}
+		ReadPacketsFromBuffer();
 	}
 } // namespace Mqttify

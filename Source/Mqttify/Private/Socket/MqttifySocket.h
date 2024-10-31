@@ -43,13 +43,10 @@ namespace Mqttify
 	{
 	private:
 		using FSocketPtr = TSharedPtr<TSocketType>;
-
-		const FMqttifyConnectionSettingsRef ConnectionSettings;
 		boost::asio::io_context IoContext{};
 		boost::asio::ip::tcp::resolver Resolver;
 		FSocketPtr Socket;
 		TArray<uint8, TFixedAllocator<4096>> ReadBuffer;
-		TArray<uint8> DataBuffer;
 
 		uint32 RemainingLength;
 		EMqttifySocketState CurrentState;
@@ -70,7 +67,6 @@ namespace Mqttify
 
 		void StartAsyncRead();
 		void HandleRead(const boost::system::error_code& InError, std::size_t InBytesTransferred);
-		void ParsePacket();
 		// FMqttifySocketBase
 		virtual void Disconnect() override;
 		virtual void Send(const uint8* InData, uint32 InSize) override;

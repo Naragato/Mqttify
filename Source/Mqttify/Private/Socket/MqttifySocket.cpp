@@ -7,7 +7,7 @@ namespace Mqttify
 {
 	template <typename TSocketType>
 	TMqttifySocket<TSocketType>::TMqttifySocket(const FMqttifyConnectionSettingsRef& InConnectionSettings)
-		: ConnectionSettings{InConnectionSettings}
+		: FMqttifySocketBase{InConnectionSettings}
 		, Resolver{IoContext}
 		, RemainingLength{0}
 		, CurrentState{EMqttifySocketState::Disconnected}
@@ -219,7 +219,7 @@ namespace Mqttify
 			DataBuffer.Append(ReadBuffer.GetData(), InBytesTransferred);
 
 			// Process received data to extract complete packets
-			ParsePacket();
+			ReadPacketsFromBuffer();
 
 			// Continue reading from the socket
 			StartAsyncRead();
@@ -232,81 +232,6 @@ namespace Mqttify
 				StringCast<TCHAR>(InError.message().c_str()).Get());
 			Disconnect();
 		}
-	}
-
-	template <typename TSocketType>
-	void TMqttifySocket<TSocketType>::ParsePacket()
-	{
-		// We need at least 2 bytes to start parsing (Fixed header)
-		if (DataBuffer.Num() < 2)
-		{
-			return;
-		}
-
-		constexpr int32 PacketStartIndex = 0;
-
-		// Remaining Length parsing as per MQTT protocol
-		RemainingLength = 0;
-		uint32 Multiplier = 1;
-		int32 Index = 1;
-		bool bHaveRemainingLength = false;
-
-		for (; Index < 5; ++Index)
-		{
-			if (Index >= DataBuffer.Num())
-			{
-				// We don't have enough data yet
-				return;
-			}
-
-			const uint8 EncodedByte = DataBuffer[Index];
-			RemainingLength += (EncodedByte & 127) * Multiplier;
-			Multiplier *= 128;
-
-			// Check if the MSB is 0, indicating the end of the Remaining Length field
-			if ((EncodedByte & 128) == 0 || Index == 4)
-			{
-				bHaveRemainingLength = true;
-				break;
-			}
-		}
-
-		if (!bHaveRemainingLength)
-		{
-			LOG_MQTTIFY(VeryVerbose, TEXT("Header not complete yet"));
-			return;
-		}
-
-		if (RemainingLength > ConnectionSettings->GetMaxPacketSize())
-		{
-			LOG_MQTTIFY(
-				Error,
-				TEXT("Packet too large: %d, Max: %d"),
-				RemainingLength,
-				ConnectionSettings->GetMaxPacketSize());
-			Disconnect();
-			return;
-		}
-
-		const int32 FixedHeaderSize = Index + 1; // Index starts from 1
-		const int32 TotalPacketSize = FixedHeaderSize + RemainingLength;
-
-		if (DataBuffer.Num() < TotalPacketSize)
-		{
-			// We don't have the full packet yet
-			return;
-		}
-
-		const TSharedPtr<FArrayReader> Packet = MakeShared<FArrayReader>(false);
-		Packet->Append(&DataBuffer[PacketStartIndex], TotalPacketSize);
-		DataBuffer.RemoveAt(0, TotalPacketSize);
-		RemainingLength = 0;
-		if (GetOnDataReceivedDelegate().IsBound())
-		{
-			GetOnDataReceivedDelegate().Broadcast(Packet);
-		}
-
-		LOG_MQTTIFY(VeryVerbose, TEXT("Packet received of size %d"), TotalPacketSize);
 	}
 
 	template <typename TSocketType>

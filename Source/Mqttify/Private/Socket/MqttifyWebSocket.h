@@ -14,11 +14,9 @@ namespace Mqttify
 	{
 	private:
 		mutable FCriticalSection SocketAccessLock{};
-		const FMqttifyConnectionSettingsRef ConnectionSettings;
 		TSharedPtr<IWebSocket> Socket;
 		EMqttifySocketState CurrentState;
 		FDateTime DisconnectTime;
-		TArray<uint8> DataBuffer;
 
 	public:
 		explicit FMqttifyWebSocket(const FMqttifyConnectionSettingsRef& InConnectionSettings);
@@ -37,7 +35,5 @@ namespace Mqttify
 		void HandleWebSocketConnectionClosed(int32 Status, const FString& Reason, bool bWasClean);
 		void HandleWebSocketData(const void* Data, SIZE_T Length, SIZE_T BytesRemaining);
 		void FinalizeDisconnect();
-
-		void ParsePacket();
 	};
 } // namespace Mqttify
