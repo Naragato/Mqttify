@@ -1,6 +1,6 @@
 #include "Mqtt/MqttifyConnectionSettings.h"
 
-#include "BasicCredentialsProvider.h"
+#include "MqttifyBasicCredentialsProvider.h"
 #include "Internationalization/Regex.h"
 #include "Misc/Fnv.h"
 
@@ -129,7 +129,7 @@ TSharedPtr<FMqttifyConnectionSettings> FMqttifyConnectionSettings::CreateShared(
 		// Parse credentials
 		FString Username = Matcher.GetCaptureGroup(2);
 		FString Password = Matcher.GetCaptureGroup(3);
-		const TSharedRef<IMqttifyCredentialsProvider> CredentialsProvider = MakeShared<FBasicCredentialsProvider>(
+		const TSharedRef<IMqttifyCredentialsProvider> CredentialsProvider = MakeShared<FMqttifyBasicCredentialsProvider>(
 			MoveTemp(Username),
 			MoveTemp(Password));
 
