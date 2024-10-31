@@ -4,6 +4,7 @@
 #include "MqttifyModule.h"
 #include "MqttifyTestMessage.h"
 #include "Misc/AutomationTest.h"
+#include "Misc/CommandLine.h"
 #include "Misc/DateTime.h"
 #include "Misc/Guid.h"
 #include "Misc/Parse.h"

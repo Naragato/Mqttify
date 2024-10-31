@@ -1,10 +1,12 @@
 #pragma once
-#include "Mqtt/MqttifyConnectionProtocol.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
+
 #include "LogMqttify.h"
 #include "Sockets.h"
 #include "SocketSubsystem.h"
+#include "Misc/Timeout.h"
+#include "Mqtt/MqttifyConnectionProtocol.h"
 
 namespace Mqttify
 {

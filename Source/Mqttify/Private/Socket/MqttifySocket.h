@@ -1,12 +1,12 @@
 #pragma once
 
-#include "boost/asio/ip/tcp.hpp"
 #include "CoreMinimal.h"
 #include "Mqtt/MqttifyConnectionSettings.h"
 #include "Socket/Interface/MqttifySocketBase.h"
 
 #define UI UI_ST
 #include "boost/asio/ssl.hpp"
+#include "boost/asio/ip/tcp.hpp"
 #undef UI
 
 namespace Mqttify

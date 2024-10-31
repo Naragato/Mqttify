@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "LogMqttify.h"
 #include "MqttifyConstants.h"
+#include "Async/Async.h"
 
 namespace Mqttify
 {
