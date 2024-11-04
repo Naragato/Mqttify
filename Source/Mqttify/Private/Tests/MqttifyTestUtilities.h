@@ -5,6 +5,7 @@
 #include "LogMqttify.h"
 #include "Sockets.h"
 #include "SocketSubsystem.h"
+#include "Misc/Paths.h"
 #include "Misc/Timeout.h"
 #include "Mqtt/MqttifyConnectionProtocol.h"
 
