@@ -23,7 +23,7 @@ namespace Mqttify
 
 		explicit FMqttifyConnectPacketBase(const FString& InClientId,
 											const uint16 InKeepAliveSeconds,
-											const FString& InUserName,
+											const FString& InUsername,
 											const FString& InPassword,
 											const bool bInCleanSession,
 											const bool bInRetainWill,
@@ -32,7 +32,7 @@ namespace Mqttify
 											const EMqttifyQualityOfService& WillQoS)
 			: ClientId{ InClientId }
 			, KeepAliveSeconds{ InKeepAliveSeconds }
-			, UserName{ InUserName }
+			, Username{ InUsername }
 			, Password{ InPassword }
 			, bCleanSession{ bInCleanSession }
 			, bRetainWill{ bInRetainWill }
@@ -54,10 +54,10 @@ namespace Mqttify
 		uint16 GetKeepAliveSeconds() const { return KeepAliveSeconds; }
 
 		/**
-		 * @brief Get the user name.
-		 * @return The user name.
+		 * @brief Get the username.
+		 * @return The username.
 		 */
-		const FString& GetUserName() const { return UserName; }
+		const FString& GetUsername() const { return Username; }
 
 		/**
 		 * @brief Get the password.
@@ -106,7 +106,7 @@ namespace Mqttify
 	protected:
 		FString ClientId;
 		uint16 KeepAliveSeconds = 60;
-		FString UserName;
+		FString Username;
 		FString Password;
 		bool bCleanSession;
 		bool bRetainWill;
@@ -123,7 +123,7 @@ namespace Mqttify
 	{
 		explicit TMqttifyConnectPacket(const FString& InClientId                = {},
 										const uint16 InKeepAliveSeconds         = 60,
-										const FString& InUserName               = {},
+										const FString& InUsername               = {},
 										const FString& InPassword               = {},
 										const bool bInCleanSession              = false,
 										const bool bInRetainWill                = false,
@@ -133,7 +133,7 @@ namespace Mqttify
 			: FMqttifyConnectPacketBase{
 				InClientId,
 				InKeepAliveSeconds,
-				InUserName,
+				InUsername,
 				InPassword,
 				bInCleanSession,
 				bInRetainWill,
@@ -170,7 +170,7 @@ namespace Mqttify
 	public:
 		explicit TMqttifyConnectPacket(const FString& InClientId = {},
 										const uint16 InKeepAliveSeconds = 60,
-										const FString& InUserName = {},
+										const FString& InUsername = {},
 										const FString& InPassword = {},
 										const bool bInCleanSession = false,
 										const bool bInRetainWill = false,
@@ -182,7 +182,7 @@ namespace Mqttify
 			: FMqttifyConnectPacketBase{
 				InClientId,
 				InKeepAliveSeconds,
-				InUserName,
+				InUsername,
 				InPassword,
 				bInCleanSession,
 				bInRetainWill,

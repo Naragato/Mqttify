@@ -710,7 +710,7 @@ void MqttifyConnectPacketSpec::Define()
 					TestTrue(TEXT("Packet should be a connect packet"), Header.GetPacketType() == EMqttifyPacketType::Connect);
 					FMqttifyConnectPacket5 Packet(Reader, Header);
 
-					TestEqual(TEXT("Username should be 'username'"), Packet.GetUserName(), "username");
+					TestEqual(TEXT("Username should be 'username'"), Packet.GetUsername(), "username");
 
 					TestEqual(TEXT("Password should be 'password'"), Packet.GetPassword(), "password");
 
@@ -903,7 +903,7 @@ void MqttifyConnectPacketSpec::Define()
 					TestTrue(TEXT("Packet should be a connect packet"), Header.GetPacketType() == EMqttifyPacketType::Connect);
 					FMqttifyConnectPacket3 Packet(Reader, Header);
 
-					TestEqual(TEXT("Username should be 'username'"), Packet.GetUserName(), "username");
+					TestEqual(TEXT("Username should be 'username'"), Packet.GetUsername(), "username");
 
 					TestEqual(TEXT("Password should be 'password'"), Packet.GetPassword(), "password");
 

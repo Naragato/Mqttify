@@ -16,7 +16,7 @@ namespace Mqttify
 		PayloadLength += WillTopic.IsEmpty()
 			? 0
 			: StringLengthFieldSize + WillTopic.Len() + StringLengthFieldSize + WillMessage.Len();
-		PayloadLength += UserName.IsEmpty() ? 0 : StringLengthFieldSize + UserName.Len();
+		PayloadLength += Username.IsEmpty() ? 0 : StringLengthFieldSize + Username.Len();
 		PayloadLength += Password.IsEmpty() ? 0 : StringLengthFieldSize + Password.Len();
 
 		return VariableHeaderLength + PayloadLength;
@@ -44,7 +44,7 @@ namespace Mqttify
 			}
 		}
 
-		const bool bHasUserName = !UserName.IsEmpty();
+		const bool bHasUserName = !Username.IsEmpty();
 		if (bHasUserName)
 		{
 			Flags |= 0x1 << 7;
@@ -78,7 +78,7 @@ namespace Mqttify
 
 		if (bHasUserName)
 		{
-			Data::EncodeString(UserName, InWriter);
+			Data::EncodeString(Username, InWriter);
 		}
 
 		if (bHasPassword)
@@ -186,7 +186,7 @@ namespace Mqttify
 		// Username
 		if (TempFlags & 0b10000000)
 		{
-			UserName = Data::DecodeString(InReader);
+			Username = Data::DecodeString(InReader);
 		}
 
 		if (TempFlags & 0b01000000)
@@ -207,7 +207,7 @@ namespace Mqttify
 		PayloadLength += WillTopic.IsEmpty()
 			? 0
 			: StringLengthFieldSize + WillTopic.Len() + StringLengthFieldSize + WillMessage.Len();
-		PayloadLength += UserName.IsEmpty() ? 0 : StringLengthFieldSize + UserName.Len();
+		PayloadLength += Username.IsEmpty() ? 0 : StringLengthFieldSize + Username.Len();
 		PayloadLength += Password.IsEmpty() ? 0 : StringLengthFieldSize + Password.Len();
 		PayloadLength += Properties.GetLength();
 
@@ -241,7 +241,7 @@ namespace Mqttify
 			}
 		}
 
-		const bool bHasUserName = !UserName.IsEmpty();
+		const bool bHasUserName = !Username.IsEmpty();
 		if (bHasUserName)
 		{
 			Flags |= 0x1 << 7;
@@ -277,7 +277,7 @@ namespace Mqttify
 
 		if (bHasUserName)
 		{
-			Data::EncodeString(UserName, InWriter);
+			Data::EncodeString(Username, InWriter);
 		}
 
 		if (bHasPassword)
@@ -391,7 +391,7 @@ namespace Mqttify
 		// Username
 		if (TempFlags & 0b10000000)
 		{
-			UserName = Data::DecodeString(InReader);
+			Username = Data::DecodeString(InReader);
 		}
 
 		if (TempFlags & 0b01000000)
