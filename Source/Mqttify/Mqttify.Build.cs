@@ -18,7 +18,6 @@ public class Mqttify : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new[]
 			{
-				"Boost",
 				"Engine",
 				"Json",
 				"JsonUtilities",

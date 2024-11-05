@@ -1,7 +1,6 @@
 #include "MqttifySocketBase.h"
 
 #include "LogMqttify.h"
-#include "Socket/MqttifySocket.h"
 #include "Socket/MqttifyWebSocket.h"
 
 namespace Mqttify
@@ -20,9 +19,11 @@ namespace Mqttify
 		switch (InConnectionSettings->GetTransportProtocol())
 		{
 			case EMqttifyConnectionProtocol::Mqtt:
-				return MakeShared<TMqttifySocket<FTcpSocket>>(InConnectionSettings);
+				LOG_MQTTIFY(Error, TEXT("MQTT not supported yet"));
+				return nullptr; // Not implemented
 			case EMqttifyConnectionProtocol::Mqtts:
-				return MakeShared<TMqttifySocket<FSslSocket>>(InConnectionSettings);
+				LOG_MQTTIFY(Error, TEXT("MQTTS not supported yet"));
+				return nullptr;	// Not implemented
 			case EMqttifyConnectionProtocol::Ws:
 			case EMqttifyConnectionProtocol::Wss:
 			default:
