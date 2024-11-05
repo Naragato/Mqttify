@@ -4,7 +4,7 @@
 #include <bitset>
 #include <type_traits>
 
-DECLARE_LOG_CATEGORY_EXTERN(LogMqttify, VeryVerbose, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogMqttify, Display, All);
 
 // __PRETTY_FUNCTION__ isn't a macro on gcc, so use a check for _MSC_VER
 // so we only define it as one for MSVC

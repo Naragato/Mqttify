@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "IWebSocket.h"
+#include "MqttifySocketState.h"
 #include "Mqtt/MqttifyConnectionSettings.h"
 #include "Socket/Interface/MqttifySocketBase.h"
 
@@ -15,7 +16,7 @@ namespace Mqttify
 	private:
 		mutable FCriticalSection SocketAccessLock{};
 		TSharedPtr<IWebSocket> Socket;
-		EMqttifySocketState CurrentState;
+		std::atomic<EMqttifySocketState> CurrentState;
 		FDateTime DisconnectTime;
 
 	public:
