@@ -1,4 +1,4 @@
-#if WITH_DEV_AUTOMATION_TESTS
+#if WITH_EDITOR && !UE_BUILD_SHIPPING && WITH_AUTOMATION_TESTS
 
 #include "LibWebSocketRunnable.h"
 #include "MqttifySocketRunnable.h"
@@ -127,7 +127,7 @@ void MqttifyMqttifyWebSocketSpec::Define()
 					constexpr uint8 Data[] = {0x01, 0x02, 0x03};
 					constexpr uint32 Size = sizeof(Data);
 
-					LibWebSocketRunner->Callback = [this, Data, Done](
+					LibWebSocketRunner->Callback = [this, Data, Done, Size](
 						struct lws* Wsi,
 						const enum lws_callback_reasons Reason,
 						void* User,
@@ -172,4 +172,4 @@ void MqttifyMqttifyWebSocketSpec::Define()
 				});
 		});
 }
-#endif	// WITH_DEV_AUTOMATION_TESTS
+#endif	// WITH_EDITOR && !UE_BUILD_SHIPPING && WITH_AUTOMATION_TESTS
