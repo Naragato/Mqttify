@@ -65,6 +65,12 @@ namespace Mqttify
 				case EMqttifyReasonCode::Success:
 				case EMqttifyReasonCode::GrantedQualityOfService1:
 				case EMqttifyReasonCode::GrantedQualityOfService2:
+					LOG_MQTTIFY(
+						Display,
+						TEXT("%s - %s, subscribed to %s"),
+						*Settings->GetHost(),
+						*Settings->GetClientId(),
+						*TopicFilters[i].Get<0>().GetFilter());
 					SubscribeResults.Add(
 						FMqttifySubscribeResult{TopicFilters[i].Get<0>(), true, TopicFilters[i].Get<1>()});
 					break;
@@ -99,11 +105,18 @@ namespace Mqttify
 				}
 				else
 				{
+					LOG_MQTTIFY(
+						Display,
+						TEXT("%s - %s, subscribed to %s"),
+						*Settings->GetHost(),
+						*Settings->GetClientId(),
+						*TopicFilters[i].Get<0>().GetFilter());
 					SubscribeResults.Add(
 						FMqttifySubscribeResult{TopicFilters[i].Get<0>(), bSuccess, TopicFilters[i].Get<1>()});
 				}
 			}
 		}
+
 
 		SetPromiseValue(TMqttifyResult{true, MoveTemp(SubscribeResults)});
 
