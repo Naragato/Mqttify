@@ -84,6 +84,12 @@ namespace Mqttify
 				{
 				case EMqttifyReasonCode::Success:
 				case EMqttifyReasonCode::NoSubscriptionExisted:
+					LOG_MQTTIFY(
+						Display,
+						TEXT("%s - %s, unsubscribed from %s"),
+						*Settings->GetHost(),
+						*Settings->GetClientId(),
+						*TopicFilters[i].GetFilter());
 					UnsubscribeResults.Add(FMqttifyUnsubscribeResult{TopicFilters[i], true});
 					break;
 				default:
@@ -96,6 +102,12 @@ namespace Mqttify
 		{
 			for (int32 i = 0; i < TopicFilters.Num(); ++i)
 			{
+				LOG_MQTTIFY(
+					Display,
+					TEXT("%s - %s, unsubscribed from %s"),
+					*Settings->GetHost(),
+					*Settings->GetClientId(),
+					*TopicFilters[i].GetFilter());
 				UnsubscribeResults.Add(FMqttifyUnsubscribeResult{TopicFilters[i], true});
 			}
 		}
