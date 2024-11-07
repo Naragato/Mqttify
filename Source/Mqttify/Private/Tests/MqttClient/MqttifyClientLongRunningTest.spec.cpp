@@ -21,7 +21,7 @@ BEGIN_DEFINE_SPEC(
 	EAutomationTestFlags::ProductFilter | EAutomationTestFlags::ApplicationContextMask)
 	static constexpr TCHAR kTopic[] = TEXT("/LongRunningTest");
 	FString DockerContainerName = TEXT("vernemq_test_container");
-	TArray<TSharedPtr<IMqttifyClient>> MqttClients;
+	TArray<TSharedRef<IMqttifyClient>> MqttClients;
 
 	float TestDurationSeconds = 3600.0f; // default to 1 hour
 	int32 MaxPendingMessages = 120;
@@ -167,6 +167,7 @@ void FMqttifyClientLongRunningTest::SetupClients(
 	const FMqttifyTestDockerSpec& InSpec,
 	const FDoneDelegate& InBeforeDone,
 	const EMqttifyQualityOfService InQoS
+
 	)
 {
 	LOG_MQTTIFY(VeryVerbose, TEXT("Setting up clients"));
@@ -174,8 +175,9 @@ void FMqttifyClientLongRunningTest::SetupClients(
 	MqttClients.Empty();
 	for (int32 i = 0; i < 2; ++i)
 	{
-		FString ClientName = FString::Printf(TEXT("client%d"), i);
-		FString Username = FString::Printf(TEXT("client%d"), i);
+		FString Id = FGuid::NewGuid().ToString();
+		FString ClientName = FString::Printf(TEXT("client%s"), *Id);
+		FString Username = FString::Printf(TEXT("client%s"), *Id);
 		FString Password = TEXT("password");
 
 		FMqttifyConnectionSettingsBuilder ConnectionSettingsBuilder(
@@ -186,20 +188,20 @@ void FMqttifyClientLongRunningTest::SetupClients(
 				*Password,
 				InSpec.PublicPort,
 				GetPath(InSpec.Protocol)));
-		ConnectionSettingsBuilder.SetClientId(FString::Printf(TEXT("Test - Client%d"), i));
+		ConnectionSettingsBuilder.SetClientId(FString::Printf(TEXT("Test - Client%s"), *Id));
 		const TSharedRef<FMqttifyConnectionSettings> ConnectionSettings = ConnectionSettingsBuilder.Build().
 			ToSharedRef();
 
 		TSharedPtr<IMqttifyClient> MqttClient = MqttifyModule.GetOrCreateClient(ConnectionSettings);
 
-		if (!MqttClient)
+		if (!MqttClient.IsValid())
 		{
 			AddError(FString::Printf(TEXT("Failed to create MQTT client %d"), i));
 			InBeforeDone.Execute();
 			return;
 		}
 
-		MqttClients.Add(MqttClient);
+		MqttClients.Add(MqttClient.ToSharedRef());
 		MqttClient->OnConnect().AddLambda(
 			[this](const bool bIsConnected)
 			{
@@ -211,21 +213,24 @@ void FMqttifyClientLongRunningTest::SetupClients(
 			});
 	}
 
-	const TSharedPtr<IMqttifyClient> Subscriber = MqttClients[1];
-	Subscriber->OnConnect().AddLambda(
-		[this, InBeforeDone, InQoS, Subscriber](const bool bIsConnected)
+	const TWeakPtr<IMqttifyClient> SubscriberWeak = MqttClients[1];
+	SubscriberWeak.Pin()->OnConnect().AddLambda(
+		[this, InBeforeDone, InQoS, SubscriberWeak](const bool bIsConnected)
 		{
 			FMqttifyTopicFilter TopicFilter{FString{kTopic}, InQoS};
-			Subscriber->SubscribeAsync(MoveTemp(TopicFilter)).Next(
-				[this, InBeforeDone](const TMqttifyResult<FMqttifySubscribeResult>& InResult)
-				{
-					if (!InResult.HasSucceeded())
+			if (const TSharedPtr<IMqttifyClient> SubscriberStrong = SubscriberWeak.Pin())
+			{
+				SubscriberStrong->SubscribeAsync(MoveTemp(TopicFilter)).Next(
+					[this, InBeforeDone](const TMqttifyResult<FMqttifySubscribeResult>& InResult)
 					{
-						AddError(TEXT("Failed to subscribe"));
-						bTestDoneExecuted = true;
-					}
-					InBeforeDone.Execute();
-				});
+						if (!InResult.HasSucceeded())
+						{
+							AddError(TEXT("Failed to subscribe"));
+							bTestDoneExecuted = true;
+						}
+						InBeforeDone.Execute();
+					});
+			}
 		});
 
 	for (const auto& MqttClient : MqttClients)
@@ -244,7 +249,7 @@ void FMqttifyClientLongRunningTest::PublishMessages(const EMqttifyQualityOfServi
 		return;
 	}
 
-	const TSharedPtr<IMqttifyClient> Publisher = MqttClients[0];
+	const TSharedRef<IMqttifyClient> Publisher = MqttClients[0];
 
 	LOG_MQTTIFY(VeryVerbose, TEXT("PublishBuffer.Num() = %d"), PublishBuffer.Num());
 	while (!bTestDoneExecuted && PublishBuffer.Num() < MaxPendingMessages && (FDateTime::UtcNow() - StartTime).
@@ -287,7 +292,7 @@ void FMqttifyClientLongRunningTest::DisconnectClients(const FDoneDelegate& InAft
 {
 	LOG_MQTTIFY(VeryVerbose, TEXT("Disconnecting clients"));
 
-	for (const TSharedPtr<IMqttifyClient>& MqttClient : MqttClients)
+	for (const TSharedRef<IMqttifyClient>& MqttClient : MqttClients)
 	{
 		MqttClient->DisconnectAsync().Next(
 			[this, InAfterDone](const TMqttifyResult<void>&)

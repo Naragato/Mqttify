@@ -1,4 +1,4 @@
-#if WITH_EDITOR && !UE_BUILD_SHIPPING && WITH_AUTOMATION_TESTS
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
 
 #include "LibWebSocketRunnable.h"
 #include "MqttifySocketRunnable.h"
@@ -172,4 +172,4 @@ void MqttifyMqttifyWebSocketSpec::Define()
 				});
 		});
 }
-#endif	// WITH_EDITOR && !UE_BUILD_SHIPPING && WITH_AUTOMATION_TESTS
+#endif	// WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS

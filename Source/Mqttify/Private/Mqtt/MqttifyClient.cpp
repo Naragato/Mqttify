@@ -2,6 +2,9 @@
 
 #include "LogMqttify.h"
 #include "MqttifyAsync.h"
+#include "Commands/MqttifyPublish.h"
+#include "Commands/MqttifySubscribe.h"
+#include "Commands/MqttifyUnsubscribe.h"
 #include "Interface/IMqttifyPacketReceiver.h"
 #include "Interface/IMqttifySocketConnectedHandler.h"
 #include "Interface/IMqttifySocketDisconnectHandler.h"
@@ -9,9 +12,6 @@
 #include "Mqtt/MqttifyTopicFilter.h"
 #include "Mqtt/Interface/IMqttifyConnectableAsync.h"
 #include "Mqtt/Interface/IMqttifyDisconnectableAsync.h"
-#include "Mqtt/Interface/IMqttifyPublishableAsync.h"
-#include "Mqtt/Interface/IMqttifySubscribableAsync.h"
-#include "Mqtt/Interface/IMqttifyUnsubscribableAsync.h"
 #include "Mqtt/State/MqttifyClientDisconnectedState.h"
 #include "Socket/Interface/IMqttifySocketTickable.h"
 
@@ -93,146 +93,152 @@ namespace Mqttify
 			TEXT("[lock (Connection %s, ClientId %s)]"),
 			*GetConnectionSettings()->GetHost(),
 			*GetConnectionSettings()->GetClientId());
-		if (CurrentState.IsValid())
+		switch (InMessage.GetQualityOfService())
 		{
-			if (IMqttifyPublishableAsync* Publishable = CurrentState->AsPublishable())
+		case EMqttifyQualityOfService::AtMostOnce:
 			{
-				LOG_MQTTIFY(
-					VeryVerbose,
-					TEXT("[unlock (Connection %s, ClientId %s)] is in a publishable state"),
-					*GetConnectionSettings()->GetHost(),
-					*GetConnectionSettings()->GetClientId());
-				return Publishable->PublishAsync(MoveTemp(InMessage));
+				const FMqttifyPubAtMostOnceRef PublishCommand = MakeShared<FMqttifyPubAtMostOnce, ESPMode::ThreadSafe>(
+					MoveTemp(InMessage),
+					Socket,
+					Context->GetConnectionSettings());
+				Context->AddOneShotCommand(PublishCommand);
+				return PublishCommand->GetFuture();
+			}
+		case EMqttifyQualityOfService::AtLeastOnce:
+			{
+				const uint16 PacketId = Context->GetNextId();
+				const FMqttifyPubAtLeastOnceRef PublishCommand = MakeShared<
+					FMqttifyPubAtLeastOnce, ESPMode::ThreadSafe>(
+					MoveTemp(InMessage),
+					PacketId,
+					Socket,
+					Context->GetConnectionSettings());
+				Context->AddAcknowledgeableCommand(PublishCommand);
+				return PublishCommand->GetFuture();
+			}
+		case EMqttifyQualityOfService::ExactlyOnce:
+			{
+				const uint16 PacketId = Context->GetNextId();
+				const FMqttifyPubExactlyOnceRef PublishCommand = MakeShared<
+					FMqttifyPubExactlyOnce, ESPMode::ThreadSafe>(
+					MoveTemp(InMessage),
+					PacketId,
+					Socket,
+					Context->GetConnectionSettings());
+				Context->AddAcknowledgeableCommand(PublishCommand);
+				return PublishCommand->GetFuture();
+			}
+		default:
+			{
+				ensureMsgf(false, TEXT("Invalid quality of service"));
+				return MakeThreadAwareFulfilledPromise<TMqttifyResult<void>>(TMqttifyResult<void>{false});
 			}
 		}
-
-		LOG_MQTTIFY(
-			VeryVerbose,
-			TEXT("[unlock (Connection %s, ClientId %s)] is not in a publishable state"),
-			*GetConnectionSettings()->GetHost(),
-			*GetConnectionSettings()->GetClientId());
-		return MakeThreadAwareFulfilledPromise<TMqttifyResult<void>>(TMqttifyResult<void>{false});
 	}
 
 	TFuture<TMqttifyResult<TArray<FMqttifySubscribeResult>>> FMqttifyClient::SubscribeAsync(
 		const TArray<FMqttifyTopicFilter>& InTopicFilters
 		)
 	{
-		FScopeLock Lock{&StateLock};
-		LOG_MQTTIFY(
-			VeryVerbose,
-			TEXT("[lock (Connection %s, ClientId %s)]"),
-			*GetConnectionSettings()->GetHost(),
-			*GetConnectionSettings()->GetClientId());
-		if (CurrentState.IsValid())
+		const uint16 PacketId = Context->GetNextId();
+
+		TArray<TTuple<FMqttifyTopicFilter, TSharedRef<FOnMessage>>> TopicFilters;
+		for (const FMqttifyTopicFilter& TopicFilter : InTopicFilters)
 		{
-			if (IMqttifySubscribableAsync* Subscribable = CurrentState->AsSubscribable())
-			{
-				LOG_MQTTIFY(
-					VeryVerbose,
-					TEXT("[unlock (Connection %s, ClientId %s)] is in a subscribable state"),
-					*GetConnectionSettings()->GetHost(),
-					*GetConnectionSettings()->GetClientId());
-				return Subscribable->SubscribeAsync(InTopicFilters);
-			}
+			auto Tuple = MakeTuple(TopicFilter, Context->GetMessageDelegate(TopicFilter.GetFilter()));
+			TopicFilters.Emplace(Tuple);
 		}
 
-		LOG_MQTTIFY(
-			VeryVerbose,
-			TEXT("[unlock (Connection %s, ClientId %s)] is not in a subscribable state"),
-			*GetConnectionSettings()->GetHost(),
-			*GetConnectionSettings()->GetClientId());
-		return MakeThreadAwareFulfilledPromise<TMqttifyResult<TArray<FMqttifySubscribeResult>>>(
-			TMqttifyResult<TArray<FMqttifySubscribeResult>>{false});
+		const TSharedRef<FMqttifySubscribe> SubscribeCommand = MakeShared<FMqttifySubscribe>(
+			TopicFilters,
+			PacketId,
+			Socket,
+			Context->GetConnectionSettings());
+
+		Context->AddAcknowledgeableCommand(SubscribeCommand);
+		TWeakPtr<FMqttifyClientContext> WeakContext = Context;
+		return SubscribeCommand->GetFuture().Next(
+			[WeakContext](const TMqttifyResult<TArray<FMqttifySubscribeResult>>& InResult)
+			{
+				if (InResult.HasSucceeded())
+				{
+					if (const TSharedPtr<FMqttifyClientContext> ContextPtr = WeakContext.Pin())
+					{
+						ContextPtr->OnSubscribe().Broadcast(InResult.GetResult());
+					}
+				}
+				else
+				{
+					LOG_MQTTIFY(Error, TEXT("Failed to subscribe to topic filter"));
+				}
+
+				return InResult;
+			});
 	}
 
 
 	TFuture<TMqttifyResult<FMqttifySubscribeResult>> FMqttifyClient::SubscribeAsync(FMqttifyTopicFilter&& InTopicFilter)
 	{
-		FScopeLock Lock{&StateLock};
-		LOG_MQTTIFY(
-			VeryVerbose,
-			TEXT("[lock (Connection %s, ClientId %s)]"),
-			*GetConnectionSettings()->GetHost(),
-			*GetConnectionSettings()->GetClientId());
-		if (CurrentState.IsValid())
-		{
-			if (IMqttifySubscribableAsync* Subscribable = CurrentState->AsSubscribable())
+		return SubscribeAsync(TArray{InTopicFilter}).Next(
+			[](const TMqttifyResult<TArray<FMqttifySubscribeResult>>& InResult)
 			{
-				LOG_MQTTIFY(
-					VeryVerbose,
-					TEXT("[unlock (Connection %s, ClientId %s)] is in a subscribable state"),
-					*GetConnectionSettings()->GetHost(),
-					*GetConnectionSettings()->GetClientId());
-				return Subscribable->SubscribeAsync(MoveTemp(InTopicFilter));
-			}
-		}
+				if (InResult.HasSucceeded() && InResult.GetResult()->Num() == 1)
+				{
+					FMqttifySubscribeResult OutResult = InResult.GetResult()->operator[](0);
+					return TMqttifyResult{true, MoveTemp(OutResult)};
+				}
 
-		LOG_MQTTIFY(
-			VeryVerbose,
-			TEXT("[unlock (Connection %s, ClientId %s)] is not in a subscribable state"),
-			*GetConnectionSettings()->GetHost(),
-			*GetConnectionSettings()->GetClientId());
-		return MakeThreadAwareFulfilledPromise<TMqttifyResult<FMqttifySubscribeResult>>(
-			TMqttifyResult<FMqttifySubscribeResult>{false});
+				LOG_MQTTIFY(
+					Error,
+					TEXT("Failed to subscribe to topic filter. Success: %s"),
+					InResult.HasSucceeded() ? TEXT("true") : TEXT("false"));
+				return TMqttifyResult<FMqttifySubscribeResult>{false};
+			});
 	}
 
 	TFuture<TMqttifyResult<FMqttifySubscribeResult>> FMqttifyClient::SubscribeAsync(FString& InTopicFilter)
 	{
-		FScopeLock Lock{&StateLock};
-		LOG_MQTTIFY(
-			VeryVerbose,
-			TEXT("[lock (Connection %s, ClientId %s)]"),
-			*GetConnectionSettings()->GetHost(),
-			*GetConnectionSettings()->GetClientId());
-		if (CurrentState.IsValid())
-		{
-			if (IMqttifySubscribableAsync* Subscribable = CurrentState->AsSubscribable())
-			{
-				LOG_MQTTIFY(
-					VeryVerbose,
-					TEXT("[unlock (Connection %s, ClientId %s)] is in a subscribable state"),
-					*GetConnectionSettings()->GetHost(),
-					*GetConnectionSettings()->GetClientId());
-				return Subscribable->SubscribeAsync(InTopicFilter);
-			}
-		}
-
-		LOG_MQTTIFY(
-			VeryVerbose,
-			TEXT("[unlock (Connection %s, ClientId %s)] is not in a subscribable state"),
-			*GetConnectionSettings()->GetHost(),
-			*GetConnectionSettings()->GetClientId());
-		return MakeThreadAwareFulfilledPromise<TMqttifyResult<FMqttifySubscribeResult>>(
-			TMqttifyResult<FMqttifySubscribeResult>{false});
+		FMqttifyTopicFilter TopicFilter{InTopicFilter};
+		return SubscribeAsync(MoveTemp(TopicFilter));
 	}
 
 	TFuture<TMqttifyResult<TArray<FMqttifyUnsubscribeResult>>> FMqttifyClient::UnsubscribeAsync(
 		const TSet<FString>& InTopicFilters
 		)
 	{
-		FScopeLock Lock{&StateLock};
-		LOG_MQTTIFY(
-			VeryVerbose,
-			TEXT("[lock (Connection %s, ClientId %s)]"),
-			*GetConnectionSettings()->GetHost(),
-			*GetConnectionSettings()->GetClientId());
-		if (CurrentState.IsValid())
+		TArray<FMqttifyTopicFilter> TopicFilters;
+		for (const FString& TopicFilter : InTopicFilters)
 		{
-			if (IMqttifyUnsubscribableAsync* Unsubscribable = CurrentState->AsUnsubscribable())
-			{
-				LOG_MQTTIFY(
-					VeryVerbose,
-					TEXT("[unlock (Connection %s, ClientId %s)] is in an unsubscribable state"),
-					*GetConnectionSettings()->GetHost(),
-					*GetConnectionSettings()->GetClientId());
-				return Unsubscribable->UnsubscribeAsync(InTopicFilters);
-			}
+			TopicFilters.Emplace(TopicFilter);
 		}
 
+		const uint16 PacketId = Context->GetNextId();
+		const TSharedRef<FMqttifyUnsubscribe> UnsubscribeCommand = MakeShared<FMqttifyUnsubscribe>(
+			TopicFilters,
+			PacketId,
+			Socket,
+			Context->GetConnectionSettings());
 
-		return MakeThreadAwareFulfilledPromise<TMqttifyResult<TArray<FMqttifyUnsubscribeResult>>>(
-			TMqttifyResult<TArray<FMqttifyUnsubscribeResult>>{false});
+		Context->AddAcknowledgeableCommand(UnsubscribeCommand);
+		TWeakPtr<FMqttifyClientContext> WeakContext = Context;
+		return UnsubscribeCommand->GetFuture().Next(
+			[WeakContext](const TMqttifyResult<TArray<FMqttifyUnsubscribeResult>>& InResult)
+			{
+				if (InResult.HasSucceeded())
+				{
+					if (const TSharedPtr<FMqttifyClientContext> ContextPtr = WeakContext.Pin())
+					{
+						ContextPtr->OnUnsubscribe().Broadcast(InResult.GetResult());
+						ContextPtr->ClearMessageDelegates(InResult.GetResult());
+					}
+				}
+				else
+				{
+					LOG_MQTTIFY(Warning, TEXT("Failed to unsubscribe from topic filter"));
+				}
+
+				return InResult;
+			});
 	}
 
 	FOnConnect& FMqttifyClient::OnConnect()

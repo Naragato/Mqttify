@@ -13,7 +13,7 @@ namespace Mqttify
 		ClearMessageDelegates();
 		ClearDisconnectPromises();
 		ClearConnectPromises();
-		AbandonAcknowledgeableCommands();
+		AbandonCommands();
 	}
 
 	FMqttifyClientContext::FMqttifyClientContext(const FMqttifyConnectionSettingsRef& InConnectionSettings)
@@ -50,10 +50,13 @@ namespace Mqttify
 		}
 	}
 
-	void FMqttifyClientContext::AddAcknowledgeableCommand(const TSharedRef<FMqttifyAcknowledgeable>& InCommand)
+	void FMqttifyClientContext::AddAcknowledgeableCommand(const TSharedRef<FMqttifyQueueable>& InCommand)
 	{
 		FScopeLock Lock(&AcknowledgeableCommandsCriticalSection);
-		AcknowledgeableCommands.Add(InCommand->GetKey(), InCommand);
+		if (const IMqttifyAcknowledgeable* Acknowledgeable = InCommand->AsAcknowledgeable())
+		{
+			AcknowledgeableCommands.Add(Acknowledgeable->GetId(), InCommand);
+		}
 	}
 
 	bool FMqttifyClientContext::HasAcknowledgeableCommand(const uint16 InPacketIdentifier) const
@@ -62,18 +65,36 @@ namespace Mqttify
 		return AcknowledgeableCommands.Contains(InPacketIdentifier);
 	}
 
-	void FMqttifyClientContext::ProcessAcknowledgeableCommands()
+	void FMqttifyClientContext::AddOneShotCommand(const TSharedRef<FMqttifyQueueable>& InCommand)
+	{
+		OneShotCommands.Enqueue(InCommand);
+	}
+
+	void FMqttifyClientContext::ProcessCommands()
 	{
 		// TODO SB - Come back to this, since we have the option of running on the game thread
 		// and the loop may block while writing to the socket (which is not ideal). If there
 		// is a large number of commands to process, we may want to process them in batches
 		// and set a limit to the number of commands we have pending
-		FScopeLock Lock(&AcknowledgeableCommandsCriticalSection);
-		for (auto It = AcknowledgeableCommands.CreateIterator(); It; ++It)
+
+		/// Process OneShotCommands
+		TSharedPtr<FMqttifyQueueable> Command = nullptr;
+		while (OneShotCommands.Dequeue(Command))
 		{
-			if (It.Value()->Next())
+			if (Command.IsValid())
 			{
-				It.RemoveCurrent();
+				Command->Next();
+			}
+		}
+
+		{
+			FScopeLock Lock(&AcknowledgeableCommandsCriticalSection);
+			for (auto It = AcknowledgeableCommands.CreateIterator(); It; ++It)
+			{
+				if (It.Value()->Next())
+				{
+					It.RemoveCurrent();
+				}
 			}
 		}
 	}
@@ -135,6 +156,7 @@ namespace Mqttify
 	void FMqttifyClientContext::CompleteDisconnect()
 	{
 		TWeakPtr<FMqttifyClientContext> ThisWeakPtr = AsWeak();
+		AbandonCommands();
 		DispatchWithThreadHandling(
 			[ThisWeakPtr]
 			{
@@ -212,19 +234,22 @@ namespace Mqttify
 			return;
 		}
 
-		if (const TSharedRef<FMqttifyAcknowledgeable>* Command = AcknowledgeableCommands.Find(InPacketIdentifier))
+		if (const TSharedRef<FMqttifyQueueable>* Command = AcknowledgeableCommands.Find(InPacketIdentifier))
 		{
-			if ((*Command)->Acknowledge(InPacket))
+			if (IMqttifyAcknowledgeable* Acknowledgeable = (*Command)->AsAcknowledgeable())
 			{
-				LOG_MQTTIFY(
-					VeryVerbose,
-					TEXT("Removing packet identifier %d, Type %s"),
-					InPacketIdentifier,
-					EnumToTCharString(InPacket->GetPacketType()));
-				AcknowledgeableCommands.Remove(InPacketIdentifier);
-				if (InPacketIdentifier <= kMaxCount)
+				if (Acknowledgeable->Acknowledge(InPacket))
 				{
-					ReleaseId(InPacket->GetPacketId());
+					LOG_MQTTIFY(
+						VeryVerbose,
+						TEXT("Removing packet identifier %d, Type %s"),
+						InPacketIdentifier,
+						EnumToTCharString(InPacket->GetPacketType()));
+					AcknowledgeableCommands.Remove(InPacketIdentifier);
+					if (InPacketIdentifier <= kMaxCount)
+					{
+						ReleaseId(InPacket->GetPacketId());
+					}
 				}
 			}
 		}
@@ -268,9 +293,12 @@ namespace Mqttify
 		OnConnectPromises.Empty();
 	}
 
-	void FMqttifyClientContext::AbandonAcknowledgeableCommands()
+	void FMqttifyClientContext::AbandonCommands()
 	{
-		FScopeLock Lock(&AcknowledgeableCommandsCriticalSection);
-		AcknowledgeableCommands.Empty();
+		OneShotCommands.Empty();
+		{
+			FScopeLock Lock(&AcknowledgeableCommandsCriticalSection);
+			AcknowledgeableCommands.Empty();
+		}
 	}
 } // namespace Mqttify

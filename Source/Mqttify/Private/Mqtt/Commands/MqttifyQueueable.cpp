@@ -1,4 +1,4 @@
-#include "Mqtt/Commands/MqttifyAcknowledgeable.h"
+#include "Mqtt/Commands/MqttifyQueueable.h"
 
 #include "LogMqttify.h"
 #include "Packets/Interface/IMqttifyControlPacket.h"
@@ -6,7 +6,7 @@
 
 namespace Mqttify
 {
-	bool FMqttifyAcknowledgeable::Next()
+	bool FMqttifyQueueable::Next()
 	{
 		FScopeLock Lock{&CriticalSection};
 
@@ -24,10 +24,9 @@ namespace Mqttify
 		{
 			LOG_MQTTIFY(
 				Warning,
-				TEXT( " (Connection %s, ClientId %s) Packet retry limit reached, abandoning packet, PackedId %d" ),
+				TEXT( " (Connection %s, ClientId %s) Packet retry limit reached, abandoning packet" ),
 				*Settings->GetHost(),
-				*Settings->GetClientId(),
-				PacketId);
+				*Settings->GetClientId());
 			Abandon();
 			return true;
 		}
@@ -35,18 +34,17 @@ namespace Mqttify
 		return NextImpl();
 	}
 
-	void FMqttifyAcknowledgeable::SendPacketInternal(const TSharedPtr<IMqttifyControlPacket>& InPacket)
+	void FMqttifyQueueable::SendPacketInternal(const TSharedPtr<IMqttifyControlPacket>& InPacket)
 	{
 		if (const TSharedPtr<FMqttifySocketBase> PinnedSocket = Socket.Pin())
 		{
 			++PacketTries;
 			LOG_MQTTIFY(
 				VeryVerbose,
-				TEXT( "(Connection %s, ClientId %s) Sending %s, PacketId %d, Attempt %d"),
+				TEXT( "(Connection %s, ClientId %s) Sending %s, Attempt %d"),
 				*Settings->GetHost(),
 				*Settings->GetClientId(),
 				EnumToTCharString(InPacket->GetPacketType()),
-				PacketId,
 				PacketTries);
 			TArray<uint8> ActualBytes;
 			FMemoryWriter Writer(ActualBytes);

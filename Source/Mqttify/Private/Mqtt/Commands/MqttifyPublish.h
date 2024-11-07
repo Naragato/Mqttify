@@ -24,7 +24,8 @@ namespace Mqttify
 			FMqttifyMessage&& InMessage,
 			const uint16 InPacketId,
 			const TWeakPtr<FMqttifySocketBase>& InSocket,
-			const FMqttifyConnectionSettingsRef& InConnectionSettings);
+			const FMqttifyConnectionSettingsRef& InConnectionSettings
+			);
 
 		virtual bool NextImpl() override;
 		virtual void Abandon() override;
@@ -53,7 +54,8 @@ namespace Mqttify
 			FMqttifyMessage&& InMessage,
 			const uint16 InPacketId,
 			const TWeakPtr<FMqttifySocketBase>& InSocket,
-			const FMqttifyConnectionSettingsRef& InConnectionSettings);
+			const FMqttifyConnectionSettingsRef& InConnectionSettings
+			);
 
 		virtual void Abandon() override;
 		virtual bool Acknowledge(const FMqttifyPacketPtr& InPacket) override;
@@ -65,46 +67,31 @@ namespace Mqttify
 		bool HandlePubComp(const FMqttifyPacketPtr& InPacket);
 	};
 
+	template <>
+	class TMqttifyPublish<EMqttifyQualityOfService::AtMostOnce> final : public TMqttifyQueueable<void>
+	{
+	private:
+		TSharedRef<TMqttifyPublishPacket<GMqttifyProtocol>> PublishPacket;
+		bool bIsDone;
+
+	public:
+		explicit TMqttifyPublish(
+			FMqttifyMessage&& InMessage,
+			const TWeakPtr<FMqttifySocketBase>& InSocket,
+			const FMqttifyConnectionSettingsRef& InConnectionSettings
+			);
+
+		virtual bool NextImpl() override;
+		virtual void Abandon() override;
+
+	protected:
+		virtual bool IsDone() const override;
+	};
+
 	using FMqttifyPubAtLeastOnce = TMqttifyPublish<EMqttifyQualityOfService::AtLeastOnce>;
 	using FMqttifyPubExactlyOnce = TMqttifyPublish<EMqttifyQualityOfService::ExactlyOnce>;
+	using FMqttifyPubAtMostOnce = TMqttifyPublish<EMqttifyQualityOfService::AtMostOnce>;
 	using FMqttifyPubAtLeastOnceRef = TSharedRef<FMqttifyPubAtLeastOnce>;
 	using FMqttifyPubExactlyOnceRef = TSharedRef<FMqttifyPubExactlyOnce>;
-
-	/**
-	 * @brief Creates a publish command reference based on the quality of service.
-	 * @tparam InQualityOfService The quality of service.
-	 * @param InMessage The message to publish.
-	 * @param InPacketId The packet identifier.
-	 * @param InSocket The socket.
-	 * @param InConnectionSettings The connection settings.
-	 * @return The publish command.
-	 */
-	template <EMqttifyQualityOfService InQualityOfService>
-	auto MakeMqttifyPublish(
-		FMqttifyMessage&& InMessage,
-		const uint16 InPacketId,
-		const TWeakPtr<FMqttifySocketBase>& InSocket,
-		const FMqttifyConnectionSettingsRef& InConnectionSettings)
-	{
-		if constexpr (InQualityOfService == EMqttifyQualityOfService::AtLeastOnce)
-		{
-			return MakeShared<FMqttifyPubAtLeastOnce, ESPMode::ThreadSafe>(
-				MoveTemp(InMessage),
-				InPacketId,
-				InSocket,
-				InConnectionSettings);
-		}
-		else if constexpr (InQualityOfService == EMqttifyQualityOfService::ExactlyOnce)
-		{
-			return MakeShared<FMqttifyPubExactlyOnce, ESPMode::ThreadSafe>(
-				MoveTemp(InMessage),
-				InPacketId,
-				InSocket,
-				InConnectionSettings);
-		}
-		else
-		{
-			static_assert(InQualityOfService == EMqttifyQualityOfService::AtMostOnce, "Invalid quality of service");
-		}
-	}
+	using FMqttifyPubAtMostOnceRef = TSharedRef<FMqttifyPubAtMostOnce>;
 }

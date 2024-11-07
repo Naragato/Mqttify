@@ -17,7 +17,6 @@ namespace Mqttify
 	{
 	}
 
-
 	bool TMqttifyPublish<EMqttifyQualityOfService::AtLeastOnce>::NextImpl()
 	{
 		if (PacketTries == 1)
@@ -179,5 +178,41 @@ namespace Mqttify
 			PublishState = EPublishState::Complete;
 			SetPromiseValue(TMqttifyResult<void>{false});
 		}
+	}
+
+
+	TMqttifyPublish<EMqttifyQualityOfService::AtMostOnce>::TMqttifyPublish(
+		FMqttifyMessage&& InMessage,
+		const TWeakPtr<FMqttifySocketBase>& InSocket,
+		const FMqttifyConnectionSettingsRef& InConnectionSettings
+		)
+		: TMqttifyQueueable{InSocket, InConnectionSettings}
+	, PublishPacket{MakeShared<TMqttifyPublishPacket<GMqttifyProtocol>>(MoveTemp(InMessage), 0)}
+	, bIsDone{false}
+	{
+	}
+
+	bool TMqttifyPublish<EMqttifyQualityOfService::AtMostOnce>::NextImpl()
+	{
+		SendPacketInternal(PublishPacket);
+		SetPromiseValue(TMqttifyResult<void>{true});
+		bIsDone = true;
+		return true;
+	}
+
+	void TMqttifyPublish<EMqttifyQualityOfService::AtMostOnce>::Abandon()
+	{
+		FScopeLock Lock{&CriticalSection};
+		if (!bIsDone)
+		{
+			bIsDone = true;
+			SetPromiseValue(TMqttifyResult<void>{false});
+		}
+	}
+
+	bool TMqttifyPublish<EMqttifyQualityOfService::AtMostOnce>::IsDone() const
+	{
+		FScopeLock Lock{&CriticalSection};
+		return bIsDone;
 	}
 }

@@ -20,174 +20,236 @@ class FMqttifyConnectionSettings;
 
 namespace Mqttify
 {
-	class IMqttifyControlPacket;
-	class FMqttifyAcknowledgeable;
+ class IMqttifyControlPacket;
+ class FMqttifyQueueable;
 
-	using FAcknowledgeableCommands = TMap<uint32, TSharedRef<FMqttifyAcknowledgeable>>;
+ using FAcknowledgeableCommands = TMap<uint32, TSharedRef<FMqttifyQueueable>>;
+ using FOneShotCommands = TQueue<TSharedPtr<FMqttifyQueueable>, EQueueMode::Mpsc>;
 
-	class IMqttifyClientContext
-	{
-	public:
-		virtual ~IMqttifyClientContext() = default;
-		virtual FOnConnect& OnConnect() = 0;
-		virtual FOnDisconnect& OnDisconnect() = 0;
-		virtual FOnPublish& OnPublish() = 0;
-		virtual FOnSubscribe& OnSubscribe() = 0;
-		virtual FOnUnsubscribe& OnUnsubscribe() = 0;
-		virtual FOnMessage& OnMessage() = 0;
-	};
+ /**
+  * @brief Interface for MQTT client context.
+  */
+ class IMqttifyClientContext
+ {
+ public:
+  virtual ~IMqttifyClientContext() = default;
 
-	class FMqttifyClientContext final : public IMqttifyClientContext, public TSharedFromThis<FMqttifyClientContext>
-	{
-	private:
-		FOnConnect OnConnectDelegate{};
-		FOnDisconnect OnDisconnectDelegate{};
-		FOnPublish OnPublishDelegate{};
-		FOnSubscribe OnSubscribeDelegate{};
-		FOnUnsubscribe OnUnsubscribeDelegate{};
-		FOnMessage OnMessageDelegate{};
+  /**
+   * @brief Get the OnConnect delegate.
+   * @return Reference to the OnConnect delegate.
+   */
+  virtual FOnConnect& OnConnect() = 0;
 
-	private:
-		static constexpr uint32 kMaxCount = std::numeric_limits<uint16>::max();
-		TQueue<uint16> IdPool;
-		mutable FCriticalSection IdPoolCriticalSection{};
+  /**
+   * @brief Get the OnDisconnect delegate.
+   * @return Reference to the OnDisconnect delegate.
+   */
+  virtual FOnDisconnect& OnDisconnect() = 0;
 
-		FMqttifyConnectionSettingsRef ConnectionSettings;
-		mutable FCriticalSection ConnectionSettingsCriticalSection{};
+  /**
+   * @brief Get the OnPublish delegate.
+   * @return Reference to the OnPublish delegate.
+   */
+  virtual FOnPublish& OnPublish() = 0;
 
-		/// @brief Delegates for when a message is received matching a subscription.
-		TMap<FString, TSharedRef<FOnMessage>> OnMessageDelegates{};
-		mutable FCriticalSection OnMessageDelegatesCriticalSection{};
+  /**
+   * @brief Get the OnSubscribe delegate.
+   * @return Reference to the OnSubscribe delegate.
+   */
+  virtual FOnSubscribe& OnSubscribe() = 0;
 
-		/// @brief Promises for when a disconnect is complete.
-		TArray<TSharedPtr<TPromise<TMqttifyResult<void>>>> OnDisconnectPromises;
-		mutable FCriticalSection OnDisconnectPromisesCriticalSection{};
+  /**
+   * @brief Get the OnUnsubscribe delegate.
+   * @return Reference to the OnUnsubscribe delegate.
+   */
+  virtual FOnUnsubscribe& OnUnsubscribe() = 0;
 
-		/// @brief Promise for when a connect is complete.
-		TArray<TSharedPtr<TPromise<TMqttifyResult<void>>>> OnConnectPromises;
-		mutable FCriticalSection OnConnectPromisesCriticalSection{};
+  /**
+   * @brief Get the OnMessage delegate.
+   * @return Reference to the OnMessage delegate.
+   */
+  virtual FOnMessage& OnMessage() = 0;
+ };
 
-		/// @brief Acknowledgeable commands.
-		FAcknowledgeableCommands AcknowledgeableCommands;
-		mutable FCriticalSection AcknowledgeableCommandsCriticalSection{};
+ /**
+  * @brief Implementation of the MQTT client context.
+  */
+ class FMqttifyClientContext final : public IMqttifyClientContext, public TSharedFromThis<FMqttifyClientContext>
+ {
+ private:
+  FOnConnect OnConnectDelegate{};
+  FOnDisconnect OnDisconnectDelegate{};
+  FOnPublish OnPublishDelegate{};
+  FOnSubscribe OnSubscribeDelegate{};
+  FOnUnsubscribe OnUnsubscribeDelegate{};
+  FOnMessage OnMessageDelegate{};
 
-	public:
-		virtual ~FMqttifyClientContext() override;
+ private:
+  static constexpr uint32 kMaxCount = std::numeric_limits<uint16>::max();
+  TQueue<uint16> IdPool;
+  mutable FCriticalSection IdPoolCriticalSection{};
 
-		explicit FMqttifyClientContext(const FMqttifyConnectionSettingsRef& InConnectionSettings);
+  FMqttifyConnectionSettingsRef ConnectionSettings;
+  mutable FCriticalSection ConnectionSettingsCriticalSection{};
 
-		/**
-		 * @brief Gets the next available Id
-		 * @return the next available Id or 0 if none are available (or an error occurred)
-		 */
-		uint16 GetNextId();
+  /// @brief Delegates for when a message is received matching a subscription.
+  TMap<FString, TSharedRef<FOnMessage>> OnMessageDelegates{};
+  mutable FCriticalSection OnMessageDelegatesCriticalSection{};
 
-		/**
-		 * @brief Releases an ID back into the pool
-		 * @param Id the ID to release
-		 */
-		void ReleaseId(const uint16 Id);
+  /// @brief Promises for when a disconnect is complete.
+  TArray<TSharedPtr<TPromise<TMqttifyResult<void>>>> OnDisconnectPromises;
+  mutable FCriticalSection OnDisconnectPromisesCriticalSection{};
 
-		/**
-		 * @brief Add an acknowledgeable command.
-		 * @param InCommand The acknowledgeable command.
-		 */
-		void AddAcknowledgeableCommand(const TSharedRef<FMqttifyAcknowledgeable>& InCommand);
+  /// @brief Promise for when a connect is complete.
+  TArray<TSharedPtr<TPromise<TMqttifyResult<void>>>> OnConnectPromises;
+  mutable FCriticalSection OnConnectPromisesCriticalSection{};
 
-		bool HasAcknowledgeableCommand(const uint16 InPacketIdentifier) const;
+  /// @brief Acknowledgeable commands.
+  FAcknowledgeableCommands AcknowledgeableCommands;
+  mutable FCriticalSection AcknowledgeableCommandsCriticalSection{};
 
-		void ProcessAcknowledgeableCommands();
+  /// @brief Fire and forget commands.
+  FOneShotCommands OneShotCommands;
 
-		/**
-		 * @brief Get the ConnectionSettings.
-		 * @return A SharedRef to the ConnectionSettings.
-		 */
-		FMqttifyConnectionSettingsRef GetConnectionSettings() const;
+ public:
+  virtual ~FMqttifyClientContext() override;
 
-		/**
-		 * @brief Create a promise for when the disconnect is complete.
-		 * @return A SharedPtr to the promise.
-		 */
-		TSharedPtr<TPromise<TMqttifyResult<void>>> GetDisconnectPromise();
-		/**
-		 * @brief Create a promise for when the connect is complete.
-		 * @return A SharedPtr to the promise.
-		 */
-		TSharedPtr<TPromise<TMqttifyResult<void>>> GetConnectPromise();
+  /**
+   * @brief Constructor for FMqttifyClientContext.
+   * @param InConnectionSettings The connection settings.
+   */
+  explicit FMqttifyClientContext(const FMqttifyConnectionSettingsRef& InConnectionSettings);
 
-		/**
-		 * @brief Create a promise for when the message is complete.
-		 * @return A SharedPtr to the promise.
-		 */
-		TSharedRef<FOnMessage> GetMessageDelegate(const FString& InTopic);
+  /**
+   * @brief Gets the next available Id.
+   * @return The next available Id or 0 if none are available (or an error occurred).
+   */
+  uint16 GetNextId();
 
-		/**
-		 * @brief Clear the message delegate for the given topic.
-		 * @param InUnsubscribeResults The results of the unsubscribe command.
-		 */
-		void ClearMessageDelegates(const TSharedPtr<TArray<FMqttifyUnsubscribeResult>>& InUnsubscribeResults);
+  /**
+   * @brief Releases an ID back into the pool.
+   * @param Id The ID to release.
+   */
+  void ReleaseId(const uint16 Id);
 
-		/// @brief Complete the disconnect.
-		void CompleteDisconnect();
+  /**
+   * @brief Add an acknowledgeable command.
+   * @param InCommand The acknowledgeable command.
+   */
+  void AddAcknowledgeableCommand(const TSharedRef<FMqttifyQueueable>& InCommand);
 
-		/// @brief Complete the connect.
-		void CompleteConnect();
+  /**
+   * @brief Check if an acknowledgeable command exists.
+   * @param InPacketIdentifier The packet identifier.
+   * @return True if the command exists, false otherwise.
+   */
+  bool HasAcknowledgeableCommand(const uint16 InPacketIdentifier) const;
 
-		/**
-		 * @brief Complete the given message.
-		 * @param InMessage The message to complete.
-		 */
-		void CompleteMessage(FMqttifyMessage&& InMessage);
+  /**
+   * @brief Add a command that is executed once without acknowledgment.
+   * @param InCommand The command to be added to the one-shot command queue.
+   */
+  void AddOneShotCommand(const TSharedRef<FMqttifyQueueable>& InCommand);
 
-		/**
-		 * @brief Acknowledge the given packet.
-		 * @param InPacket The packet to acknowledge.
-		 */
-		void Acknowledge(const FMqttifyPacketPtr& InPacket);
+  /**
+   * @brief Process all commands.
+   */
+  void ProcessCommands();
 
-		/// @brief Clear all Message delegates.
-		void ClearMessageDelegates();
-		/// @brief Clear all Disconnect promises.
-		void ClearDisconnectPromises();
-		/// @brief Clear all Connect promises.
-		void ClearConnectPromises();
-		/// @brief Abandon all Acknowledgeable commands.
-		void AbandonAcknowledgeableCommands();
+  /**
+   * @brief Get the ConnectionSettings.
+   * @return A SharedRef to the ConnectionSettings.
+   */
+  FMqttifyConnectionSettingsRef GetConnectionSettings() const;
 
-		/**
-		 * @brief Get the OnConnect delegate.
-		 * @return The OnConnect delegate.
-		 */
-		virtual FOnConnect& OnConnect() override { return OnConnectDelegate; }
+  /**
+   * @brief Create a promise for when the disconnect is complete.
+   * @return A SharedPtr to the promise.
+   */
+  TSharedPtr<TPromise<TMqttifyResult<void>>> GetDisconnectPromise();
 
-		/**
-		 * @brief Get the OnDisconnect delegate.
-		 * @return The OnDisconnect delegate.
-		 */
-		virtual FOnDisconnect& OnDisconnect() override { return OnDisconnectDelegate; }
+  /**
+   * @brief Create a promise for when the connect is complete.
+   * @return A SharedPtr to the promise.
+   */
+  TSharedPtr<TPromise<TMqttifyResult<void>>> GetConnectPromise();
 
-		/**
-		 * @brief Get the OnPublish delegate.
-		 * @return The OnPublish delegate.
-		 */
-		virtual FOnPublish& OnPublish() override { return OnPublishDelegate; }
+  /**
+   * @brief Create a promise for when the message is complete.
+   * @return A SharedRef to the promise.
+   */
+  TSharedRef<FOnMessage> GetMessageDelegate(const FString& InTopic);
 
-		/**
-		 * @brief Get the OnSubscribe delegate.
-		 * @return The OnSubscribe delegate.
-		 */
-		virtual FOnSubscribe& OnSubscribe() override { return OnSubscribeDelegate; }
+  /**
+   * @brief Clear the message delegate for the given topic.
+   * @param InUnsubscribeResults The results of the unsubscribe command.
+   */
+  void ClearMessageDelegates(const TSharedPtr<TArray<FMqttifyUnsubscribeResult>>& InUnsubscribeResults);
 
-		/**
-		 * @brief Get the OnUnsubscribe delegate.
-		 * @return The OnUnsubscribe delegate.
-		 */
-		virtual FOnUnsubscribe& OnUnsubscribe() override { return OnUnsubscribeDelegate; }
+  /// @brief Complete the disconnect.
+  void CompleteDisconnect();
 
-		/**
-		 * @brief Get the OnMessage delegate.
-		 * @return The OnMessage delegate.
-		 */
-		virtual FOnMessage& OnMessage() override { return OnMessageDelegate; }
-	};
+  /// @brief Complete the connect.
+  void CompleteConnect();
+
+  /**
+   * @brief Complete the given message.
+   * @param InMessage The message to complete.
+   */
+  void CompleteMessage(FMqttifyMessage&& InMessage);
+
+  /**
+   * @brief Acknowledge the given packet.
+   * @param InPacket The packet to acknowledge.
+   */
+  void Acknowledge(const FMqttifyPacketPtr& InPacket);
+
+  /// @brief Clear all Message delegates.
+  void ClearMessageDelegates();
+
+  /// @brief Clear all Disconnect promises.
+  void ClearDisconnectPromises();
+
+  /// @brief Clear all Connect promises.
+  void ClearConnectPromises();
+
+  /// @brief Abandon all Acknowledgeable commands.
+  void AbandonCommands();
+
+  /**
+   * @brief Get the OnConnect delegate.
+   * @return The OnConnect delegate.
+   */
+  virtual FOnConnect& OnConnect() override { return OnConnectDelegate; }
+
+  /**
+   * @brief Get the OnDisconnect delegate.
+   * @return The OnDisconnect delegate.
+   */
+  virtual FOnDisconnect& OnDisconnect() override { return OnDisconnectDelegate; }
+
+  /**
+   * @brief Get the OnPublish delegate.
+   * @return The OnPublish delegate.
+   */
+  virtual FOnPublish& OnPublish() override { return OnPublishDelegate; }
+
+  /**
+   * @brief Get the OnSubscribe delegate.
+   * @return The OnSubscribe delegate.
+   */
+  virtual FOnSubscribe& OnSubscribe() override { return OnSubscribeDelegate; }
+
+  /**
+   * @brief Get the OnUnsubscribe delegate.
+   * @return The OnUnsubscribe delegate.
+   */
+  virtual FOnUnsubscribe& OnUnsubscribe() override { return OnUnsubscribeDelegate; }
+
+  /**
+   * @brief Get the OnMessage delegate.
+   * @return The OnMessage delegate.
+   */
+  virtual FOnMessage& OnMessage() override { return OnMessageDelegate; }
+ };
 } // namespace Mqttify

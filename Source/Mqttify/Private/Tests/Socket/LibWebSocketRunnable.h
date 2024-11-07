@@ -1,6 +1,6 @@
 #pragma once
 
-#if WITH_EDITOR && !UE_BUILD_SHIPPING && WITH_AUTOMATION_TESTS
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
 
 #include "LogMqttify.h"
 #include "Containers/Queue.h"
@@ -357,4 +357,4 @@ namespace Mqttify
 		};
 	};
 } // namespace Mqttify
-#endif // WITH_EDITOR && !UE_BUILD_SHIPPING && WITH_AUTOMATION_TESTS
+#endif // WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS

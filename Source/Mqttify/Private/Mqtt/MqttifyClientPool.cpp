@@ -27,6 +27,11 @@ namespace Mqttify
 		{
 			if (Client->IsValid())
 			{
+				LOG_MQTTIFY(
+					Verbose,
+					TEXT("Return existing client with hash %u, ClientId %s"),
+					Hash,
+					*InConnectionSettings->GetClientId());
 				return Client->Pin();
 			}
 		}
@@ -37,6 +42,11 @@ namespace Mqttify
 			const FMqttifyConnectionSettingsRef ConnectionSettings = InClient->GetConnectionSettings();
 			// Find a client and remove it from the list of clients.
 			const uint32 DeleterHash = ConnectionSettings->GetHashCode();
+			LOG_MQTTIFY(
+				Verbose,
+				TEXT("Disposing client with hash %u, ClientId %s"),
+				DeleterHash,
+				*ConnectionSettings->GetClientId());
 			MqttifyClients.Remove(DeleterHash);
 			delete InClient;
 
@@ -69,6 +79,11 @@ namespace Mqttify
 			}
 		}
 
+		LOG_MQTTIFY(
+			Verbose,
+			TEXT("Created new client with hash %u, ClientId %s"),
+			Hash,
+			*InConnectionSettings->GetClientId());
 		MqttifyClients.Add(Hash, OutClient);
 		return OutClient;
 	}

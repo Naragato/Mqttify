@@ -202,7 +202,7 @@ namespace Mqttify
 			return false;
 		}
 
-		FPlatformProcess::Sleep(30.f);
+		FPlatformProcess::Sleep(60.f);
 
 		if (!HasContainerStarted(InDockerContainerName, 60.0f))
 		{
