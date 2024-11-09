@@ -22,11 +22,6 @@ namespace Mqttify
 
 		if (PacketTries >= Settings->GetMaxPacketRetries())
 		{
-			LOG_MQTTIFY(
-				Warning,
-				TEXT( " (Connection %s, ClientId %s) Packet retry limit reached, abandoning packet" ),
-				*Settings->GetHost(),
-				*Settings->GetClientId());
 			Abandon();
 			return true;
 		}
@@ -36,12 +31,21 @@ namespace Mqttify
 
 	void FMqttifyQueueable::SendPacketInternal(const TSharedPtr<IMqttifyControlPacket>& InPacket)
 	{
+		if (!InPacket.IsValid())
+		{
+			return;
+		}
 		if (const TSharedPtr<FMqttifySocketBase> PinnedSocket = Socket.Pin())
 		{
+			if (!PinnedSocket->IsConnected())
+			{
+				return;
+			}
 			++PacketTries;
-			LOG_MQTTIFY(
+			LOG_MQTTIFY_PACKET_REF(
 				VeryVerbose,
 				TEXT( "(Connection %s, ClientId %s) Sending %s, Attempt %d"),
+				InPacket.ToSharedRef(),
 				*Settings->GetHost(),
 				*Settings->GetClientId(),
 				EnumToTCharString(InPacket->GetPacketType()),
@@ -50,6 +54,17 @@ namespace Mqttify
 			FMemoryWriter Writer(ActualBytes);
 			InPacket->Encode(Writer);
 			PinnedSocket->Send(ActualBytes.GetData(), ActualBytes.Num());
+
+			if (!PinnedSocket->IsConnected())
+			{
+				LOG_MQTTIFY_PACKET_REF(
+					Error,
+					TEXT( "(Connection %s, ClientId %s) Socket disconnected while sending packet"),
+					InPacket.ToSharedRef(),
+					*Settings->GetHost(),
+					*Settings->GetClientId());
+				Abandon();
+			}
 
 			const double Jitter = FMath::RandRange(0.0, 1.0);
 			const double Backoff = FMath::Pow(Settings->GetPacketRetryBackoffMultiplier(), PacketTries);

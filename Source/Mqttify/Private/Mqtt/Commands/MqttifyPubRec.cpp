@@ -25,7 +25,13 @@ namespace Mqttify
 		FScopeLock Lock{&CriticalSection};
 		if (PubRecState == EPubRecState::Unacknowledged)
 		{
-			SetPromiseValue(TMqttifyResult<void>{true});
+			LOG_MQTTIFY(
+				Warning,
+				TEXT("(Connection %s, ClientId %s, PacketId %u) Abandoning"),
+				*Settings->GetHost(),
+				*Settings->GetClientId(),
+				GetId());
+			SetPromiseValue(TMqttifyResult<void>{false});
 		}
 		PubRecState = EPubRecState::Complete;
 	}
@@ -35,7 +41,7 @@ namespace Mqttify
 		FScopeLock Lock{&CriticalSection};
 		LOG_MQTTIFY(
 			VeryVerbose,
-			TEXT(" (Connection %s, ClientId %s) Acknowledge %s"),
+			TEXT("(Connection %s, ClientId %s) Acknowledge %s"),
 			*Settings->GetHost(),
 			*Settings->GetClientId(),
 			EnumToTCharString(InPacket->GetPacketType()));

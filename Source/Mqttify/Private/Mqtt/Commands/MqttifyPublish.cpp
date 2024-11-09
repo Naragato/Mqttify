@@ -34,6 +34,12 @@ namespace Mqttify
 		if (!bIsDone)
 		{
 			bIsDone = true;
+			LOG_MQTTIFY_PACKET_REF(
+				Error,
+				TEXT("[Publish (Connection %s, ClientId %s)] Abandoning"),
+				PublishPacket,
+				*Settings->GetHost(),
+				*Settings->GetClientId());
 			SetPromiseValue(TMqttifyResult<void>{false});
 		}
 	}
@@ -99,7 +105,7 @@ namespace Mqttify
 				*Settings->GetClientId(),
 				MqttifyPacketType::InvalidPacketType,
 				EnumToTCharString(EMqttifyPacketType::PubRec),
-				EnumToTCharString(InPacket->GetPacketType()));
+				EnumToTCharString(InPacket->GetPacketType()))			;
 			Abandon();
 			return true;
 		}
@@ -176,6 +182,12 @@ namespace Mqttify
 		if (PublishState != EPublishState::Complete)
 		{
 			PublishState = EPublishState::Complete;
+			LOG_MQTTIFY_PACKET_REF(
+				Error,
+				TEXT("[Publish (Connection %s, ClientId %s)] Abandoning"),
+				PublishPacket,
+				*Settings->GetHost(),
+				*Settings->GetClientId());
 			SetPromiseValue(TMqttifyResult<void>{false});
 		}
 	}
@@ -187,8 +199,8 @@ namespace Mqttify
 		const FMqttifyConnectionSettingsRef& InConnectionSettings
 		)
 		: TMqttifyQueueable{InSocket, InConnectionSettings}
-	, PublishPacket{MakeShared<TMqttifyPublishPacket<GMqttifyProtocol>>(MoveTemp(InMessage), 0)}
-	, bIsDone{false}
+		, PublishPacket{MakeShared<TMqttifyPublishPacket<GMqttifyProtocol>>(MoveTemp(InMessage), 0)}
+		, bIsDone{false}
 	{
 	}
 
@@ -206,6 +218,12 @@ namespace Mqttify
 		if (!bIsDone)
 		{
 			bIsDone = true;
+			LOG_MQTTIFY_PACKET_REF(
+				Warning,
+				TEXT("[Publish (Connection %s, ClientId %s)] Abandoning"),
+				PublishPacket,
+				*Settings->GetHost(),
+				*Settings->GetClientId());
 			SetPromiseValue(TMqttifyResult<void>{false});
 		}
 	}

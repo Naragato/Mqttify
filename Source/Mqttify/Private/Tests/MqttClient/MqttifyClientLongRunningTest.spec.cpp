@@ -95,11 +95,12 @@ void FMqttifyClientLongRunningTest::Define()
 									InMessage.GetPayload().GetData(),
 									InMessage.GetPayload().Num());
 
-								LOG_MQTTIFY(VeryVerbose, TEXT("Received message %s"), *OriginalMessage);
 								LOG_MQTTIFY_PACKET_DATA(
 									VeryVerbose,
 									InMessage.GetPayload().GetData(),
-									InMessage.GetPayload().Num());
+									InMessage.GetPayload().Num(),
+									TEXT("Received message payload %s"),
+									*OriginalMessage);
 
 								FMqttifyTestMessage TestMessage;
 								FJsonObjectConverter::JsonObjectStringToUStruct(OriginalMessage, &TestMessage);
@@ -264,8 +265,12 @@ void FMqttifyClientLongRunningTest::PublishMessages(const EMqttifyQualityOfServi
 
 		StringToBytes(JSONSerializedData, PayloadBytes.GetData(), JSONSerializedData.Len());
 
-		LOG_MQTTIFY(VeryVerbose, TEXT("Publishing message with payload %s"), *JSONSerializedData);
-		LOG_MQTTIFY_PACKET_DATA(VeryVerbose, PayloadBytes.GetData(), PayloadBytes.Num());
+		LOG_MQTTIFY_PACKET_DATA(
+			VeryVerbose,
+			PayloadBytes.GetData(),
+			PayloadBytes.Num(),
+			TEXT("Publishing message with payload %s"),
+			*JSONSerializedData);
 		FMqttifyMessage Message{FString{kTopic}, MoveTemp(PayloadBytes), false, InQoS};
 
 		PublishBuffer.Add(TestMessage);

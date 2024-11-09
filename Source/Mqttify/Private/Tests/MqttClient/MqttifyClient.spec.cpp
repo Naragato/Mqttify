@@ -192,11 +192,13 @@ void FMqttifyClientTests::Define()
 									Subscriber->OnMessage().AddLambda(
 										[this, TestDone](const FMqttifyMessage& InMessage)
 										{
-											LOG_MQTTIFY(VeryVerbose, TEXT("Received message"));
 											LOG_MQTTIFY_PACKET_DATA(
 												VeryVerbose,
 												InMessage.GetPayload().GetData(),
-												InMessage.GetPayload().Num());
+												InMessage.GetPayload().Num(),
+												TEXT("Received message on topic: %s"),
+												*InMessage.GetTopic());
+
 											TestEqual(
 												TEXT("Received message topic matches"),
 												InMessage.GetTopic(),

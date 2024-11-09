@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Packets/Interface/IMqttifyControlPacket.h"
-#include <bitset>
+#include "Templates/SharedPointer.h"
 #include <type_traits>
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMqttify, Display, All);
@@ -17,36 +17,22 @@ DECLARE_LOG_CATEGORY_EXTERN(LogMqttify, Display, All);
 #endif // defined(_MSC_VER)
 
 /**
- * @brief Print a log message with the file, line, function and message.
- * @param Verbosity The verbosity of the message.
- * @param Format The format of the message.
- * @param ... The arguments for the format.
+ * @brief Log a message with the MQTTIFY log category.
+ * @param Verbosity The verbosity level of the log.
+ * @param Format The format string for the log message.
+ * @param ... Additional arguments for the format string.
  */
 #define LOG_MQTTIFY(Verbosity, Format, ...)\
 do {\
-UE_LOG(LogMqttify, Verbosity, TEXT("%s:%d:[%s]: %s"),\
-StringCast<TCHAR>(__FILE__).Get(),\
-__LINE__,\
+UE_LOG(LogMqttify, Verbosity, TEXT("[%s]: %s"),\
 StringCast<TCHAR>(MQTTIFY_PRETTY_FUNCTION).Get(),\
 *FString::Printf(Format, ##__VA_ARGS__));\
 } while (0)
 
 /**
- * @brief Print the current byte in the archive.
- * @param InArchive The archive to print the current byte of.
- */
-#define LOG_MQTTIFY_CURRENT_BYTE(InArchive)\
-do {\
-uint8 CurrentByte;\
-InArchive << CurrentByte;\
-LOG_MQTTIFY(Log, TEXT("Current byte %x, index %d"), CurrentByte, InArchive.Tell());\
-InArchive.Seek(InArchive.Tell() - 1);\
-} while (0)
-
-/**
- * @brief Print the packet type and packet id and the serialized data as hex.
+ * @brief Print the packet type, packet id, and the serialized data as hex.
  * @param Level The log level to print at.
- * @param Packet The packet to print.
+ * @param LogPacket The packet to print.
  */
 #define LOG_MQTTIFY_PACKET(Level, LogPacket)\
 do {\
@@ -68,59 +54,70 @@ Packet.GetPacketId(),\
 }\
 } while(0)
 
-inline FString SerializePacketToHexString(Mqttify::IMqttifyControlPacket& LogPacket)
+/**
+ * @brief Convert data to a hex string.
+ * @param Data The data to convert.
+ * @param Length The length of the data.
+ * @return The hex string representation of the data.
+ */
+inline FString DataToHexString(const uint8* Data, size_t Length)
 {
-	TArray<uint8> SerializedData;
-	FMemoryWriter Writer(SerializedData);
-	LogPacket.Encode(Writer);
 	FString HexString;
-	for (const uint8 Byte : SerializedData)
+	for (size_t i = 0; i < Length; ++i)
 	{
-		HexString += FString::Printf(TEXT("%02x "), Byte);
+		HexString += FString::Printf(TEXT("%02x "), Data[i]);
 	}
 	return HexString;
 }
 
 /**
- * @brief Print the packet type and packet id and the serialized data as hex.
- * with a custom message.
- * @param Level The log level to print at.
- * @param Msg The message to print.
- * @param LogPacket The packet to print.
+ * @brief Serialize a packet to a hex string.
+ * @param InLogPacket The packet to serialize.
+ * @return The hex string representation of the serialized packet.
  */
-#define LOG_MQTTIFY_PACKET_MSG(Level, Msg, LogPacket)\
+inline FString SerializePacketToHexString(const TSharedRef<Mqttify::IMqttifyControlPacket>& InLogPacket)
+{
+	TArray<uint8> SerializedData;
+	FMemoryWriter Writer(SerializedData);
+	InLogPacket->Encode(Writer);
+	return DataToHexString(SerializedData.GetData(), SerializedData.Num());
+}
+
+/**
+ * @brief Print the packet type, packet id, and the serialized data as hex with a custom message.
+ * @param Level The log level to print at.
+ * @param Msg The custom message to print.
+ * @param LogPacket The packet to print.
+ * @param ... Additional arguments for the custom message.
+ */
+#define LOG_MQTTIFY_PACKET_REF(Level, Msg, LogPacket, ...)\
 do {\
 if (UE_LOG_ACTIVE(LogMqttify, Level))\
 {\
 LOG_MQTTIFY(Level, TEXT("%s. Packet Type: %s, PacketId: %d, Hex Value: %s"), \
-Msg,\
-EnumToTCharString(LogPacket.GetPacketType()),\
-LogPacket.GetPacketId(),\
+*FString::Printf(Msg, ##__VA_ARGS__),\
+EnumToTCharString(LogPacket->GetPacketType()),\
+LogPacket->GetPacketId(),\
 *SerializePacketToHexString(LogPacket));\
 }\
 } while(0)
 
 /**
- * @brief Print the packet type and packet id and the serialized data as hex.
+ * @brief Print the data as hex with a custom message.
  * @param Level The log level to print at.
  * @param Data The data to print.
  * @param Length The length of the data.
+ * @param Msg The custom message to print.
+ * @param ... Additional arguments for the custom message.
  */
-#define LOG_MQTTIFY_PACKET_DATA(Level, Data, Length)\
+#define LOG_MQTTIFY_PACKET_DATA(Level, Data, Length, Msg, ...)\
 do {\
 if (UE_LOG_ACTIVE(LogMqttify, Level))\
 {\
-using LengthType = decltype(Length);\
-using UnsignedLengthType = typename std::make_unsigned<LengthType>::type;\
-UnsignedLengthType LengthUnsigned = static_cast<UnsignedLengthType>(Length);\
-FString BitString;\
-for (uint64 i = 0; i < LengthUnsigned; ++i)\
-{\
-std::bitset<8> Bits(Data[i]);\
-BitString += FString::Printf(TEXT("%hs "), Bits.to_string().c_str());\
-}\
-LOG_MQTTIFY(VeryVerbose, TEXT("Data as bits: %s, Length %d"),\
-*BitString, \
+FString HexString = DataToHexString(reinterpret_cast<const uint8*>(Data), static_cast<size_t>(Length));\
+LOG_MQTTIFY(Level, TEXT("%s. Data as hex: %s, Length: %d"),\
+*FString::Printf(Msg, ##__VA_ARGS__),\
+*HexString,\
 Length);\
 }\
 } while(0)

@@ -51,6 +51,12 @@ namespace Mqttify
 		if (!bIsDone)
 		{
 			bIsDone = true;
+			LOG_MQTTIFY_PACKET_REF(
+				Warning,
+				TEXT("[PingReq (Connection %s, ClientId %s)] Abandoning"),
+				MakeShared<FMqttifyPingReqPacket>(),
+				*Settings->GetHost(),
+				*Settings->GetClientId());
 			SetPromiseValue(TMqttifyResult<void>{false});
 		}
 	}

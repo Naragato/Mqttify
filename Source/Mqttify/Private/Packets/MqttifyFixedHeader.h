@@ -7,6 +7,8 @@
 #include "Serialization/MqttifyFArchiveEncodeDecode.h"
 #include "Serialization/Interface/ISerializable.h"
 
+#include <bitset>
+
 namespace Mqttify
 {
 	/**

@@ -26,6 +26,13 @@ namespace Mqttify
 			return;
 		}
 
+		LOG_MQTTIFY(
+				Warning,
+				TEXT("(Connection %s, ClientId %s, PacketId %u) Abandoning Subscribe"),
+				*Settings->GetHost(),
+				*Settings->GetClientId(),
+				GetId());
+
 		bIsDone = true;
 		SetPromiseValue(TMqttifyResult<TArray<FMqttifySubscribeResult>>{false, {}});
 	}

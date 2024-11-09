@@ -94,11 +94,6 @@ namespace Mqttify
 	void FMqttifyWebSocket::Send(const uint8* Data, const uint32 Size)
 	{
 		FScopeLock Lock{&SocketAccessLock};
-		LOG_MQTTIFY(
-			VeryVerbose,
-			TEXT("Sending data to socket %s, ClientId %s"),
-			*ConnectionSettings->ToString(),
-			*ConnectionSettings->GetClientId());
 		if (!IsConnected())
 		{
 			LOG_MQTTIFY(
@@ -109,7 +104,13 @@ namespace Mqttify
 			return;
 		}
 
-		LOG_MQTTIFY_PACKET_DATA(VeryVerbose, Data, Size);
+		LOG_MQTTIFY_PACKET_DATA(
+			VeryVerbose,
+			Data,
+			Size,
+			TEXT("Sending data to socket %s, ClientId %s"),
+			*ConnectionSettings->ToString(),
+			*ConnectionSettings->GetClientId());
 		Socket->Send(Data, Size, true);
 	}
 
@@ -200,14 +201,6 @@ namespace Mqttify
 		)
 	{
 		FScopeLock Lock{&SocketAccessLock};
-		LOG_MQTTIFY(
-			Verbose,
-			TEXT("Socket Connection Closed Connection %s, ClientId %s: Status %d, Reason %s, bWasClean %d"),
-			*ConnectionSettings->ToString(),
-			*ConnectionSettings->GetClientId(),
-			Status,
-			*Reason,
-			bWasClean);
 
 		if (bWasClean)
 		{
@@ -238,7 +231,7 @@ namespace Mqttify
 	void FMqttifyWebSocket::HandleWebSocketData(const void* Data, const SIZE_T Length, const SIZE_T BytesRemaining)
 	{
 		LOG_MQTTIFY(
-			Verbose,
+			VeryVerbose,
 			TEXT("Socket Data Received (%s , %s): Length %llu, BytesRemaining %llu"),
 			*ConnectionSettings->ToString(),
 			*ConnectionSettings->GetClientId(),

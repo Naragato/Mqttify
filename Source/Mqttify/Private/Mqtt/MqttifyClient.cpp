@@ -89,10 +89,12 @@ namespace Mqttify
 	{
 		FScopeLock Lock{&StateLock};
 		LOG_MQTTIFY(
-			VeryVerbose,
-			TEXT("[lock (Connection %s, ClientId %s)]"),
-			*GetConnectionSettings()->GetHost(),
-			*GetConnectionSettings()->GetClientId());
+        			Verbose,
+        			TEXT("[Publishing (Connection %s, ClientId %s)] %s, QoS %s"),
+        			*GetConnectionSettings()->GetHost(),
+        			*GetConnectionSettings()->GetClientId(),
+        			*InMessage.GetTopic(),
+        			EnumToTCharString(InMessage.GetQualityOfService()));
 		switch (InMessage.GetQualityOfService())
 		{
 		case EMqttifyQualityOfService::AtMostOnce:
