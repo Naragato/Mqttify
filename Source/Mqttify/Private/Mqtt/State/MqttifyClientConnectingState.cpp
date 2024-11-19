@@ -152,7 +152,8 @@ namespace Mqttify
 			}
 		}
 
-		SocketTransitionToState<FMqttifyClientConnectedState>();
-		Context->CompleteConnect();
+		const TSharedRef<FMqttifyClientConnectingState> StrongThis = AsShared();
+		StrongThis->SocketTransitionToState<FMqttifyClientConnectedState>();
+		StrongThis->Context->CompleteConnect();
 	}
 } // namespace Mqttify

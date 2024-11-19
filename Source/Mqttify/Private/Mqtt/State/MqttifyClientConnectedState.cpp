@@ -101,6 +101,7 @@ namespace Mqttify
 		{
 			LOG_MQTTIFY(Error, TEXT("Malformed packet. %s"), EnumToTCharString(Packet->GetPacketType()));
 			SocketTransitionToState<FMqttifyClientConnectingState>();
+			return;
 		}
 
 		switch (Packet->GetPacketType())
