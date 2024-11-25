@@ -39,13 +39,6 @@ namespace Mqttify
 
 	void FMqttifyClientConnectedState::Tick()
 	{
-		if (!Socket.IsValid())
-		{
-			LOG_MQTTIFY(Error, TEXT("Socket is null"));
-			TransitionTo(MakeShared<FMqttifyClientDisconnectedState>(OnStateChanged, Context, Socket));
-			return;
-		}
-
 		if (!Socket->IsConnected())
 		{
 			TransitionTo(MakeShared<FMqttifyClientConnectingState>(OnStateChanged, Context, Socket));

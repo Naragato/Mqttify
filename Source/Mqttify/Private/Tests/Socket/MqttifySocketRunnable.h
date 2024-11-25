@@ -17,14 +17,11 @@ namespace Mqttify
 	public:
 		TSharedPtr<FMqttifyConnectionSettings> ConnectionSettings;
 
-		FMqttifySocketPtr SocketUnderTest;
+		FMqttifySocketRef SocketUnderTest;
 		FRunnableThread* Thread;
 
-		explicit FMqttifySocketRunnable(const FString& InUrl)
+		explicit FMqttifySocketRunnable(const FString& InUrl) : SocketUnderTest{FMqttifySocketBase::Create(FMqttifyConnectionSettingsBuilder(InUrl).Build().ToSharedRef())}
 		{
-			ConnectionSettings = FMqttifyConnectionSettingsBuilder(InUrl).Build();
-			SocketUnderTest = FMqttifySocketBase::Create(ConnectionSettings.ToSharedRef());
-
 			SocketUnderTest->GetOnConnectDelegate().AddLambda(
 				[this](const bool bWasSuccessful)
 				{
@@ -54,14 +51,14 @@ namespace Mqttify
 			delete Thread;
 		}
 
-		FMqttifySocketPtr& GetSocket()
+		FMqttifySocketRef& GetSocket()
 		{
 			return SocketUnderTest;
 		}
 
 		virtual uint32 Run() override
 		{
-			while (!bIsStopping.load(std::memory_order_acquire) && SocketUnderTest.IsValid())
+			while (!bIsStopping.load(std::memory_order_acquire))
 			{
 				SocketUnderTest->Tick();
 				FPlatformProcess::SleepNoStats(0.0001f);

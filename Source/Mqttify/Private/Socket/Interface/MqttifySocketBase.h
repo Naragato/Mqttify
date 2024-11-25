@@ -4,7 +4,7 @@
 
 namespace Mqttify
 {
-	using FMqttifySocketPtr = TSharedPtr<class FMqttifySocketBase>;
+	using FMqttifySocketRef = TSharedRef<class FMqttifySocketBase>;
 	using FMqttifySocketWeakPtr = TWeakPtr<FMqttifySocketBase>;
 
 	/// @brief Interface for MQTT socket.
@@ -52,7 +52,7 @@ namespace Mqttify
 		virtual void Tick() = 0;
 
 		/// @brief Create a Socket based on the connection settings.
-		static FMqttifySocketPtr Create(const FMqttifyConnectionSettingsRef& InConnectionSettings);
+		static FMqttifySocketRef Create(const FMqttifyConnectionSettingsRef& InConnectionSettings);
 
 		void ReadPacketsFromBuffer();
 

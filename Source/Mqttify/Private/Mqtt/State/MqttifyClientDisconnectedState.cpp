@@ -7,7 +7,7 @@ namespace Mqttify
 	FMqttifyClientDisconnectedState::FMqttifyClientDisconnectedState(
 		const FOnStateChangedDelegate& InOnStateChanged,
 		const TSharedRef<FMqttifyClientContext>& InContext,
-		const FMqttifySocketPtr& InSocket
+		const FMqttifySocketRef& InSocket
 		)
 		: FMqttifyClientState{InOnStateChanged, InContext}
 		, Socket{InSocket}

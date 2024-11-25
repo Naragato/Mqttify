@@ -18,13 +18,13 @@ namespace Mqttify
 	                                              public IMqttifyDisconnectableAsync
 	{
 	private:
-		FMqttifySocketPtr Socket;
+		FMqttifySocketRef Socket;
 
 	public:
 		explicit FMqttifyClientDisconnectedState(
 			const FOnStateChangedDelegate& InOnStateChanged,
 			const TSharedRef<FMqttifyClientContext>& InContext,
-			const FMqttifySocketPtr& InSocket
+			const FMqttifySocketRef& InSocket
 			);
 
 		// FMqttifyClientState

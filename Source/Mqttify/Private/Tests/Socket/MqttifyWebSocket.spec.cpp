@@ -162,7 +162,6 @@ void MqttifyMqttifyWebSocketSpec::Define()
 
 					LOG_MQTTIFY(Display, TEXT("Send data"));
 					SocketRunner->GetSocket()->Send(Data, Size);
-					TestTrue(TEXT("Socket should not be null"), SocketRunner->GetSocket().IsValid());
 				});
 
 			// Test the receiving functionality

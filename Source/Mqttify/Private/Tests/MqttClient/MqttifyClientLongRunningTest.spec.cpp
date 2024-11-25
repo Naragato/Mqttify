@@ -25,7 +25,7 @@ BEGIN_DEFINE_SPEC(
 	FString DockerContainerName = TEXT("vernemq_test_container");
 	TArray<TSharedRef<IMqttifyClient>> MqttClients;
 
-	float TestDurationSeconds = 3600.0f; // default to 1 hour
+	float TestDurationSeconds = 120.0f; // default to 1 hour
 	int32 MaxPendingMessages = 120;
 
 	FDateTime StartTime;

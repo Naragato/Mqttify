@@ -77,7 +77,7 @@ namespace Mqttify
 		/// @brief The current state of the MQTT client.
 		TSharedPtr<FMqttifyClientState> CurrentState;
 		TSharedRef<FMqttifyClientContext> Context;
-		FMqttifySocketPtr Socket;
+		FMqttifySocketRef Socket;
 		friend class FMqttifyClientState;
 		mutable FCriticalSection StateLock;
 	};

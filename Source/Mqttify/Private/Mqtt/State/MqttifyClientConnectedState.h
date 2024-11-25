@@ -23,7 +23,7 @@ namespace Mqttify
 	                                           public TSharedFromThis<FMqttifyClientConnectedState>
 	{
 	private:
-		FMqttifySocketPtr Socket;
+		FMqttifySocketRef Socket;
 		bool bTransitioning = false;
 		FDateTime LastPingTime;
 		TSharedPtr<FMqttifyPingReq> PingReqCommand;
@@ -32,7 +32,7 @@ namespace Mqttify
 		explicit FMqttifyClientConnectedState(
 			const FOnStateChangedDelegate& InOnStateChanged,
 			const TSharedRef<FMqttifyClientContext>& InContext,
-			const FMqttifySocketPtr& InSocket
+			const FMqttifySocketRef& InSocket
 			)
 			: FMqttifyClientState{InOnStateChanged, InContext}
 			, Socket{InSocket}
@@ -83,6 +83,5 @@ namespace Mqttify
 		Socket->GetOnConnectDelegate().RemoveAll(this);
 		Socket->GetOnDisconnectDelegate().RemoveAll(this);
 		Socket->GetOnDataReceivedDelegate().RemoveAll(this);
-		Socket.Reset();
 	}
 } // namespace Mqttify

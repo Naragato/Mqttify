@@ -13,17 +13,17 @@ namespace Mqttify
 		OnDataReceiveDelegate.Clear();
 	}
 
-	FMqttifySocketPtr FMqttifySocketBase::Create(const FMqttifyConnectionSettingsRef& InConnectionSettings)
+	FMqttifySocketRef FMqttifySocketBase::Create(const FMqttifyConnectionSettingsRef& InConnectionSettings)
 	{
 
 		switch (InConnectionSettings->GetTransportProtocol())
 		{
 			case EMqttifyConnectionProtocol::Mqtt:
 				LOG_MQTTIFY(Error, TEXT("MQTT not supported yet"));
-				return nullptr; // Not implemented
+				checkNoEntry();
 			case EMqttifyConnectionProtocol::Mqtts:
 				LOG_MQTTIFY(Error, TEXT("MQTTS not supported yet"));
-				return nullptr;	// Not implemented
+				checkNoEntry();
 			case EMqttifyConnectionProtocol::Ws:
 			case EMqttifyConnectionProtocol::Wss:
 			default:

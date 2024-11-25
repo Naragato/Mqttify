@@ -10,12 +10,12 @@ namespace Mqttify
 	FMqttifyClientDisconnectingState::FMqttifyClientDisconnectingState(
 		const FOnStateChangedDelegate& InOnStateChanged,
 		const TSharedRef<FMqttifyClientContext>& InContext,
-		const FMqttifySocketPtr& InSocket
+		const FMqttifySocketRef& InSocket
 		)
 		: FMqttifyClientState{InOnStateChanged, InContext}
 		, Socket{InSocket}
 	{
-		if (Socket.IsValid() && Socket->IsConnected())
+		if (Socket->IsConnected())
 		{
 			return;
 		}
@@ -40,7 +40,7 @@ namespace Mqttify
 
 	void FMqttifyClientDisconnectingState::Tick()
 	{
-		if (Socket.IsValid() && Socket->IsConnected())
+		if (Socket->IsConnected())
 		{
 			TMqttifyDisconnectPacket<GMqttifyProtocol> DisconnectPacket;
 			TArray<uint8> ActualBytes;

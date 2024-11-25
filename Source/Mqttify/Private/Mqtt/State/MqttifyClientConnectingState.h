@@ -23,7 +23,7 @@ namespace Mqttify
 	{
 	private:
 		bool bCleanSession;
-		FMqttifySocketPtr Socket;
+		FMqttifySocketRef Socket;
 
 		FDateTime LastConnectAttempt;
 		uint8 AttemptCount;
@@ -37,7 +37,7 @@ namespace Mqttify
 			const FOnStateChangedDelegate& InOnStateChanged,
 			const TSharedRef<FMqttifyClientContext>& InContext,
 			const bool bInCleanSession,
-			const FMqttifySocketPtr& InSocket
+			const FMqttifySocketRef& InSocket
 			)
 			: FMqttifyClientState{InOnStateChanged, InContext}
 			, bCleanSession{bInCleanSession}
@@ -45,17 +45,13 @@ namespace Mqttify
 			, LastConnectAttempt{FDateTime::MinValue()}
 			, AttemptCount{0}
 		{
-			checkf(Socket.IsValid(), TEXT("Socket must be valid"));
-			if (Socket.IsValid())
-			{
-				Socket->Connect();
-			}
+			Socket->Connect();
 		};
 
 		explicit FMqttifyClientConnectingState(
 			const FOnStateChangedDelegate& InOnStateChanged,
 			const TSharedRef<FMqttifyClientContext>& InContext,
-			const FMqttifySocketPtr& InSocket
+			const FMqttifySocketRef& InSocket
 			)
 			: FMqttifyClientState{InOnStateChanged, InContext}
 			, bCleanSession{false}
@@ -63,11 +59,7 @@ namespace Mqttify
 			, LastConnectAttempt{FDateTime::MinValue()}
 			, AttemptCount{0}
 		{
-			checkf(Socket.IsValid(), TEXT("Socket must be valid"));
-			if (Socket.IsValid())
-			{
-				Socket->Connect();
-			}
+			Socket->Connect();
 		}
 
 		// IFMqttifyClientState
