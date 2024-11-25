@@ -17,7 +17,7 @@ namespace Mqttify
 	 * @brief A pool of MQTT clients. Clients are created on demand and destroyed when they are no longer needed.
 	 * Clients can be created on the game thread or on a thread from the thread pool.
 	 */
-	class FMqttifyClientPool final : public FRunnable, public FSingleThreadRunnable
+	class FMqttifyClientPool final : public FRunnable, public FSingleThreadRunnable, public TSharedFromThis<FMqttifyClientPool>
 	{
 	private:
 		/// @brief A functor that is called when a client is destroyed.

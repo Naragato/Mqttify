@@ -21,8 +21,7 @@ namespace Mqttify
 
 	public:
 		explicit FMqttifyWebSocket(const FMqttifyConnectionSettingsRef& InConnectionSettings);
-
-		virtual ~FMqttifyWebSocket() override { Disconnect_Internal(); }
+		virtual ~FMqttifyWebSocket() override;
 		virtual void Connect() override;
 		virtual void Disconnect() override;
 		virtual void Send(const uint8* Data, uint32 Size) override;
@@ -30,6 +29,7 @@ namespace Mqttify
 		virtual bool IsConnected() const override;
 
 	private:
+		void Connect_Internal();
 		void Disconnect_Internal();
 		void HandleWebSocketConnected();
 		void HandleWebSocketConnectionError(const FString& Error);

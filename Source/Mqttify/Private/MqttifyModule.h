@@ -30,5 +30,5 @@ public:
 	virtual TSharedPtr<IMqttifyClient> GetOrCreateClient(const FString& InUrl) override;
 
 private:
-	Mqttify::FMqttifyClientPool ClientPool{};
+	TSharedRef<Mqttify::FMqttifyClientPool> ClientPool = MakeShared<Mqttify::FMqttifyClientPool>();
 };

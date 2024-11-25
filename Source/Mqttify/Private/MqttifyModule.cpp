@@ -8,7 +8,7 @@ IMPLEMENT_MODULE(FMqttifyModule, Mqttify);
 
 TSharedPtr<IMqttifyClient> FMqttifyModule::GetOrCreateClient(const FMqttifyConnectionSettingsRef& InConnectionSettings)
 {
-	return ClientPool.GetOrCreateClient(InConnectionSettings);
+	return ClientPool->GetOrCreateClient(InConnectionSettings);
 }
 
 TSharedPtr<IMqttifyClient> FMqttifyModule::GetOrCreateClient(const FString& InUrl)
@@ -18,7 +18,7 @@ TSharedPtr<IMqttifyClient> FMqttifyModule::GetOrCreateClient(const FString& InUr
 
 	if (nullptr != ConnectionSettings)
 	{
-		return ClientPool.GetOrCreateClient(ConnectionSettings.ToSharedRef());
+		return ClientPool->GetOrCreateClient(ConnectionSettings.ToSharedRef());
 	}
 
 	return nullptr;

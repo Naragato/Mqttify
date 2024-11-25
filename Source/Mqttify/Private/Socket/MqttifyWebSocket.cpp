@@ -3,6 +3,7 @@
 #include "LogMqttify.h"
 #include "MqttifySocketState.h"
 #include "WebSocketsModule.h"
+#include "Async/Async.h"
 
 namespace Mqttify
 {
@@ -13,7 +14,23 @@ namespace Mqttify
 	{
 	}
 
-	void FMqttifyWebSocket::Connect()
+	FMqttifyWebSocket::~FMqttifyWebSocket()
+	{
+		Disconnect_Internal();
+		{
+			FScopeLock Lock{&SocketAccessLock};
+			if (Socket.IsValid())
+			{
+				Socket->OnConnected().RemoveAll(this);
+				Socket->OnConnectionError().RemoveAll(this);
+				Socket->OnClosed().RemoveAll(this);
+				Socket->OnRawMessage().RemoveAll(this);
+				Socket.Reset();
+			}
+		}
+	}
+
+	void FMqttifyWebSocket::Connect_Internal()
 	{
 		{
 			FScopeLock Lock{&SocketAccessLock};
@@ -38,22 +55,20 @@ namespace Mqttify
 				return;
 			}
 
-			const TArray<FString> Protocols = {TEXT("mqtt")};
-			static const TMap<FString, FString> Headers = {
-				{TEXT("Connection"), TEXT("Upgrade")},
-				{TEXT("Upgrade"), TEXT("websocket")}
-			};
-
-			Socket = FWebSocketsModule::Get().CreateWebSocket(ConnectionSettings->ToString(), Protocols, Headers);
-
-			if (Socket.IsValid())
+			if (!Socket.IsValid())
 			{
-				Socket->OnConnected().AddThreadSafeSP(this, &FMqttifyWebSocket::HandleWebSocketConnected);
-				Socket->OnConnectionError().AddThreadSafeSP(this, &FMqttifyWebSocket::HandleWebSocketConnectionError);
-				Socket->OnClosed().AddThreadSafeSP(this, &FMqttifyWebSocket::HandleWebSocketConnectionClosed);
-				Socket->OnRawMessage().AddThreadSafeSP(this, &FMqttifyWebSocket::HandleWebSocketData);
-				Socket->Connect();
-				return;
+				const TArray<FString> Protocols = {TEXT("mqtt")};
+				static const TMap<FString, FString> Headers = {{TEXT("Connection"), TEXT("Upgrade")}, {TEXT("Upgrade"), TEXT("websocket")}};
+				Socket = FWebSocketsModule::Get().CreateWebSocket(ConnectionSettings->ToString(), Protocols, Headers);
+				if (Socket.IsValid())
+				{
+					Socket->OnConnected().AddThreadSafeSP(this, &FMqttifyWebSocket::HandleWebSocketConnected);
+					Socket->OnConnectionError().AddThreadSafeSP(this, &FMqttifyWebSocket::HandleWebSocketConnectionError);
+					Socket->OnClosed().AddThreadSafeSP(this, &FMqttifyWebSocket::HandleWebSocketConnectionClosed);
+					Socket->OnRawMessage().AddThreadSafeSP(this, &FMqttifyWebSocket::HandleWebSocketData);
+					Socket->Connect();
+					return;
+				}
 			}
 		}
 
@@ -65,9 +80,32 @@ namespace Mqttify
 		OnConnectDelegate.Broadcast(false);
 	}
 
+	void FMqttifyWebSocket::Connect()
+	{
+		TWeakPtr<FMqttifyWebSocket> WeakSelf = AsShared();
+		AsyncTask(
+			ENamedThreads::GameThread,
+			[WeakSelf]
+			{
+				if (const TSharedPtr<FMqttifyWebSocket> StrongThis = WeakSelf.Pin())
+				{
+					StrongThis->Connect_Internal();
+				}
+			});
+	}
+
 	void FMqttifyWebSocket::Disconnect()
 	{
-		Disconnect_Internal();
+		TWeakPtr<FMqttifyWebSocket> WeakSelf = AsShared();
+		AsyncTask(
+			ENamedThreads::GameThread,
+			[WeakSelf]
+			{
+				if (const TSharedPtr<FMqttifyWebSocket> StrongThis = WeakSelf.Pin())
+				{
+					StrongThis->Disconnect_Internal();
+				}
+			});
 	}
 
 	void FMqttifyWebSocket::Disconnect_Internal()
@@ -96,11 +134,7 @@ namespace Mqttify
 		FScopeLock Lock{&SocketAccessLock};
 		if (!IsConnected())
 		{
-			LOG_MQTTIFY(
-				Warning,
-				TEXT("Socket not connected %s, ClientId %s"),
-				*ConnectionSettings->ToString(),
-				*ConnectionSettings->GetClientId());
+			LOG_MQTTIFY(Warning, TEXT("Socket not connected %s, ClientId %s"), *ConnectionSettings->ToString(), *ConnectionSettings->GetClientId());
 			return;
 		}
 
@@ -119,21 +153,13 @@ namespace Mqttify
 		if (!IsConnected() && CurrentState.load(std::memory_order_acquire) == EMqttifySocketState::Connected)
 		{
 			FinalizeDisconnect();
-			LOG_MQTTIFY(
-				Error,
-				TEXT("Unexpected Disconnection %s, ClientId %s"),
-				*ConnectionSettings->ToString(),
-				*ConnectionSettings->GetClientId());
+			LOG_MQTTIFY(Error, TEXT("Unexpected Disconnection %s, ClientId %s"), *ConnectionSettings->ToString(), *ConnectionSettings->GetClientId());
 			return;
 		}
 
 		if (DisconnectTime < FDateTime::Now())
 		{
-			LOG_MQTTIFY(
-				Error,
-				TEXT("Timeout Socket Connection %s, ClientId %s"),
-				*ConnectionSettings->ToString(),
-				*ConnectionSettings->GetClientId());
+			LOG_MQTTIFY(Error, TEXT("Timeout Socket Connection %s, ClientId %s"), *ConnectionSettings->ToString(), *ConnectionSettings->GetClientId());
 			FinalizeDisconnect();
 		}
 	}
@@ -141,8 +167,7 @@ namespace Mqttify
 	bool FMqttifyWebSocket::IsConnected() const
 	{
 		FScopeLock Lock{&SocketAccessLock};
-		return Socket.IsValid() && Socket->IsConnected() && CurrentState.load(std::memory_order_acquire) ==
-			EMqttifySocketState::Connected;
+		return Socket.IsValid() && Socket->IsConnected() && CurrentState.load(std::memory_order_acquire) == EMqttifySocketState::Connected;
 	}
 
 	void FMqttifyWebSocket::HandleWebSocketConnected()
@@ -182,23 +207,11 @@ namespace Mqttify
 				*ConnectionSettings->GetClientId());
 			CurrentState.store(EMqttifySocketState::Disconnected, std::memory_order_release);
 			DisconnectTime = FDateTime::MaxValue();
-			if (Socket.IsValid())
-			{
-				Socket->OnConnected().RemoveAll(this);
-				Socket->OnConnectionError().RemoveAll(this);
-				Socket->OnClosed().RemoveAll(this);
-				Socket->OnRawMessage().RemoveAll(this);
-				Socket.Reset();
-			}
 		}
 		OnDisconnectDelegate.Broadcast();
 	}
 
-	void FMqttifyWebSocket::HandleWebSocketConnectionClosed(
-		const int32 Status,
-		const FString& Reason,
-		const bool bWasClean
-		)
+	void FMqttifyWebSocket::HandleWebSocketConnectionClosed(const int32 Status, const FString& Reason, const bool bWasClean)
 	{
 		FScopeLock Lock{&SocketAccessLock};
 

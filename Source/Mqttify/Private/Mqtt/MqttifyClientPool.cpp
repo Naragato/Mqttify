@@ -36,9 +36,16 @@ namespace Mqttify
 			}
 		}
 
-		auto Deleter = [this](const IMqttifyClient* InClient)
+		TWeakPtr<FMqttifyClientPool> WeakSelf = AsShared();
+
+		auto Deleter = [WeakSelf](const IMqttifyClient* InClient)
 		{
-			FScopeLock DeleterLock(&ClientMapLock);
+			const TSharedPtr<FMqttifyClientPool> StrongSelf = WeakSelf.Pin();
+			if (!StrongSelf.IsValid())
+			{
+				return;
+			}
+			FScopeLock DeleterLock(&StrongSelf->ClientMapLock);
 			const FMqttifyConnectionSettingsRef ConnectionSettings = InClient->GetConnectionSettings();
 			// Find a client and remove it from the list of clients.
 			const uint32 DeleterHash = ConnectionSettings->GetHashCode();
@@ -47,12 +54,12 @@ namespace Mqttify
 				TEXT("Disposing client with hash %u, ClientId %s"),
 				DeleterHash,
 				*ConnectionSettings->GetClientId());
-			MqttifyClients.Remove(DeleterHash);
+			StrongSelf->MqttifyClients.Remove(DeleterHash);
 			delete InClient;
 
-			if (MqttifyClients.IsEmpty())
+			if (StrongSelf->MqttifyClients.IsEmpty())
 			{
-				Kill();
+				StrongSelf->Kill();
 			}
 		};
 
