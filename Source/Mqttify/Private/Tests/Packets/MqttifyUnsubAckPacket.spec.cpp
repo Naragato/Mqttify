@@ -8,7 +8,9 @@ using namespace Mqttify;
 BEGIN_DEFINE_SPEC(
 	MqttifyUnsubAckPacket,
 	"Mqttify.Automation.MqttifyUnsubAckPacket",
-	EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ServerContext |
+	EAutomationTestFlags::CommandletContext | EAutomationTestFlags::ProgramContext | EAutomationTestFlags::
+	ProductFilter)
 
 	static TArray<uint8> GetMqtt5UnsubAckWithProperties(const EMqttifyReasonCode InReasonCode)
 	{
@@ -106,9 +108,16 @@ void MqttifyUnsubAckPacket::Define()
 				"Should serialize without properties",
 				[this]
 				{
-					auto UnsubAckPacket = TMqttifyUnsubAckPacket<EMqttifyProtocolVersion::Mqtt_5>{1, {EMqttifyReasonCode::Success}};
+					auto UnsubAckPacket = TMqttifyUnsubAckPacket<EMqttifyProtocolVersion::Mqtt_5>{
+						1,
+						{EMqttifyReasonCode::Success}
+					};
 
-					TestPacketsEqual(TEXT("Packet should match expected"), UnsubAckPacket, Mqtt5UnsubAckNoProperties, this);
+					TestPacketsEqual(
+						TEXT("Packet should match expected"),
+						UnsubAckPacket,
+						Mqtt5UnsubAckNoProperties,
+						this);
 				});
 
 			It(
@@ -116,8 +125,14 @@ void MqttifyUnsubAckPacket::Define()
 				[this]
 				{
 					const TTuple<FString, FString> PropertyData = MakeTuple(TEXT("test"), TEXT("test"));
-					const FMqttifyProperties Properties{{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}};
-					auto UnsubAckPacket = TMqttifyUnsubAckPacket<EMqttifyProtocolVersion::Mqtt_5>{1, {EMqttifyReasonCode::Success}, Properties};
+					const FMqttifyProperties Properties{
+						{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}
+					};
+					auto UnsubAckPacket = TMqttifyUnsubAckPacket<EMqttifyProtocolVersion::Mqtt_5>{
+						1,
+						{EMqttifyReasonCode::Success},
+						Properties
+					};
 
 					TestPacketsEqual(
 						TEXT("Packet should match expected"),
@@ -130,18 +145,32 @@ void MqttifyUnsubAckPacket::Define()
 			for (const EMqttifyReasonCode ReasonCode : ReasonCodes)
 			{
 				It(
-					FString::Printf(TEXT("Should serialize with %s with properties"), EnumToTCharString<EMqttifyReasonCode>(ReasonCode)),
+					FString::Printf(
+						TEXT("Should serialize with %s with properties"),
+						EnumToTCharString<EMqttifyReasonCode>(ReasonCode)),
 					[this, ReasonCode]
 					{
 						const TTuple<FString, FString> PropertyData = MakeTuple(TEXT("test"), TEXT("test"));
-						const FMqttifyProperties Properties{{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}};
-						auto UnsubAckPacket = TMqttifyUnsubAckPacket<EMqttifyProtocolVersion::Mqtt_5>{1, {ReasonCode}, Properties};
+						const FMqttifyProperties Properties{
+							{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}
+						};
+						auto UnsubAckPacket = TMqttifyUnsubAckPacket<EMqttifyProtocolVersion::Mqtt_5>{
+							1,
+							{ReasonCode},
+							Properties
+						};
 
-						TestPacketsEqual(TEXT("Packet should match expected"), UnsubAckPacket, GetMqtt5UnsubAckWithProperties(ReasonCode), this);
+						TestPacketsEqual(
+							TEXT("Packet should match expected"),
+							UnsubAckPacket,
+							GetMqtt5UnsubAckWithProperties(ReasonCode),
+							this);
 					});
 
 				It(
-					FString::Printf(TEXT("Should deserialize with %s with properties"), EnumToTCharString<EMqttifyReasonCode>(ReasonCode)),
+					FString::Printf(
+						TEXT("Should deserialize with %s with properties"),
+						EnumToTCharString<EMqttifyReasonCode>(ReasonCode)),
 					[this, ReasonCode]
 					{
 						FArrayReader Reader;
@@ -150,7 +179,9 @@ void MqttifyUnsubAckPacket::Define()
 						const FMqttifyFixedHeader Header = FMqttifyFixedHeader::Create(Reader);
 						const TMqttifyUnsubAckPacket<EMqttifyProtocolVersion::Mqtt_5> UnsubAckPacket(Reader, Header);
 						const TTuple<FString, FString> PropertyData = MakeTuple(TEXT("test"), TEXT("test"));
-						const FMqttifyProperties Properties{{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}};
+						const FMqttifyProperties Properties{
+							{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}
+						};
 						TestEqual(TEXT("Packet Identifier should be equal"), UnsubAckPacket.GetPacketId(), 1);
 
 						TestEqual(TEXT("Reason codes should be equal"), UnsubAckPacket.GetReasonCodes(), {ReasonCode});

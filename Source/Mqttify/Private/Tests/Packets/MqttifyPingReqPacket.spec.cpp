@@ -9,7 +9,9 @@ using namespace Mqttify;
 BEGIN_DEFINE_SPEC(
 	MqttifyPingReqPacket,
 	"Mqttify.Automation.MqttifyPingReqPacket",
-	EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ServerContext |
+	EAutomationTestFlags::CommandletContext | EAutomationTestFlags::ProgramContext | EAutomationTestFlags::
+	ProductFilter)
 
 
 	const TArray<uint8> ValidPacket = {

@@ -10,7 +10,9 @@ using namespace Mqttify;
 BEGIN_DEFINE_SPEC(
 	MqttifyDisconnectPacket,
 	"Mqttify.Automation.MqttifyDisconnectPacket",
-	EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ServerContext |
+	EAutomationTestFlags::CommandletContext | EAutomationTestFlags::ProgramContext | EAutomationTestFlags::
+	ProductFilter)
 
 
 	const TArray<uint8> ValidMqtt3Packet = {
@@ -176,7 +178,8 @@ BEGIN_DEFINE_SPEC(
 	TArray<FMqttifyProperty> ValidProperties = {
 		FMqttifyProperty::Create<EMqttifyPropertyIdentifier::SessionExpiryInterval>(static_cast<uint32>(0)),
 		FMqttifyProperty::Create<EMqttifyPropertyIdentifier::ReasonString>(FString(TEXT("test"))),
-		FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(TTuple<FString, FString>{FString(TEXT("test")), FString(TEXT("test"))}),
+		FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(
+			TTuple<FString, FString>{FString(TEXT("test")), FString(TEXT("test"))}),
 		FMqttifyProperty::Create<EMqttifyPropertyIdentifier::ServerReference>(FString(TEXT("test")))
 	};
 
@@ -224,18 +227,26 @@ void MqttifyDisconnectPacket::Define()
 			for (const EMqttifyReasonCode ReasonCode : InvalidReasonCodes)
 			{
 				It(
-					FString::Printf(TEXT("Should log error when serializing with invalid reason code %s"), EnumToTCharString(ReasonCode)),
+					FString::Printf(
+						TEXT("Should log error when serializing with invalid reason code %s"),
+						EnumToTCharString(ReasonCode)),
 					[this, ReasonCode]
 					{
-						AddExpectedError(MqttifyReasonCode::InvalidReasonCode, EAutomationExpectedMessageFlags::Contains);
+						AddExpectedError(
+							MqttifyReasonCode::InvalidReasonCode,
+							EAutomationExpectedMessageFlags::Contains);
 						TMqttifyDisconnectPacket<EMqttifyProtocolVersion::Mqtt_5> DisconnectPacket{ReasonCode};
 					});
 
 				It(
-					FString::Printf(TEXT("Should log error when deserializing with invalid reason code %s"), EnumToTCharString(ReasonCode)),
+					FString::Printf(
+						TEXT("Should log error when deserializing with invalid reason code %s"),
+						EnumToTCharString(ReasonCode)),
 					[this, ReasonCode]
 					{
-						AddExpectedError(MqttifyReasonCode::InvalidReasonCode, EAutomationExpectedMessageFlags::Contains);
+						AddExpectedError(
+							MqttifyReasonCode::InvalidReasonCode,
+							EAutomationExpectedMessageFlags::Contains);
 						const TArray<uint8> Expected = SerializeDisconnectMqtt5(ReasonCode);
 						FArrayReader Reader;
 						Reader.Append(Expected);
@@ -247,7 +258,10 @@ void MqttifyDisconnectPacket::Define()
 			for (const FMqttifyProperty& Property : ValidProperties)
 			{
 				It(
-					FString::Printf(TEXT("Should serialize with: Property %s %s"), EnumToTCharString(Property.GetIdentifier()), *Property.ToString()),
+					FString::Printf(
+						TEXT("Should serialize with: Property %s %s"),
+						EnumToTCharString(Property.GetIdentifier()),
+						*Property.ToString()),
 					[this, Property]
 					{
 						const TArray<uint8> Expected = SerializeDisconnectMqtt5(

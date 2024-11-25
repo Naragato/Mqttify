@@ -11,7 +11,9 @@ using namespace Mqttify;
 BEGIN_DEFINE_SPEC(
 	MqttifyConnectPacketSpec,
 	"Mqttify.Automation.MqttifyConnectPacket",
-	EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ServerContext |
+	EAutomationTestFlags::CommandletContext | EAutomationTestFlags::ProgramContext | EAutomationTestFlags::
+	ProductFilter)
 
 	const TArray<uint8> Mqtt3BasicWithUsernamePassword = {
 		// Fixed header
@@ -651,7 +653,8 @@ void MqttifyConnectPacketSpec::Define()
 				{
 					const FMqttifyProperties Properties{
 						{
-							FMqttifyProperty::Create<EMqttifyPropertyIdentifier::SessionExpiryInterval>(static_cast<uint32>(60)),
+							FMqttifyProperty::Create<EMqttifyPropertyIdentifier::SessionExpiryInterval>(
+								static_cast<uint32>(60)),
 							FMqttifyProperty::Create<EMqttifyPropertyIdentifier::ReceiveMaximum>(static_cast<uint16>(0))
 						}
 					};
@@ -678,9 +681,12 @@ void MqttifyConnectPacketSpec::Define()
 				{
 					const FMqttifyProperties Properties{
 						{
-							FMqttifyProperty::Create<EMqttifyPropertyIdentifier::WillDelayInterval>(static_cast<uint32>(10)),
-							FMqttifyProperty::Create<EMqttifyPropertyIdentifier::MessageExpiryInterval>(static_cast<uint32>(100)),
-							FMqttifyProperty::Create<EMqttifyPropertyIdentifier::PayloadFormatIndicator>(static_cast<uint8>(1))
+							FMqttifyProperty::Create<
+								EMqttifyPropertyIdentifier::WillDelayInterval>(static_cast<uint32>(10)),
+							FMqttifyProperty::Create<EMqttifyPropertyIdentifier::MessageExpiryInterval>(
+								static_cast<uint32>(100)),
+							FMqttifyProperty::Create<EMqttifyPropertyIdentifier::PayloadFormatIndicator>(
+								static_cast<uint8>(1))
 						}
 					};
 
@@ -707,7 +713,9 @@ void MqttifyConnectPacketSpec::Define()
 					Reader.Append(Mqtt5BasicWithUsernamePassword);
 
 					const FMqttifyFixedHeader Header = FMqttifyFixedHeader::Create(Reader);
-					TestTrue(TEXT("Packet should be a connect packet"), Header.GetPacketType() == EMqttifyPacketType::Connect);
+					TestTrue(
+						TEXT("Packet should be a connect packet"),
+						Header.GetPacketType() == EMqttifyPacketType::Connect);
 					FMqttifyConnectPacket5 Packet(Reader, Header);
 
 					TestEqual(TEXT("Username should be 'username'"), Packet.GetUsername(), "username");
@@ -728,12 +736,17 @@ void MqttifyConnectPacketSpec::Define()
 					Reader.Append(Mqtt5WithWill);
 
 					const FMqttifyFixedHeader Header = FMqttifyFixedHeader::Create(Reader);
-					TestTrue(TEXT("Packet should be a connect packet"), Header.GetPacketType() == EMqttifyPacketType::Connect);
+					TestTrue(
+						TEXT("Packet should be a connect packet"),
+						Header.GetPacketType() == EMqttifyPacketType::Connect);
 					FMqttifyConnectPacket5 Packet(Reader, Header);
 
 					TestEqual(TEXT("Will topic should be 'will'"), Packet.GetWillTopic(), "will");
 					TestEqual(TEXT("Will message should be 'message'"), Packet.GetWillMessage(), "message");
-					TestEqual(TEXT("Will QoS should be AtLeastOnce"), Packet.GetWillQoS(), EMqttifyQualityOfService::AtLeastOnce);
+					TestEqual(
+						TEXT("Will QoS should be AtLeastOnce"),
+						Packet.GetWillQoS(),
+						EMqttifyQualityOfService::AtLeastOnce);
 					TestEqual(TEXT("Client Id should be 'client'"), Packet.GetClientId(), TEXT("client"));
 					TestEqual(
 						TEXT("Remaining length should equal the packet length minus the fixed header length"),
@@ -749,13 +762,18 @@ void MqttifyConnectPacketSpec::Define()
 					Reader.Append(Mqtt5WithoutWill);
 
 					const FMqttifyFixedHeader Header = FMqttifyFixedHeader::Create(Reader);
-					TestTrue(TEXT("Packet should be a connect packet"), Header.GetPacketType() == EMqttifyPacketType::Connect);
+					TestTrue(
+						TEXT("Packet should be a connect packet"),
+						Header.GetPacketType() == EMqttifyPacketType::Connect);
 					FMqttifyConnectPacket5 Packet(Reader, Header);
 
 					TestEqual(TEXT("Client Id should be 'client'"), Packet.GetClientId(), TEXT("client"));
 					TestEqual(TEXT("Will topic should be empty"), Packet.GetWillTopic(), TEXT(""));
 					TestEqual(TEXT("Will message should be empty"), Packet.GetWillMessage(), TEXT(""));
-					TestEqual(TEXT("Will QoS should be AtMostOnce"), Packet.GetWillQoS(), EMqttifyQualityOfService::AtMostOnce);
+					TestEqual(
+						TEXT("Will QoS should be AtMostOnce"),
+						Packet.GetWillQoS(),
+						EMqttifyQualityOfService::AtMostOnce);
 					TestEqual(
 						TEXT("Remaining length should equal the packet length minus the fixed header length"),
 						Packet.GetLength(),
@@ -770,7 +788,9 @@ void MqttifyConnectPacketSpec::Define()
 					Reader.Append(Mqtt5WithCleanSession);
 
 					const FMqttifyFixedHeader Header = FMqttifyFixedHeader::Create(Reader);
-					TestTrue(TEXT("Packet should be a connect packet"), Header.GetPacketType() == EMqttifyPacketType::Connect);
+					TestTrue(
+						TEXT("Packet should be a connect packet"),
+						Header.GetPacketType() == EMqttifyPacketType::Connect);
 					FMqttifyConnectPacket5 Packet(Reader, Header);
 
 					TestTrue(TEXT("Clean session flag should be set"), Packet.GetCleanSession());
@@ -788,7 +808,9 @@ void MqttifyConnectPacketSpec::Define()
 					Reader.Append(Mqtt5WithoutCleanSession);
 
 					const FMqttifyFixedHeader Header = FMqttifyFixedHeader::Create(Reader);
-					TestTrue(TEXT("Packet should be a connect packet"), Header.GetPacketType() == EMqttifyPacketType::Connect);
+					TestTrue(
+						TEXT("Packet should be a connect packet"),
+						Header.GetPacketType() == EMqttifyPacketType::Connect);
 					FMqttifyConnectPacket5 Packet(Reader, Header);
 
 					TestFalse(TEXT("Clean session flag should not be set"), Packet.GetCleanSession());
@@ -806,7 +828,9 @@ void MqttifyConnectPacketSpec::Define()
 					Reader.Append(Mqtt5WithKeepAlive);
 
 					const FMqttifyFixedHeader Header = FMqttifyFixedHeader::Create(Reader);
-					TestTrue(TEXT("Packet should be a connect packet"), Header.GetPacketType() == EMqttifyPacketType::Connect);
+					TestTrue(
+						TEXT("Packet should be a connect packet"),
+						Header.GetPacketType() == EMqttifyPacketType::Connect);
 					FMqttifyConnectPacket5 Packet(Reader, Header);
 
 					TestEqual(TEXT("Keep alive should be 10"), Packet.GetKeepAliveSeconds(), 10);
@@ -824,15 +848,22 @@ void MqttifyConnectPacketSpec::Define()
 					Reader.Append(WithWillProperties);
 
 					const FMqttifyFixedHeader Header = FMqttifyFixedHeader::Create(Reader);
-					TestTrue(TEXT("Packet should be a connect packet"), Header.GetPacketType() == EMqttifyPacketType::Connect);
+					TestTrue(
+						TEXT("Packet should be a connect packet"),
+						Header.GetPacketType() == EMqttifyPacketType::Connect);
 					FMqttifyConnectPacket5 Packet(Reader, Header);
 
 					TestEqual(TEXT("Will topic should be 'will'"), Packet.GetWillTopic(), "will");
 					TestEqual(TEXT("Will message should be 'message'"), Packet.GetWillMessage(), "message");
-					TestEqual(TEXT("Will QoS should be AtLeastOnce"), Packet.GetWillQoS(), EMqttifyQualityOfService::AtLeastOnce);
+					TestEqual(
+						TEXT("Will QoS should be AtLeastOnce"),
+						Packet.GetWillQoS(),
+						EMqttifyQualityOfService::AtLeastOnce);
 					TestEqual(TEXT("Client Id should be 'client'"), Packet.GetClientId(), TEXT("client"));
 
-					TestTrue(TEXT("Will properties should contain at least one property"), Packet.GetWillProperties().GetProperties().Num() > 1);
+					TestTrue(
+						TEXT("Will properties should contain at least one property"),
+						Packet.GetWillProperties().GetProperties().Num() > 1);
 
 					TArray Properties = Packet.GetWillProperties().GetProperties();
 					TestTrue(
@@ -841,8 +872,8 @@ void MqttifyConnectPacketSpec::Define()
 							[](const FMqttifyProperty& Property)
 							{
 								uint32 DelayInterval = 0;
-								return Property.GetIdentifier() == EMqttifyPropertyIdentifier::WillDelayInterval && Property.TryGetValue(
-									DelayInterval) && DelayInterval == 10;
+								return Property.GetIdentifier() == EMqttifyPropertyIdentifier::WillDelayInterval &&
+									Property.TryGetValue(DelayInterval) && DelayInterval == 10;
 							}));
 
 					TestEqual(
@@ -859,10 +890,14 @@ void MqttifyConnectPacketSpec::Define()
 					Reader.Append(WithProperties);
 
 					const FMqttifyFixedHeader Header = FMqttifyFixedHeader::Create(Reader);
-					TestTrue(TEXT("Packet should be a connect packet"), Header.GetPacketType() == EMqttifyPacketType::Connect);
+					TestTrue(
+						TEXT("Packet should be a connect packet"),
+						Header.GetPacketType() == EMqttifyPacketType::Connect);
 					FMqttifyConnectPacket5 Packet(Reader, Header);
 
-					TestTrue(TEXT("Properties should contain at least one property"), Packet.GetProperties().GetProperties().Num() > 1);
+					TestTrue(
+						TEXT("Properties should contain at least one property"),
+						Packet.GetProperties().GetProperties().Num() > 1);
 
 					TArray Properties = Packet.GetProperties().GetProperties();
 					TestTrue(
@@ -889,7 +924,11 @@ void MqttifyConnectPacketSpec::Define()
 				[this]
 				{
 					FMqttifyConnectPacket3 Packet{"client", 60, "username", "password", true};
-					TestPacketsEqual(TEXT("FMqttifyConnectPacket3 with username and password"), Packet, Mqtt3BasicWithUsernamePassword, this);
+					TestPacketsEqual(
+						TEXT("FMqttifyConnectPacket3 with username and password"),
+						Packet,
+						Mqtt3BasicWithUsernamePassword,
+						this);
 				});
 
 			It(
@@ -900,7 +939,9 @@ void MqttifyConnectPacketSpec::Define()
 					Reader.Append(Mqtt3BasicWithUsernamePassword);
 
 					const FMqttifyFixedHeader Header = FMqttifyFixedHeader::Create(Reader);
-					TestTrue(TEXT("Packet should be a connect packet"), Header.GetPacketType() == EMqttifyPacketType::Connect);
+					TestTrue(
+						TEXT("Packet should be a connect packet"),
+						Header.GetPacketType() == EMqttifyPacketType::Connect);
 					FMqttifyConnectPacket3 Packet(Reader, Header);
 
 					TestEqual(TEXT("Username should be 'username'"), Packet.GetUsername(), "username");
@@ -939,12 +980,17 @@ void MqttifyConnectPacketSpec::Define()
 					Reader.Append(Mqtt3WithWill);
 
 					const FMqttifyFixedHeader Header = FMqttifyFixedHeader::Create(Reader);
-					TestTrue(TEXT("Packet should be a connect packet"), Header.GetPacketType() == EMqttifyPacketType::Connect);
+					TestTrue(
+						TEXT("Packet should be a connect packet"),
+						Header.GetPacketType() == EMqttifyPacketType::Connect);
 					FMqttifyConnectPacket3 Packet(Reader, Header);
 
 					TestEqual(TEXT("Will topic should be 'will'"), Packet.GetWillTopic(), "will");
 					TestEqual(TEXT("Will message should be 'message'"), Packet.GetWillMessage(), "message");
-					TestEqual(TEXT("Will QoS should be AtLeastOnce"), Packet.GetWillQoS(), EMqttifyQualityOfService::AtLeastOnce);
+					TestEqual(
+						TEXT("Will QoS should be AtLeastOnce"),
+						Packet.GetWillQoS(),
+						EMqttifyQualityOfService::AtLeastOnce);
 					TestEqual(TEXT("Client Id should be 'client'"), Packet.GetClientId(), TEXT("client"));
 					TestEqual(
 						TEXT("Remaining length should equal the packet length minus the fixed header length"),
@@ -968,13 +1014,18 @@ void MqttifyConnectPacketSpec::Define()
 					Reader.Append(Mqtt3WithoutWill);
 
 					const FMqttifyFixedHeader Header = FMqttifyFixedHeader::Create(Reader);
-					TestTrue(TEXT("Packet should be a connect packet"), Header.GetPacketType() == EMqttifyPacketType::Connect);
+					TestTrue(
+						TEXT("Packet should be a connect packet"),
+						Header.GetPacketType() == EMqttifyPacketType::Connect);
 					FMqttifyConnectPacket3 Packet(Reader, Header);
 
 					TestEqual(TEXT("Client Id should be 'client'"), Packet.GetClientId(), TEXT("client"));
 					TestEqual(TEXT("Will topic should be empty"), Packet.GetWillTopic(), TEXT(""));
 					TestEqual(TEXT("Will message should be empty"), Packet.GetWillMessage(), TEXT(""));
-					TestEqual(TEXT("Will QoS should be AtMostOnce"), Packet.GetWillQoS(), EMqttifyQualityOfService::AtMostOnce);
+					TestEqual(
+						TEXT("Will QoS should be AtMostOnce"),
+						Packet.GetWillQoS(),
+						EMqttifyQualityOfService::AtMostOnce);
 					TestEqual(
 						TEXT("Remaining length should equal the packet length minus the fixed header length"),
 						Packet.GetLength(),
@@ -986,7 +1037,11 @@ void MqttifyConnectPacketSpec::Define()
 				[this]
 				{
 					FMqttifyConnectPacket3 Packet{TEXT("client"), 60, {}, {}, true, false};
-					TestPacketsEqual(TEXT("FMqttifyConnectPacket3 with clean session"), Packet, Mqtt3WithCleanSession, this);
+					TestPacketsEqual(
+						TEXT("FMqttifyConnectPacket3 with clean session"),
+						Packet,
+						Mqtt3WithCleanSession,
+						this);
 				});
 
 			It(
@@ -997,7 +1052,9 @@ void MqttifyConnectPacketSpec::Define()
 					Reader.Append(Mqtt3WithCleanSession);
 
 					const FMqttifyFixedHeader Header = FMqttifyFixedHeader::Create(Reader);
-					TestTrue(TEXT("Packet should be a connect packet"), Header.GetPacketType() == EMqttifyPacketType::Connect);
+					TestTrue(
+						TEXT("Packet should be a connect packet"),
+						Header.GetPacketType() == EMqttifyPacketType::Connect);
 					FMqttifyConnectPacket3 Packet(Reader, Header);
 
 					TestTrue(TEXT("Clean session flag should be set"), Packet.GetCleanSession());
@@ -1012,7 +1069,11 @@ void MqttifyConnectPacketSpec::Define()
 				[this]
 				{
 					FMqttifyConnectPacket3 Packet{TEXT("client"), 60, {}, {}, false, false};
-					TestPacketsEqual(TEXT("FMqttifyConnectPacket3 without clean session"), Packet, Mqtt3WithoutCleanSession, this);
+					TestPacketsEqual(
+						TEXT("FMqttifyConnectPacket3 without clean session"),
+						Packet,
+						Mqtt3WithoutCleanSession,
+						this);
 				});
 
 			It(
@@ -1023,7 +1084,9 @@ void MqttifyConnectPacketSpec::Define()
 					Reader.Append(Mqtt3WithoutCleanSession);
 
 					const FMqttifyFixedHeader Header = FMqttifyFixedHeader::Create(Reader);
-					TestTrue(TEXT("Packet should be a connect packet"), Header.GetPacketType() == EMqttifyPacketType::Connect);
+					TestTrue(
+						TEXT("Packet should be a connect packet"),
+						Header.GetPacketType() == EMqttifyPacketType::Connect);
 					FMqttifyConnectPacket3 Packet(Reader, Header);
 
 					TestFalse(TEXT("Clean session flag should not be set"), Packet.GetCleanSession());
@@ -1038,7 +1101,11 @@ void MqttifyConnectPacketSpec::Define()
 				[this]
 				{
 					FMqttifyConnectPacket3 Packet{TEXT("client"), 10, {}, {}, true, false};
-					TestPacketsEqual(TEXT("FMqttifyConnectPacket3 10 second keepalive"), Packet, Mqtt3WithKeepAlive, this);
+					TestPacketsEqual(
+						TEXT("FMqttifyConnectPacket3 10 second keepalive"),
+						Packet,
+						Mqtt3WithKeepAlive,
+						this);
 				});
 
 			It(
@@ -1049,7 +1116,9 @@ void MqttifyConnectPacketSpec::Define()
 					Reader.Append(Mqtt3WithKeepAlive);
 
 					const FMqttifyFixedHeader Header = FMqttifyFixedHeader::Create(Reader);
-					TestTrue(TEXT("Packet should be a connect packet"), Header.GetPacketType() == EMqttifyPacketType::Connect);
+					TestTrue(
+						TEXT("Packet should be a connect packet"),
+						Header.GetPacketType() == EMqttifyPacketType::Connect);
 					FMqttifyConnectPacket3 Packet(Reader, Header);
 
 					TestEqual(TEXT("Keep alive should be 10"), Packet.GetKeepAliveSeconds(), 10);

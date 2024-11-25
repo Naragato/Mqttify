@@ -71,7 +71,9 @@ const TArray<uint8> Mqtt3BasicWithUsernamePassword = {
 BEGIN_DEFINE_SPEC(
 	MqttifyMqttifyWebSocketSpec,
 	"Mqttify.Automation.MqttifyWebSocket",
-	EAutomationTestFlags::ProductFilter | EAutomationTestFlags::ApplicationContextMask)
+	EAutomationTestFlags::ProductFilter | EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext |
+	EAutomationTestFlags::ServerContext | EAutomationTestFlags::CommandletContext | EAutomationTestFlags::
+	ProgramContext)
 	TSharedPtr<FMqttifySocketRunnable> SocketRunner;
 	TUniquePtr<FLibWebSocketRunnable> LibWebSocketRunner;
 	static constexpr TCHAR SocketError[] = TEXT("SocketError");
@@ -140,9 +142,18 @@ void MqttifyMqttifyWebSocketSpec::Define()
 								TArray<uint8> ReceivedData;
 								ReceivedData.Append(static_cast<uint8*>(In), Len);
 								TestEqual(TEXT("Received data should be equal to sent data"), Len, Size);
-								TestEqual(TEXT("Received data should be equal to sent data [0]"), ReceivedData[0], Data[0]);
-								TestEqual(TEXT("Received data should be equal to sent data [1]"), ReceivedData[1], Data[1]);
-								TestEqual(TEXT("Received data should be equal to sent data [2]"), ReceivedData[2], Data[2]);
+								TestEqual(
+									TEXT("Received data should be equal to sent data [0]"),
+									ReceivedData[0],
+									Data[0]);
+								TestEqual(
+									TEXT("Received data should be equal to sent data [1]"),
+									ReceivedData[1],
+									Data[1]);
+								TestEqual(
+									TEXT("Received data should be equal to sent data [2]"),
+									ReceivedData[2],
+									Data[2]);
 							}
 							LOG_MQTTIFY(Display, TEXT("Test done"));
 							Done.Execute();
@@ -165,10 +176,16 @@ void MqttifyMqttifyWebSocketSpec::Define()
 						{
 							const FMqttifyFixedHeader Header = FMqttifyFixedHeader::Create(*DataReader.Get());
 							FMqttifyConnectPacket3 Packet(*DataReader.Get(), Header);
-							TestPacketsEqual(TEXT("Data from socket should be equal to sent data"), Packet, Mqtt3BasicWithUsernamePassword, this);
+							TestPacketsEqual(
+								TEXT("Data from socket should be equal to sent data"),
+								Packet,
+								Mqtt3BasicWithUsernamePassword,
+								this);
 							Done.Execute();
 						});
-					LibWebSocketRunner->Send(Mqtt3BasicWithUsernamePassword.GetData(), Mqtt3BasicWithUsernamePassword.Num());
+					LibWebSocketRunner->Send(
+						Mqtt3BasicWithUsernamePassword.GetData(),
+						Mqtt3BasicWithUsernamePassword.Num());
 				});
 		});
 }

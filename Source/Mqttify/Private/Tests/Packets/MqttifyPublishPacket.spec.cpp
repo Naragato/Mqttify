@@ -9,10 +9,16 @@ using namespace Mqttify;
 BEGIN_DEFINE_SPEC(
 	MqttifyPublishPacket,
 	"Mqttify.Automation.MqttifyPublishPacket",
-	EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ServerContext |
+	EAutomationTestFlags::CommandletContext | EAutomationTestFlags::ProgramContext | EAutomationTestFlags::
+	ProductFilter)
 
 
-	static TArray<uint8> GetMqtt5PublishPacketWithProperties(const bool bInIsDup, const EMqttifyQualityOfService InQoS, const bool InShouldRetain)
+	static TArray<uint8> GetMqtt5PublishPacketWithProperties(
+		const bool bInIsDup,
+		const EMqttifyQualityOfService InQoS,
+		const bool InShouldRetain
+		)
 	{
 		uint8 Flags = 0x30; // Packet type (0x30 = Publish)
 		if (bInIsDup && InQoS != EMqttifyQualityOfService::AtMostOnce)
@@ -145,19 +151,36 @@ void MqttifyPublishPacket::Define()
 					[this, bIsDup, QoS, bShouldRetain]
 					{
 						const TTuple<FString, FString> PropertyData = MakeTuple(TEXT("info"), TEXT("data"));
-						const FMqttifyProperties Properties{{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}};
+						const FMqttifyProperties Properties{
+							{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}
+						};
 
-						FMqttifyMessage Message = FMqttifyMessage(TEXT("test"), {'p', 'a', 'y', 'l', 'o', 'a', 'd'}, bShouldRetain, QoS);
+						FMqttifyMessage Message = FMqttifyMessage(
+							TEXT("test"),
+							{'p', 'a', 'y', 'l', 'o', 'a', 'd'},
+							bShouldRetain,
+							QoS);
 
-						auto PublishPacketRef = MakeShared<TMqttifyPublishPacket<EMqttifyProtocolVersion::Mqtt_5>>(MoveTemp(Message), 1, Properties);
+						auto PublishPacketRef = MakeShared<TMqttifyPublishPacket<EMqttifyProtocolVersion::Mqtt_5>>(
+							MoveTemp(Message),
+							1,
+							Properties);
 
 						if (bIsDup)
 						{
-							PublishPacketRef = TMqttifyPublishPacket<EMqttifyProtocolVersion::Mqtt_5>::GetDuplicate(MoveTemp(PublishPacketRef));
+							PublishPacketRef = TMqttifyPublishPacket<EMqttifyProtocolVersion::Mqtt_5>::GetDuplicate(
+								MoveTemp(PublishPacketRef));
 						}
 
-						const TArray<uint8> PublishPacketBytes = GetMqtt5PublishPacketWithProperties(bIsDup, QoS, bShouldRetain);
-						TestPacketsEqual(TEXT("Packet should match expected"), *PublishPacketRef, PublishPacketBytes, this);
+						const TArray<uint8> PublishPacketBytes = GetMqtt5PublishPacketWithProperties(
+							bIsDup,
+							QoS,
+							bShouldRetain);
+						TestPacketsEqual(
+							TEXT("Packet should match expected"),
+							*PublishPacketRef,
+							PublishPacketBytes,
+							this);
 					});
 
 				It(
@@ -174,7 +197,9 @@ void MqttifyPublishPacket::Define()
 						const FMqttifyFixedHeader Header = FMqttifyFixedHeader::Create(Reader);
 						const FMqttifyPublishPacket5 PublishPacket(Reader, Header);
 						const TTuple<FString, FString> PropertyData = MakeTuple(TEXT("info"), TEXT("data"));
-						const FMqttifyProperties Properties{{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}};
+						const FMqttifyProperties Properties{
+							{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}
+						};
 						TestEqual(
 							TEXT("Packet Identifier should be equal"),
 							PublishPacket.GetPacketId(),
@@ -209,7 +234,11 @@ void MqttifyPublishPacket::Define()
 						BoolToTCharString(bShouldRetain)),
 					[this, bIsDup, QoS, bShouldRetain]
 					{
-						FMqttifyMessage Message = FMqttifyMessage(TEXT("test"), {'p', 'a', 'y', 'l', 'o', 'a', 'd'}, bShouldRetain, QoS);
+						FMqttifyMessage Message = FMqttifyMessage(
+							TEXT("test"),
+							{'p', 'a', 'y', 'l', 'o', 'a', 'd'},
+							bShouldRetain,
+							QoS);
 
 						auto PublishPacketRef = MakeShared<FMqttifyPublishPacket3>(MoveTemp(Message), 1);
 
@@ -219,7 +248,11 @@ void MqttifyPublishPacket::Define()
 						}
 
 						const TArray<uint8> PublishPacketBytes = GetMqtt311PublishPacket(bIsDup, QoS, bShouldRetain);
-						TestPacketsEqual(TEXT("Packet should match expected"), *PublishPacketRef, PublishPacketBytes, this);
+						TestPacketsEqual(
+							TEXT("Packet should match expected"),
+							*PublishPacketRef,
+							PublishPacketBytes,
+							this);
 					});
 
 				It(

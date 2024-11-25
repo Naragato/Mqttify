@@ -8,7 +8,9 @@ using namespace Mqttify;
 BEGIN_DEFINE_SPEC(
 	MqttifyPubAckPacket,
 	"Mqttify.Automation.MqttifyPubAckPacket",
-	EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ServerContext |
+	EAutomationTestFlags::CommandletContext | EAutomationTestFlags::ProgramContext | EAutomationTestFlags::
+	ProductFilter)
 
 	static TArray<uint8> GetMqtt5PubAckWithProperties(const EMqttifyReasonCode InReasonCode)
 	{
@@ -111,8 +113,14 @@ void MqttifyPubAckPacket::Define()
 				[this]
 				{
 					const TTuple<FString, FString> PropertyData = MakeTuple(TEXT("test"), TEXT("test"));
-					const FMqttifyProperties Properties{{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}};
-					auto PubAckPacket = TMqttifyPubAckPacket<EMqttifyProtocolVersion::Mqtt_5>{1, EMqttifyReasonCode::Success, Properties};
+					const FMqttifyProperties Properties{
+						{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}
+					};
+					auto PubAckPacket = TMqttifyPubAckPacket<EMqttifyProtocolVersion::Mqtt_5>{
+						1,
+						EMqttifyReasonCode::Success,
+						Properties
+					};
 
 					TestPacketsEqual(
 						TEXT("Packet should match expected"),
@@ -125,18 +133,32 @@ void MqttifyPubAckPacket::Define()
 			for (const EMqttifyReasonCode ReasonCode : ReasonCodes)
 			{
 				It(
-					FString::Printf(TEXT("Should serialize with %s with properties"), EnumToTCharString<EMqttifyReasonCode>(ReasonCode)),
+					FString::Printf(
+						TEXT("Should serialize with %s with properties"),
+						EnumToTCharString<EMqttifyReasonCode>(ReasonCode)),
 					[this, ReasonCode]
 					{
 						const TTuple<FString, FString> PropertyData = MakeTuple(TEXT("test"), TEXT("test"));
-						const FMqttifyProperties Properties{{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}};
-						auto PubAckPacket = TMqttifyPubAckPacket<EMqttifyProtocolVersion::Mqtt_5>{1, ReasonCode, Properties};
+						const FMqttifyProperties Properties{
+							{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}
+						};
+						auto PubAckPacket = TMqttifyPubAckPacket<EMqttifyProtocolVersion::Mqtt_5>{
+							1,
+							ReasonCode,
+							Properties
+						};
 
-						TestPacketsEqual(TEXT("Packet should match expected"), PubAckPacket, GetMqtt5PubAckWithProperties(ReasonCode), this);
+						TestPacketsEqual(
+							TEXT("Packet should match expected"),
+							PubAckPacket,
+							GetMqtt5PubAckWithProperties(ReasonCode),
+							this);
 					});
 
 				It(
-					FString::Printf(TEXT("Should deserialize with %s with properties"), EnumToTCharString<EMqttifyReasonCode>(ReasonCode)),
+					FString::Printf(
+						TEXT("Should deserialize with %s with properties"),
+						EnumToTCharString<EMqttifyReasonCode>(ReasonCode)),
 					[this, ReasonCode]
 					{
 						FArrayReader Reader;
@@ -145,7 +167,9 @@ void MqttifyPubAckPacket::Define()
 						const FMqttifyFixedHeader Header = FMqttifyFixedHeader::Create(Reader);
 						const TMqttifyPubAckPacket<EMqttifyProtocolVersion::Mqtt_5> PubAckPacket(Reader, Header);
 						const TTuple<FString, FString> PropertyData = MakeTuple(TEXT("test"), TEXT("test"));
-						const FMqttifyProperties Properties{{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}};
+						const FMqttifyProperties Properties{
+							{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}
+						};
 						TestEqual(TEXT("Packet Identifier should be equal"), PubAckPacket.GetPacketId(), 1);
 
 						TestEqual(TEXT("Reason code should be equal"), PubAckPacket.GetReasonCode(), ReasonCode);

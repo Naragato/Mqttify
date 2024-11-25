@@ -8,7 +8,9 @@ using namespace Mqttify;
 BEGIN_DEFINE_SPEC(
 	MqttifyPubCompPacket,
 	"Mqttify.Automation.MqttifyPubCompPacket",
-	EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ServerContext |
+	EAutomationTestFlags::CommandletContext | EAutomationTestFlags::ProgramContext | EAutomationTestFlags::
+	ProductFilter)
 
 	static TArray<uint8> GetMqtt5PubCompWithProperties(const EMqttifyReasonCode InReasonCode)
 	{
@@ -92,9 +94,16 @@ void MqttifyPubCompPacket::Define()
 				"Should serialize without properties",
 				[this]
 				{
-					auto PubCompPacket = TMqttifyPubCompPacket<EMqttifyProtocolVersion::Mqtt_5>{1, EMqttifyReasonCode::Success};
+					auto PubCompPacket = TMqttifyPubCompPacket<EMqttifyProtocolVersion::Mqtt_5>{
+						1,
+						EMqttifyReasonCode::Success
+					};
 
-					TestPacketsEqual(TEXT("Packet should match expected"), PubCompPacket, Mqtt5PubCompNoProperties, this);
+					TestPacketsEqual(
+						TEXT("Packet should match expected"),
+						PubCompPacket,
+						Mqtt5PubCompNoProperties,
+						this);
 				});
 
 			It(
@@ -102,8 +111,14 @@ void MqttifyPubCompPacket::Define()
 				[this]
 				{
 					const TTuple<FString, FString> PropertyData = MakeTuple(TEXT("test"), TEXT("test"));
-					const FMqttifyProperties Properties{{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}};
-					auto PubCompPacket = TMqttifyPubCompPacket<EMqttifyProtocolVersion::Mqtt_5>{1, EMqttifyReasonCode::Success, Properties};
+					const FMqttifyProperties Properties{
+						{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}
+					};
+					auto PubCompPacket = TMqttifyPubCompPacket<EMqttifyProtocolVersion::Mqtt_5>{
+						1,
+						EMqttifyReasonCode::Success,
+						Properties
+					};
 
 					TestPacketsEqual(
 						TEXT("Packet should match expected"),
@@ -116,18 +131,32 @@ void MqttifyPubCompPacket::Define()
 			for (const EMqttifyReasonCode ReasonCode : ReasonCodes)
 			{
 				It(
-					FString::Printf(TEXT("Should serialize with %s with properties"), EnumToTCharString<EMqttifyReasonCode>(ReasonCode)),
+					FString::Printf(
+						TEXT("Should serialize with %s with properties"),
+						EnumToTCharString<EMqttifyReasonCode>(ReasonCode)),
 					[this, ReasonCode]
 					{
 						const TTuple<FString, FString> PropertyData = MakeTuple(TEXT("test"), TEXT("test"));
-						const FMqttifyProperties Properties{{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}};
-						auto PubCompPacket = TMqttifyPubCompPacket<EMqttifyProtocolVersion::Mqtt_5>{1, ReasonCode, Properties};
+						const FMqttifyProperties Properties{
+							{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}
+						};
+						auto PubCompPacket = TMqttifyPubCompPacket<EMqttifyProtocolVersion::Mqtt_5>{
+							1,
+							ReasonCode,
+							Properties
+						};
 
-						TestPacketsEqual(TEXT("Packet should match expected"), PubCompPacket, GetMqtt5PubCompWithProperties(ReasonCode), this);
+						TestPacketsEqual(
+							TEXT("Packet should match expected"),
+							PubCompPacket,
+							GetMqtt5PubCompWithProperties(ReasonCode),
+							this);
 					});
 
 				It(
-					FString::Printf(TEXT("Should deserialize with %s with properties"), EnumToTCharString<EMqttifyReasonCode>(ReasonCode)),
+					FString::Printf(
+						TEXT("Should deserialize with %s with properties"),
+						EnumToTCharString<EMqttifyReasonCode>(ReasonCode)),
 					[this, ReasonCode]
 					{
 						FArrayReader Reader;
@@ -136,7 +165,9 @@ void MqttifyPubCompPacket::Define()
 						const FMqttifyFixedHeader Header = FMqttifyFixedHeader::Create(Reader);
 						const TMqttifyPubCompPacket<EMqttifyProtocolVersion::Mqtt_5> PubCompPacket(Reader, Header);
 						const TTuple<FString, FString> PropertyData = MakeTuple(TEXT("test"), TEXT("test"));
-						const FMqttifyProperties Properties{{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}};
+						const FMqttifyProperties Properties{
+							{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}
+						};
 						TestEqual(TEXT("Packet Identifier should be equal"), PubCompPacket.GetPacketId(), 1);
 
 						TestEqual(TEXT("Reason code should be equal"), PubCompPacket.GetReasonCode(), ReasonCode);

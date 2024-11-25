@@ -11,7 +11,9 @@ using namespace Mqttify;
 BEGIN_DEFINE_SPEC(
 	MqttifyAuthPacket,
 	"Mqttify.Automation.MqttifyAuthPacket",
-	EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ServerContext |
+	EAutomationTestFlags::CommandletContext | EAutomationTestFlags::ProgramContext | EAutomationTestFlags::
+	ProductFilter)
 	const TArray<uint8> Mqtt5ValidAuth = {
 		// Fixed header
 		0xF0,
@@ -121,11 +123,17 @@ void MqttifyAuthPacket::Define()
 				[this]
 				{
 					const TTuple<FString, FString> PropertyData = MakeTuple(TEXT("test"), TEXT("test"));
-					const FMqttifyProperties Properties{{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}};
+					const FMqttifyProperties Properties{
+						{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}
+					};
 
 					FMqttifyAuthPacket Packet(EMqttifyReasonCode::Success, Properties);
 
-					TestPacketsEqual(TEXT("Packet should match expected"), Packet, Mqtt5ValidSerializedAuthWithPropertiesResult, this);
+					TestPacketsEqual(
+						TEXT("Packet should match expected"),
+						Packet,
+						Mqtt5ValidSerializedAuthWithPropertiesResult,
+						this);
 				});
 
 			It(
@@ -133,7 +141,9 @@ void MqttifyAuthPacket::Define()
 				[this]
 				{
 					const TTuple<FString, FString> PropertyData = MakeTuple(TEXT("test"), TEXT("test"));
-					const FMqttifyProperties Properties{{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}};
+					const FMqttifyProperties Properties{
+						{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}
+					};
 
 					FMqttifyAuthPacket Packet(EMqttifyReasonCode::ContinueAuthentication, Properties);
 
@@ -171,7 +181,10 @@ void MqttifyAuthPacket::Define()
 				{
 					FArrayReader Reader;
 					Reader.Append(Mqtt5InvalidAuthWithProperties);
-					AddExpectedError(FMqttifyProperty::FailedToReadPropertyError, EAutomationExpectedErrorFlags::Contains, 2);
+					AddExpectedError(
+						FMqttifyProperty::FailedToReadPropertyError,
+						EAutomationExpectedErrorFlags::Contains,
+						2);
 					AddExpectedError(ErrorStrings::ArchiveTooSmall, EAutomationExpectedErrorFlags::Contains);
 
 					const FMqttifyFixedHeader Header = FMqttifyFixedHeader::Create(Reader);

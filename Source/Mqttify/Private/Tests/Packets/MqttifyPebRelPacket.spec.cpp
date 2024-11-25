@@ -9,7 +9,9 @@ using namespace Mqttify;
 BEGIN_DEFINE_SPEC(
 	MqttifyPubRelPacket,
 	"Mqttify.Automation.MqttifyPubRelPacket",
-	EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ServerContext |
+	EAutomationTestFlags::CommandletContext | EAutomationTestFlags::ProgramContext | EAutomationTestFlags::
+	ProductFilter)
 
 	const TArray<uint8> Mqtt3PubRel = {
 		// Fixed header
@@ -135,8 +137,14 @@ void MqttifyPubRelPacket::Define()
 				[this]
 				{
 					const TTuple<FString, FString> PropertyData = MakeTuple(TEXT("test"), TEXT("test"));
-					const FMqttifyProperties Properties{{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}};
-					auto PubRelPacket = TMqttifyPubRelPacket<EMqttifyProtocolVersion::Mqtt_5>{1, EMqttifyReasonCode::Success, Properties};
+					const FMqttifyProperties Properties{
+						{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}
+					};
+					auto PubRelPacket = TMqttifyPubRelPacket<EMqttifyProtocolVersion::Mqtt_5>{
+						1,
+						EMqttifyReasonCode::Success,
+						Properties
+					};
 
 					TestPacketsEqual(
 						TEXT("Packet should match expected"),
@@ -151,7 +159,9 @@ void MqttifyPubRelPacket::Define()
 				[this]
 				{
 					const TTuple<FString, FString> PropertyData = MakeTuple(TEXT("test"), TEXT("test"));
-					const FMqttifyProperties Properties{{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}};
+					const FMqttifyProperties Properties{
+						{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}
+					};
 
 					auto PubRelPacket = TMqttifyPubRelPacket<EMqttifyProtocolVersion::Mqtt_5>{
 						1,
@@ -159,7 +169,11 @@ void MqttifyPubRelPacket::Define()
 						Properties
 					};
 
-					TestPacketsEqual(TEXT("Packet should match expected"), PubRelPacket, Mqtt5PubRelNotFoundWithProperties, this);
+					TestPacketsEqual(
+						TEXT("Packet should match expected"),
+						PubRelPacket,
+						Mqtt5PubRelNotFoundWithProperties,
+						this);
 				});
 
 			It(
@@ -172,12 +186,20 @@ void MqttifyPubRelPacket::Define()
 					const FMqttifyFixedHeader Header = FMqttifyFixedHeader::Create(Reader);
 					const TMqttifyPubRelPacket<EMqttifyProtocolVersion::Mqtt_5> PubRelPacket(Reader, Header);
 					const TTuple<FString, FString> PropertyData = MakeTuple(TEXT("test"), TEXT("test"));
-					const FMqttifyProperties Properties{{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}};
-					TestEqual(TEXT("Should Contain Properties"), PubRelPacket.GetProperties().GetLength(), Properties.GetLength());
+					const FMqttifyProperties Properties{
+						{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}
+					};
+					TestEqual(
+						TEXT("Should Contain Properties"),
+						PubRelPacket.GetProperties().GetLength(),
+						Properties.GetLength());
 
 					TestEqual(TEXT("Properties should be equal"), PubRelPacket.GetProperties(), Properties);
 
-					TestEqual(TEXT("Reason code should be equal"), PubRelPacket.GetReasonCode(), EMqttifyReasonCode::Success);
+					TestEqual(
+						TEXT("Reason code should be equal"),
+						PubRelPacket.GetReasonCode(),
+						EMqttifyReasonCode::Success);
 				});
 
 			It(
@@ -190,12 +212,20 @@ void MqttifyPubRelPacket::Define()
 					const FMqttifyFixedHeader Header = FMqttifyFixedHeader::Create(Reader);
 					const TMqttifyPubRelPacket<EMqttifyProtocolVersion::Mqtt_5> PubRelPacket(Reader, Header);
 					const TTuple<FString, FString> PropertyData = MakeTuple(TEXT("test"), TEXT("test"));
-					const FMqttifyProperties Properties{{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}};
-					TestEqual(TEXT("Should Contain Properties"), PubRelPacket.GetProperties().GetLength(), Properties.GetLength());
+					const FMqttifyProperties Properties{
+						{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(PropertyData)}
+					};
+					TestEqual(
+						TEXT("Should Contain Properties"),
+						PubRelPacket.GetProperties().GetLength(),
+						Properties.GetLength());
 
 					TestEqual(TEXT("Properties should be equal"), PubRelPacket.GetProperties(), Properties);
 
-					TestEqual(TEXT("Reason code should be equal"), PubRelPacket.GetReasonCode(), EMqttifyReasonCode::PacketIdentifierNotFound);
+					TestEqual(
+						TEXT("Reason code should be equal"),
+						PubRelPacket.GetReasonCode(),
+						EMqttifyReasonCode::PacketIdentifierNotFound);
 				});
 		});
 

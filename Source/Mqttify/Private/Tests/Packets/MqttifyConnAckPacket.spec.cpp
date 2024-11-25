@@ -11,7 +11,9 @@ using namespace Mqttify;
 BEGIN_DEFINE_SPEC(
 	MqttifyConnAckPacket,
 	"Mqttify.Automation.MqttifyConnAckPacket",
-	EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ServerContext |
+	EAutomationTestFlags::CommandletContext | EAutomationTestFlags::ProgramContext | EAutomationTestFlags::
+	ProductFilter)
 
 	static TArray<uint8> SerializeConnackMqtt3(const bool bSessionPresent, const EMqttifyConnectReturnCode ReturnCode)
 	{
@@ -76,7 +78,11 @@ BEGIN_DEFINE_SPEC(
 		return ConnackPacket;
 	}
 
-	static TArray<uint8> SerializeConnackMqtt5(const bool bSessionPresent, EMqttifyReasonCode ReasonCode, const FMqttifyProperties& Properties)
+	static TArray<uint8> SerializeConnackMqtt5(
+		const bool bSessionPresent,
+		EMqttifyReasonCode ReasonCode,
+		const FMqttifyProperties& Properties
+		)
 	{
 		TArray<uint8> ConnackPacket = {
 			0x20,
@@ -212,12 +218,16 @@ BEGIN_DEFINE_SPEC(
 	};
 
 	TArray<FMqttifyProperty> ValidProperties = {
-		FMqttifyProperty::Create<EMqttifyPropertyIdentifier::UserProperty>(MakeTuple(FString(TEXT("test")), FString(TEXT("test")))),
+		FMqttifyProperty::Create<
+			EMqttifyPropertyIdentifier::UserProperty>(MakeTuple(FString(TEXT("test")), FString(TEXT("test")))),
 		FMqttifyProperty::Create<EMqttifyPropertyIdentifier::SessionExpiryInterval>(static_cast<uint32>(30)),
 		FMqttifyProperty::Create<EMqttifyPropertyIdentifier::ReceiveMaximum>(static_cast<uint16>(30)),
-		FMqttifyProperty::Create<EMqttifyPropertyIdentifier::MaximumQoS>(static_cast<uint8>(EMqttifyQualityOfService::AtLeastOnce)),
-		FMqttifyProperty::Create<EMqttifyPropertyIdentifier::MaximumQoS>(static_cast<uint8>(EMqttifyQualityOfService::AtMostOnce)),
-		FMqttifyProperty::Create<EMqttifyPropertyIdentifier::MaximumQoS>(static_cast<uint8>(EMqttifyQualityOfService::ExactlyOnce)),
+		FMqttifyProperty::Create<
+			EMqttifyPropertyIdentifier::MaximumQoS>(static_cast<uint8>(EMqttifyQualityOfService::AtLeastOnce)),
+		FMqttifyProperty::Create<
+			EMqttifyPropertyIdentifier::MaximumQoS>(static_cast<uint8>(EMqttifyQualityOfService::AtMostOnce)),
+		FMqttifyProperty::Create<
+			EMqttifyPropertyIdentifier::MaximumQoS>(static_cast<uint8>(EMqttifyQualityOfService::ExactlyOnce)),
 		FMqttifyProperty::Create<EMqttifyPropertyIdentifier::RetainAvailable>(static_cast<uint8>(true)),
 		FMqttifyProperty::Create<EMqttifyPropertyIdentifier::RetainAvailable>(static_cast<uint8>(false)),
 		FMqttifyProperty::Create<EMqttifyPropertyIdentifier::MaximumPacketSize>(static_cast<uint32>(30)),
@@ -227,7 +237,8 @@ BEGIN_DEFINE_SPEC(
 		FMqttifyProperty::Create<EMqttifyPropertyIdentifier::WildcardSubscriptionAvailable>(static_cast<uint8>(true)),
 		FMqttifyProperty::Create<EMqttifyPropertyIdentifier::WildcardSubscriptionAvailable>(static_cast<uint8>(false)),
 		FMqttifyProperty::Create<EMqttifyPropertyIdentifier::SubscriptionIdentifierAvailable>(static_cast<uint8>(true)),
-		FMqttifyProperty::Create<EMqttifyPropertyIdentifier::SubscriptionIdentifierAvailable>(static_cast<uint8>(false)),
+		FMqttifyProperty::Create<
+			EMqttifyPropertyIdentifier::SubscriptionIdentifierAvailable>(static_cast<uint8>(false)),
 		FMqttifyProperty::Create<EMqttifyPropertyIdentifier::SharedSubscriptionAvailable>(static_cast<uint8>(true)),
 		FMqttifyProperty::Create<EMqttifyPropertyIdentifier::SharedSubscriptionAvailable>(static_cast<uint8>(false)),
 		FMqttifyProperty::Create<EMqttifyPropertyIdentifier::ServerKeepAlive>(static_cast<uint16>(30)),
@@ -272,7 +283,10 @@ void MqttifyConnAckPacket::Define()
 						[this, ReasonCode, bIsSessionPresent]
 						{
 							const TArray<uint8> Expected = SerializeConnackMqtt5(bIsSessionPresent, ReasonCode);
-							TMqttifyConnAckPacket<EMqttifyProtocolVersion::Mqtt_5> ConnAckPacket{bIsSessionPresent, ReasonCode};
+							TMqttifyConnAckPacket<EMqttifyProtocolVersion::Mqtt_5> ConnAckPacket{
+								bIsSessionPresent,
+								ReasonCode
+							};
 
 							TestPacketsEqual(TEXT("Packet should match expected"), ConnAckPacket, Expected, this);
 						});
@@ -301,23 +315,32 @@ void MqttifyConnAckPacket::Define()
 				{
 					It(
 						FString::Printf(
-							TEXT("Should log error when serializing with session present %s, and invalid reason code %s"),
+							TEXT(
+								"Should log error when serializing with session present %s, and invalid reason code %s"),
 							bIsSessionPresent ? TEXT("true") : TEXT("false"),
 							EnumToTCharString(ReasonCode)),
 						[this, ReasonCode, bIsSessionPresent]
 						{
-							AddExpectedError(MqttifyReasonCode::InvalidReasonCode, EAutomationExpectedMessageFlags::Contains);
-							TMqttifyConnAckPacket<EMqttifyProtocolVersion::Mqtt_5> ConnAckPacket{bIsSessionPresent, ReasonCode};
+							AddExpectedError(
+								MqttifyReasonCode::InvalidReasonCode,
+								EAutomationExpectedMessageFlags::Contains);
+							TMqttifyConnAckPacket<EMqttifyProtocolVersion::Mqtt_5> ConnAckPacket{
+								bIsSessionPresent,
+								ReasonCode
+							};
 						});
 
 					It(
 						FString::Printf(
-							TEXT("Should log error when deserializing with session present %s, and invalid reason code %s"),
+							TEXT(
+								"Should log error when deserializing with session present %s, and invalid reason code %s"),
 							bIsSessionPresent ? TEXT("true") : TEXT("false"),
 							EnumToTCharString(ReasonCode)),
 						[this, ReasonCode, bIsSessionPresent]
 						{
-							AddExpectedError(MqttifyReasonCode::InvalidReasonCode, EAutomationExpectedMessageFlags::Contains);
+							AddExpectedError(
+								MqttifyReasonCode::InvalidReasonCode,
+								EAutomationExpectedMessageFlags::Contains);
 							const TArray<uint8> Expected = SerializeConnackMqtt5(bIsSessionPresent, ReasonCode);
 							FArrayReader Reader;
 							Reader.Append(Expected);
@@ -330,10 +353,16 @@ void MqttifyConnAckPacket::Define()
 			for (const FMqttifyProperty& Property : ValidProperties)
 			{
 				It(
-					FString::Printf(TEXT("Should serialize with: Property %s %s"), EnumToTCharString(Property.GetIdentifier()), *Property.ToString()),
+					FString::Printf(
+						TEXT("Should serialize with: Property %s %s"),
+						EnumToTCharString(Property.GetIdentifier()),
+						*Property.ToString()),
 					[this, Property]
 					{
-						const TArray<uint8> Expected = SerializeConnackMqtt5(true, EMqttifyReasonCode::Banned, FMqttifyProperties{{Property}});
+						const TArray<uint8> Expected = SerializeConnackMqtt5(
+							true,
+							EMqttifyReasonCode::Banned,
+							FMqttifyProperties{{Property}});
 
 						TMqttifyConnAckPacket<EMqttifyProtocolVersion::Mqtt_5> ConnAckPacket{
 							true,
@@ -349,7 +378,10 @@ void MqttifyConnAckPacket::Define()
 						*Property.ToString()),
 					[this, Property]
 					{
-						const TArray<uint8> Expected = SerializeConnackMqtt5(true, EMqttifyReasonCode::Banned, FMqttifyProperties{{Property}});
+						const TArray<uint8> Expected = SerializeConnackMqtt5(
+							true,
+							EMqttifyReasonCode::Banned,
+							FMqttifyProperties{{Property}});
 						FArrayReader Reader;
 						Reader.Append(Expected);
 						const FMqttifyFixedHeader Header = FMqttifyFixedHeader::Create(Reader);
@@ -377,7 +409,10 @@ void MqttifyConnAckPacket::Define()
 						[this, ReturnCode, bIsSessionPresent]
 						{
 							const TArray<uint8> Expected = SerializeConnackMqtt3(bIsSessionPresent, ReturnCode);
-							TMqttifyConnAckPacket<EMqttifyProtocolVersion::Mqtt_3_1_1> ConnAckPacket{bIsSessionPresent, ReturnCode};
+							TMqttifyConnAckPacket<EMqttifyProtocolVersion::Mqtt_3_1_1> ConnAckPacket{
+								bIsSessionPresent,
+								ReturnCode
+							};
 
 							TestPacketsEqual(TEXT("Packet should match expected"), ConnAckPacket, Expected, this);
 						});

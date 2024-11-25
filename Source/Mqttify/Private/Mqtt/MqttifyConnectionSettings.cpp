@@ -268,7 +268,7 @@ int32 FMqttifyConnectionSettings::DefaultPort(const EMqttifyConnectionProtocol P
 void FMqttifyConnectionSettings::AddToBytes(TArray<uint8>& Bytes, const void* Src, const int32 Size)
 {
 	const int32 Offset = Bytes.Num();
-	Bytes.SetNumUninitialized(Offset + Size, false);
+	Bytes.SetNumUninitialized(Offset + Size, EAllowShrinking::No);
 	FMemory::Memcpy(Bytes.GetData() + Offset, Src, Size);
 }
 
