@@ -12,8 +12,7 @@ namespace Mqttify
 		MqttifyDataEncodingDecodingSpec,
 		"Mqttify.Automation.MqttifyDataEncodingDecoding",
 		EAutomationTestFlags::ProductFilter | EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext
-		| EAutomationTestFlags::ServerContext | EAutomationTestFlags::CommandletContext | EAutomationTestFlags::
-		ProgramContext)
+		| EAutomationTestFlags::ServerContext | EAutomationTestFlags::CommandletContext)
 	END_DEFINE_SPEC(MqttifyDataEncodingDecodingSpec)
 
 	void MqttifyDataEncodingDecodingSpec::Define()

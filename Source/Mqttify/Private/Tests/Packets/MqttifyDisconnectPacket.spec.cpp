@@ -11,7 +11,7 @@ BEGIN_DEFINE_SPEC(
 	MqttifyDisconnectPacket,
 	"Mqttify.Automation.MqttifyDisconnectPacket",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ServerContext |
-	EAutomationTestFlags::CommandletContext | EAutomationTestFlags::ProgramContext | EAutomationTestFlags::
+	EAutomationTestFlags::CommandletContext  | EAutomationTestFlags::
 	ProductFilter)
 
 

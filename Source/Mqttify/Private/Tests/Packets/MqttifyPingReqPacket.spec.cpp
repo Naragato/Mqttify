@@ -10,7 +10,7 @@ BEGIN_DEFINE_SPEC(
 	MqttifyPingReqPacket,
 	"Mqttify.Automation.MqttifyPingReqPacket",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ServerContext |
-	EAutomationTestFlags::CommandletContext | EAutomationTestFlags::ProgramContext | EAutomationTestFlags::
+	EAutomationTestFlags::CommandletContext  | EAutomationTestFlags::
 	ProductFilter)
 
 

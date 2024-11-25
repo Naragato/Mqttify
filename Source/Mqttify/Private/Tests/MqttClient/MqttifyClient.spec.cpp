@@ -13,8 +13,7 @@ BEGIN_DEFINE_SPEC(
 	FMqttifyClientTests,
 	"Mqttify.Automation.MqttifyClientTests",
 	EAutomationTestFlags::ProductFilter | EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext |
-	EAutomationTestFlags::ServerContext | EAutomationTestFlags::CommandletContext | EAutomationTestFlags::
-	ProgramContext)
+	EAutomationTestFlags::ServerContext | EAutomationTestFlags::CommandletContext)
 
 	static constexpr TCHAR kTopic[] = TEXT("/Test");
 	FString DockerContainerName = TEXT("vernemq_test_container");

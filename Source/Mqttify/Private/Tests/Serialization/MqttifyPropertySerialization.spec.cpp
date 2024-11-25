@@ -10,7 +10,7 @@ namespace Mqttify
 		MqttifyPropertySpec,
 		"Mqttify.Automation.MqttifyProperty",
 		EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ServerContext
-		| EAutomationTestFlags::CommandletContext | EAutomationTestFlags::ProgramContext | EAutomationTestFlags::
+		| EAutomationTestFlags::CommandletContext  | EAutomationTestFlags::
 		ProductFilter)
 
 	END_DEFINE_SPEC(MqttifyPropertySpec)

@@ -19,8 +19,7 @@ BEGIN_DEFINE_SPEC(
 	FMqttifyClientLongRunningTest,
 	"Mqttify.Automation.MqttifyClientLongRunningTest",
 	EAutomationTestFlags::ProductFilter | EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext |
-	EAutomationTestFlags::ServerContext | EAutomationTestFlags::CommandletContext | EAutomationTestFlags::
-	ProgramContext)
+	EAutomationTestFlags::ServerContext | EAutomationTestFlags::CommandletContext)
 	static constexpr TCHAR kTopic[] = TEXT("/LongRunningTest");
 	FString DockerContainerName = TEXT("vernemq_test_container");
 	TArray<TSharedRef<IMqttifyClient>> MqttClients;

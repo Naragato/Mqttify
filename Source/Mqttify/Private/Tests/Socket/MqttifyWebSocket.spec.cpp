@@ -72,8 +72,7 @@ BEGIN_DEFINE_SPEC(
 	MqttifyMqttifyWebSocketSpec,
 	"Mqttify.Automation.MqttifyWebSocket",
 	EAutomationTestFlags::ProductFilter | EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext |
-	EAutomationTestFlags::ServerContext | EAutomationTestFlags::CommandletContext | EAutomationTestFlags::
-	ProgramContext)
+	EAutomationTestFlags::ServerContext | EAutomationTestFlags::CommandletContext)
 	TSharedPtr<FMqttifySocketRunnable> SocketRunner;
 	TUniquePtr<FLibWebSocketRunnable> LibWebSocketRunner;
 	static constexpr TCHAR SocketError[] = TEXT("SocketError");

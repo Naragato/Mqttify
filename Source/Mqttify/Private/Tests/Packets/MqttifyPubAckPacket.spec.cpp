@@ -9,7 +9,7 @@ BEGIN_DEFINE_SPEC(
 	MqttifyPubAckPacket,
 	"Mqttify.Automation.MqttifyPubAckPacket",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ServerContext |
-	EAutomationTestFlags::CommandletContext | EAutomationTestFlags::ProgramContext | EAutomationTestFlags::
+	EAutomationTestFlags::CommandletContext  | EAutomationTestFlags::
 	ProductFilter)
 
 	static TArray<uint8> GetMqtt5PubAckWithProperties(const EMqttifyReasonCode InReasonCode)

@@ -12,7 +12,7 @@ BEGIN_DEFINE_SPEC(
 	MqttifyConnAckPacket,
 	"Mqttify.Automation.MqttifyConnAckPacket",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ServerContext |
-	EAutomationTestFlags::CommandletContext | EAutomationTestFlags::ProgramContext | EAutomationTestFlags::
+	EAutomationTestFlags::CommandletContext  | EAutomationTestFlags::
 	ProductFilter)
 
 	static TArray<uint8> SerializeConnackMqtt3(const bool bSessionPresent, const EMqttifyConnectReturnCode ReturnCode)

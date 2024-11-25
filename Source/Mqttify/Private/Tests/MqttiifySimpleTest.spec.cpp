@@ -6,7 +6,7 @@ BEGIN_DEFINE_SPEC(
 	FMqttiifySimpleTest,
 	"Mqttify.Automation.SimpleSpec",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ServerContext |
-	EAutomationTestFlags::CommandletContext | EAutomationTestFlags::ProgramContext | EAutomationTestFlags::EngineFilter)
+	EAutomationTestFlags::CommandletContext  | EAutomationTestFlags::EngineFilter)
 END_DEFINE_SPEC(FMqttiifySimpleTest)
 
 void FMqttiifySimpleTest::Define()

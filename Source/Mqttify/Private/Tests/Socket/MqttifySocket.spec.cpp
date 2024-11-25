@@ -16,8 +16,7 @@ BEGIN_DEFINE_SPEC(
 	MqttifyMqttifySocketSpec,
 	"Mqttify.Automation.MqttifySocket",
 	EAutomationTestFlags::ProductFilter | EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext |
-	EAutomationTestFlags::ServerContext | EAutomationTestFlags::CommandletContext | EAutomationTestFlags::
-	ProgramContext)
+	EAutomationTestFlags::ServerContext | EAutomationTestFlags::CommandletContext)
 	TSharedPtr<FMqttifySocketRunnable> SocketRunner;
 	FSocket* ListeningSocket;
 	static constexpr TCHAR SocketError[] = TEXT("SocketError");
