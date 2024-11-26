@@ -22,7 +22,6 @@ namespace Mqttify
 	{
 		FScopeLock Lock(&ClientMapLock);
 		const uint32 Hash = InConnectionSettings->GetHashCode();
-
 		if (const TWeakPtr<ITickableMqttifyClient>* Client = MqttifyClients.Find(Hash))
 		{
 			if (Client->IsValid())
@@ -45,7 +44,7 @@ namespace Mqttify
 			{
 				return;
 			}
-			FScopeLock DeleterLock(&StrongSelf->ClientMapLock);
+
 			const FMqttifyConnectionSettingsRef ConnectionSettings = InClient->GetConnectionSettings();
 			// Find a client and remove it from the list of clients.
 			const uint32 DeleterHash = ConnectionSettings->GetHashCode();
@@ -54,13 +53,13 @@ namespace Mqttify
 				TEXT("Disposing client with hash %u, ClientId %s"),
 				DeleterHash,
 				*ConnectionSettings->GetClientId());
-			StrongSelf->MqttifyClients.Remove(DeleterHash);
-			delete InClient;
 
-			if (StrongSelf->MqttifyClients.IsEmpty())
 			{
-				StrongSelf->Kill();
+				FScopeLock DeleterLock(&StrongSelf->ClientMapLock);
+				StrongSelf->MqttifyClients.Remove(DeleterHash);
 			}
+
+			delete InClient;
 		};
 
 		TSharedPtr<ITickableMqttifyClient> OutClient = Create(InConnectionSettings, MoveTemp(Deleter));
@@ -70,10 +69,9 @@ namespace Mqttify
 			return nullptr;
 		}
 
-		bool bExpected = false;
-
 		if constexpr (GMqttifyThreadMode != EMqttifyThreadMode::GameThread)
 		{
+			bool bExpected = false;
 			if (nullptr == Thread && bIsRunning.compare_exchange_strong(bExpected, true, std::memory_order_acq_rel))
 			{
 				// Here we create the thread that will tick the clients.
@@ -114,8 +112,8 @@ namespace Mqttify
 
 	void FMqttifyClientPool::Kill()
 	{
-		bool bExpected = true;
-		if (nullptr != Thread && bIsRunning.compare_exchange_strong(bExpected, false, std::memory_order_acq_rel))
+		bIsRunning.store(false, std::memory_order_release);
+		if (nullptr != Thread)
 		{
 			if (nullptr == Thread)
 			{
