@@ -24,7 +24,7 @@ BEGIN_DEFINE_SPEC(
 	FString DockerContainerName = TEXT("vernemq_test_container");
 	TArray<TSharedRef<IMqttifyClient>> MqttClients;
 
-	float TestDurationSeconds = 120.0f; // default to 1 hour
+	float TestDurationSeconds = 120.0f;
 	int32 MaxPendingMessages = 120;
 
 	FDateTime StartTime;
@@ -40,7 +40,7 @@ BEGIN_DEFINE_SPEC(
 	void PublishMessages(const EMqttifyQualityOfService InQoS);
 	void DisconnectClients(const FDoneDelegate& InAfterDone) const;
 	void CheckTestCompletion(const FDoneDelegate& TestDone);
-
+	ELogVerbosity::Type OriginalLogVerbosity = LogMqttify.GetVerbosity();
 END_DEFINE_SPEC(FMqttifyClientLongRunningTest)
 
 void FMqttifyClientLongRunningTest::Define()
@@ -69,6 +69,7 @@ void FMqttifyClientLongRunningTest::Define()
 					FTimespan::FromSeconds(120),
 					[this, Spec, QoS](const FDoneDelegate& BeforeDone)
 					{
+						LogMqttify.SetVerbosity(ELogVerbosity::VeryVerbose);
 						if (!StartBroker(DockerContainerName, Spec))
 						{
 							AddError(TEXT("Failed to start MQTT broker"));
@@ -78,6 +79,21 @@ void FMqttifyClientLongRunningTest::Define()
 						}
 						SetupClients(Spec, BeforeDone, QoS);
 					});
+
+				LatentIt(
+				TEXT("UnsubscribeAsync.Next is called for const TSet<FString>& InTopicFilters"),
+				FTimespan::FromSeconds(120.0f),
+				[this](const FDoneDelegate& TestDone)
+				{
+					const TSharedPtr<IMqttifyClient> Client = MqttClients[0];
+					const TSet TopicFilters = {FString{kTopic}};
+					Client->UnsubscribeAsync(TopicFilters).Next(
+						[this, TestDone](const TMqttifyResult<TArray<FMqttifyUnsubscribeResult>>& InResult)
+						{
+							TestTrue(TEXT("UnsubscribeAsync.Next should be called"), InResult.HasSucceeded());
+							TestDone.Execute();
+						});
+				});
 
 				LatentIt(
 					FString::Printf(TEXT("Continuously send messages to a subscriber")),
@@ -307,6 +323,7 @@ void FMqttifyClientLongRunningTest::DisconnectClients(const FDoneDelegate& InAft
 				{
 					return;
 				}
+				LogMqttify.SetVerbosity(OriginalLogVerbosity);
 				InAfterDone.Execute();
 			});
 	}
