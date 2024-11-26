@@ -80,8 +80,5 @@ namespace Mqttify
 			"FMqttifyClientConnectingState::TransitionToState: TClientState must inherit from FMqttifyClientState.");
 		bTransitioning = true;
 		TransitionTo(MakeShared<TClientState>(OnStateChanged, Context, Socket));
-		Socket->GetOnConnectDelegate().RemoveAll(this);
-		Socket->GetOnDisconnectDelegate().RemoveAll(this);
-		Socket->GetOnDataReceivedDelegate().RemoveAll(this);
 	}
 } // namespace Mqttify
