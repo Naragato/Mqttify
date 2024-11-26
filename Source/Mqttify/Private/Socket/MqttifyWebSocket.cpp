@@ -34,27 +34,6 @@ namespace Mqttify
 	{
 		{
 			FScopeLock Lock{&SocketAccessLock};
-			LOG_MQTTIFY(
-				VeryVerbose,
-				TEXT("Connecting to socket on %s, ClientId %s"),
-				*ConnectionSettings->ToString(),
-				*ConnectionSettings->GetClientId());
-
-			EMqttifySocketState Expected = EMqttifySocketState::Disconnected;
-			if (!CurrentState.compare_exchange_strong(
-				Expected,
-				EMqttifySocketState::Connecting,
-				std::memory_order_acq_rel,
-				std::memory_order_acquire))
-			{
-				LOG_MQTTIFY(
-					Warning,
-					TEXT("Socket already connecting %s, ClientId %s"),
-					*ConnectionSettings->ToString(),
-					*ConnectionSettings->GetClientId());
-				return;
-			}
-
 			if (!Socket.IsValid())
 			{
 				const TArray<FString> Protocols = {TEXT("mqtt")};
@@ -82,6 +61,26 @@ namespace Mqttify
 
 	void FMqttifyWebSocket::Connect()
 	{
+		LOG_MQTTIFY(
+				VeryVerbose,
+				TEXT("Connecting to socket on %s, ClientId %s"),
+				*ConnectionSettings->ToString(),
+				*ConnectionSettings->GetClientId());
+
+		EMqttifySocketState Expected = EMqttifySocketState::Disconnected;
+		if (!CurrentState.compare_exchange_strong(
+			Expected,
+			EMqttifySocketState::Connecting,
+			std::memory_order_acq_rel,
+			std::memory_order_acquire))
+		{
+			LOG_MQTTIFY(
+				Warning,
+				TEXT("Socket already connecting %s, ClientId %s"),
+				*ConnectionSettings->ToString(),
+				*ConnectionSettings->GetClientId());
+			return;
+		}
 		TWeakPtr<FMqttifyWebSocket> WeakSelf = AsShared();
 		AsyncTask(
 			ENamedThreads::GameThread,
@@ -96,6 +95,32 @@ namespace Mqttify
 
 	void FMqttifyWebSocket::Disconnect()
 	{
+		EMqttifySocketState Expected = CurrentState.load(std::memory_order_acquire);
+
+		if (Expected == EMqttifySocketState::Disconnected || Expected == EMqttifySocketState::Disconnecting)
+		{
+			LOG_MQTTIFY(
+				Warning,
+				TEXT("Socket already disconnected %s, ClientId %s"),
+				*ConnectionSettings->ToString(),
+				*ConnectionSettings->GetClientId());
+			return;
+		}
+
+		if (!CurrentState.compare_exchange_strong(
+			Expected,
+			EMqttifySocketState::Disconnecting,
+			std::memory_order_acq_rel,
+			std::memory_order_acquire))
+		{
+			LOG_MQTTIFY(
+				Warning,
+				TEXT("Socket already disconnecting %s, ClientId %s"),
+				*ConnectionSettings->ToString(),
+				*ConnectionSettings->GetClientId());
+			return;
+		}
+
 		TWeakPtr<FMqttifyWebSocket> WeakSelf = AsShared();
 		AsyncTask(
 			ENamedThreads::GameThread,

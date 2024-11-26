@@ -46,7 +46,7 @@ namespace Mqttify
 			, AttemptCount{0}
 		{
 			Socket->Connect();
-		};
+		}
 
 		explicit FMqttifyClientConnectingState(
 			const FOnStateChangedDelegate& InOnStateChanged,
