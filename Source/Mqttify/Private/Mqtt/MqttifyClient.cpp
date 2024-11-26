@@ -293,7 +293,7 @@ namespace Mqttify
 		if (InPrevious != CurrentState.Get())
 		{
 			LOG_MQTTIFY(
-				Warning,
+				VeryVerbose,
 				TEXT("Transitioning from a different state than the current state. Ignoring transition."));
 			return;
 		}
