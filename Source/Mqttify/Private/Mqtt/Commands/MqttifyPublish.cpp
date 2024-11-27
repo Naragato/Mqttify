@@ -34,7 +34,7 @@ namespace Mqttify
 		if (!bIsDone)
 		{
 			bIsDone = true;
-			LOG_MQTTIFY_PACKET_REF(
+			LOG_MQTTIFY_PACKET(
 				Error,
 				TEXT("[Publish (Connection %s, ClientId %s)] Abandoning"),
 				PublishPacket,
@@ -182,7 +182,7 @@ namespace Mqttify
 		if (PublishState != EPublishState::Complete)
 		{
 			PublishState = EPublishState::Complete;
-			LOG_MQTTIFY_PACKET_REF(
+			LOG_MQTTIFY_PACKET(
 				Error,
 				TEXT("[Publish (Connection %s, ClientId %s)] Abandoning"),
 				PublishPacket,
@@ -218,7 +218,7 @@ namespace Mqttify
 		if (!bIsDone)
 		{
 			bIsDone = true;
-			LOG_MQTTIFY_PACKET_REF(
+			LOG_MQTTIFY_PACKET(
 				Warning,
 				TEXT("[Publish (Connection %s, ClientId %s)] Abandoning"),
 				PublishPacket,

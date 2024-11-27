@@ -42,7 +42,7 @@ namespace Mqttify
 				return;
 			}
 			++PacketTries;
-			LOG_MQTTIFY_PACKET_REF(
+			LOG_MQTTIFY_PACKET(
 				VeryVerbose,
 				TEXT( "(Connection %s, ClientId %s) Sending %s, Attempt %d"),
 				InPacket.ToSharedRef(),
@@ -57,7 +57,7 @@ namespace Mqttify
 
 			if (!PinnedSocket->IsConnected())
 			{
-				LOG_MQTTIFY_PACKET_REF(
+				LOG_MQTTIFY_PACKET(
 					Error,
 					TEXT( "(Connection %s, ClientId %s) Socket disconnected while sending packet"),
 					InPacket.ToSharedRef(),

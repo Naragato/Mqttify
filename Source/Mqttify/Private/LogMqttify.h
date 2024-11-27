@@ -29,58 +29,70 @@ StringCast<TCHAR>(MQTTIFY_PRETTY_FUNCTION).Get(),\
 *FString::Printf(Format, ##__VA_ARGS__));\
 } while (0)
 
-/**
- * @brief Print the packet type, packet id, and the serialized data as hex.
- * @param Level The log level to print at.
- * @param LogPacket The packet to print.
- */
-#define LOG_MQTTIFY_PACKET(Level, LogPacket)\
-do {\
-if (UE_LOG_ACTIVE(LogMqttify, Level))\
-{\
-IMqttifyControlPacket& Packet = const_cast<IMqttifyControlPacket&>(LogPacket);\
-TArray<uint8> SerializedData;\
-FMemoryWriter Writer(SerializedData);\
-Packet.Encode(Writer);\
-FString HexString;\
-for (uint8 Byte : SerializedData)\
-{\
-HexString += FString::Printf(TEXT("%02x "), Byte);\
-}\
-LOG_MQTTIFY(Level, TEXT("Packet Type: %s, PacketId: %d, Hex Value: %s"),\
-EnumToTCharString(Packet.GetPacketType()),\
-Packet.GetPacketId(),\
-*HexString);\
-}\
-} while(0)
-
-/**
- * @brief Convert data to a hex string.
- * @param Data The data to convert.
- * @param Length The length of the data.
- * @return The hex string representation of the data.
- */
-inline FString DataToHexString(const uint8* Data, size_t Length)
+namespace Mqttify
 {
-	FString HexString;
-	for (size_t i = 0; i < Length; ++i)
+	template <typename T>
+	struct IsAllowedPointerType : std::false_type
 	{
-		HexString += FString::Printf(TEXT("%02x "), Data[i]);
-	}
-	return HexString;
-}
+	};
 
-/**
- * @brief Serialize a packet to a hex string.
- * @param InLogPacket The packet to serialize.
- * @return The hex string representation of the serialized packet.
- */
-inline FString SerializePacketToHexString(const TSharedRef<Mqttify::IMqttifyControlPacket>& InLogPacket)
-{
-	TArray<uint8> SerializedData;
-	FMemoryWriter Writer(SerializedData);
-	InLogPacket->Encode(Writer);
-	return DataToHexString(SerializedData.GetData(), SerializedData.Num());
+	// Specializations for TSharedRef, TSharedPtr, and TUniquePtr
+	template <typename U>
+	struct IsAllowedPointerType<TSharedRef<U>> : std::true_type
+	{
+	};
+
+	template <typename U>
+	struct IsAllowedPointerType<TSharedPtr<U>> : std::true_type
+	{
+	};
+
+	template <typename U>
+	struct IsAllowedPointerType<TUniquePtr<U>> : std::true_type
+	{
+	};
+
+	/**
+	 * @brief Convert data to a hex string.
+	 * @param Data The data to convert.
+	 * @param Length The length of the data.
+	 * @return The hex string representation of the data.
+	 */
+	inline FString DataToHexString(const uint8* Data, size_t Length)
+	{
+		FString HexString;
+		for (size_t i = 0; i < Length; ++i)
+		{
+			HexString += FString::Printf(TEXT("%02x "), Data[i]);
+		}
+		return HexString;
+	}
+
+	/**
+	* @brief Serialize a packet to a hex string.
+	* @param InLogPacket The packet to serialize.
+	* @return The hex string representation of the serialized packet.
+	*/
+	template <typename TPointerType>
+	FString SerializePacketToHexString(const TPointerType& InLogPacket)
+	{
+		static_assert(
+			IsAllowedPointerType<TPointerType>::value,
+			"TPointerType must be TSharedRef, TSharedPtr, or TUniquePtr");
+
+		if constexpr (std::is_same_v<TPointerType, TUniquePtr<IMqttifyControlPacket>> || std::is_same_v<TPointerType, TSharedPtr<IMqttifyControlPacket>>)
+		{
+			if (!InLogPacket.IsValid())
+			{
+				return TEXT("nullptr");
+			}
+		}
+
+		TArray<uint8> SerializedData;
+		FMemoryWriter Writer(SerializedData);
+		InLogPacket->Encode(Writer);
+		return DataToHexString(SerializedData.GetData(), SerializedData.Num());
+	}
 }
 
 /**
@@ -90,15 +102,15 @@ inline FString SerializePacketToHexString(const TSharedRef<Mqttify::IMqttifyCont
  * @param LogPacket The packet to print.
  * @param ... Additional arguments for the custom message.
  */
-#define LOG_MQTTIFY_PACKET_REF(Level, Msg, LogPacket, ...)\
+#define LOG_MQTTIFY_PACKET(Level, Msg, LogPacket, ...)\
 do {\
 if (UE_LOG_ACTIVE(LogMqttify, Level))\
 {\
 LOG_MQTTIFY(Level, TEXT("%s. Packet Type: %s, PacketId: %d, Hex Value: %s"), \
 *FString::Printf(Msg, ##__VA_ARGS__),\
-EnumToTCharString(LogPacket->GetPacketType()),\
+Mqttify::EnumToTCharString(LogPacket->GetPacketType()),\
 LogPacket->GetPacketId(),\
-*SerializePacketToHexString(LogPacket));\
+*Mqttify::SerializePacketToHexString(LogPacket));\
 }\
 } while(0)
 
@@ -114,7 +126,7 @@ LogPacket->GetPacketId(),\
 do {\
 if (UE_LOG_ACTIVE(LogMqttify, Level))\
 {\
-FString HexString = DataToHexString(reinterpret_cast<const uint8*>(Data), static_cast<size_t>(Length));\
+FString HexString = Mqttify::DataToHexString(reinterpret_cast<const uint8*>(Data), static_cast<size_t>(Length));\
 LOG_MQTTIFY(Level, TEXT("%s. Data as hex: %s, Length: %d"),\
 *FString::Printf(Msg, ##__VA_ARGS__),\
 *HexString,\

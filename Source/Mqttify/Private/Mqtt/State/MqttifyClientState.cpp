@@ -104,6 +104,7 @@ namespace Mqttify
 		}
 
 		LOG_MQTTIFY(VeryVerbose, TEXT("Created packet: %s, %d"), EnumToTCharString(Result->GetPacketType()), Result->GetPacketId());
+		LOG_MQTTIFY_PACKET(VeryVerbose, TEXT("Received packet:"), Result);
 		return Result;
 	}
 } // namespace Mqttify
