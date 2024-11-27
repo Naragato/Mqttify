@@ -34,20 +34,46 @@ namespace Mqttify
 	{
 		{
 			FScopeLock Lock{&SocketAccessLock};
+			if (CurrentState.load(std::memory_order_acquire) != EMqttifySocketState::Connecting)
+			{
+				return;
+			}
 			if (!Socket.IsValid())
 			{
 				const TArray<FString> Protocols = {TEXT("mqtt")};
 				static const TMap<FString, FString> Headers = {{TEXT("Connection"), TEXT("Upgrade")}, {TEXT("Upgrade"), TEXT("websocket")}};
 				Socket = FWebSocketsModule::Get().CreateWebSocket(ConnectionSettings->ToString(), Protocols, Headers);
-				if (Socket.IsValid())
+			}
+
+			if (Socket.IsValid())
+			{
+				if (!Socket->OnConnected().IsBoundToObject(this))
 				{
 					Socket->OnConnected().AddThreadSafeSP(this, &FMqttifyWebSocket::HandleWebSocketConnected);
-					Socket->OnConnectionError().AddThreadSafeSP(this, &FMqttifyWebSocket::HandleWebSocketConnectionError);
-					Socket->OnClosed().AddThreadSafeSP(this, &FMqttifyWebSocket::HandleWebSocketConnectionClosed);
-					Socket->OnRawMessage().AddThreadSafeSP(this, &FMqttifyWebSocket::HandleWebSocketData);
-					Socket->Connect();
-					return;
 				}
+
+				if (!Socket->OnConnectionError().IsBoundToObject(this))
+				{
+					Socket->OnConnectionError().AddThreadSafeSP(this, &FMqttifyWebSocket::HandleWebSocketConnectionError);
+				}
+
+				if (!Socket->OnClosed().IsBoundToObject(this))
+				{
+					Socket->OnClosed().AddThreadSafeSP(this, &FMqttifyWebSocket::HandleWebSocketConnectionClosed);
+				}
+
+				if (!Socket->OnRawMessage().IsBoundToObject(this))
+				{
+					Socket->OnRawMessage().AddThreadSafeSP(this, &FMqttifyWebSocket::HandleWebSocketData);
+				}
+
+				LOG_MQTTIFY(
+					Verbose,
+					TEXT("Connecting to socket on %s, ClientId %s"),
+					*ConnectionSettings->ToString(),
+					*ConnectionSettings->GetClientId());
+				Socket->Connect();
+				return;
 			}
 		}
 
