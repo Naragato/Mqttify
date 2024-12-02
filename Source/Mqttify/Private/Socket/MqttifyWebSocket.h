@@ -24,11 +24,12 @@ namespace Mqttify
 		virtual ~FMqttifyWebSocket() override;
 		virtual void Connect() override;
 		virtual void Disconnect() override;
-		virtual void Send(const uint8* Data, uint32 Size) override;
 		virtual void Tick() override;
 		virtual bool IsConnected() const override;
 
 	private:
+		virtual void Send(const uint8* Data, uint32 Size) override;
+		virtual void Send(const TSharedRef<IMqttifyControlPacket>& InPacket) override;
 		void Connect_Internal();
 		void Disconnect_Internal();
 		void HandleWebSocketConnected();

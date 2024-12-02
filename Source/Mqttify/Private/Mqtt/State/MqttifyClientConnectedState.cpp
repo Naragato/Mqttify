@@ -132,11 +132,9 @@ namespace Mqttify
 				{
 				case EMqttifyQualityOfService::AtLeastOnce:
 					{
-						TMqttifyPubAckPacket<GMqttifyProtocol> PubAckPacket{PublishPacket->GetPacketId()};
-						TArray<uint8> ActualBytes;
-						FMemoryWriter Writer(ActualBytes);
-						PubAckPacket.Encode(Writer);
-						Socket->Send(ActualBytes.GetData(), ActualBytes.Num());
+						const auto PubAckPacket = MakeShared<TMqttifyPubAckPacket<GMqttifyProtocol>>(
+							PublishPacket->GetPacketId());
+						Socket->Send(PubAckPacket);
 						break;
 					}
 				case EMqttifyQualityOfService::ExactlyOnce:

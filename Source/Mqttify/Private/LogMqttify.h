@@ -1,8 +1,8 @@
 #pragma once
 
+#include "IsAllowedPointerType.h"
 #include "Packets/Interface/IMqttifyControlPacket.h"
 #include "Templates/SharedPointer.h"
-#include <type_traits>
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMqttify, Display, All);
 
@@ -31,26 +31,7 @@ StringCast<TCHAR>(MQTTIFY_PRETTY_FUNCTION).Get(),\
 
 namespace Mqttify
 {
-	template <typename T>
-	struct IsAllowedPointerType : std::false_type
-	{
-	};
 
-	// Specializations for TSharedRef, TSharedPtr, and TUniquePtr
-	template <typename U>
-	struct IsAllowedPointerType<TSharedRef<U>> : std::true_type
-	{
-	};
-
-	template <typename U>
-	struct IsAllowedPointerType<TSharedPtr<U>> : std::true_type
-	{
-	};
-
-	template <typename U>
-	struct IsAllowedPointerType<TUniquePtr<U>> : std::true_type
-	{
-	};
 
 	/**
 	 * @brief Convert data to a hex string.

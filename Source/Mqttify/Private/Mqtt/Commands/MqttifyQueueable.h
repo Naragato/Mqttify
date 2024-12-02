@@ -79,7 +79,7 @@ namespace Mqttify
 		 * @brief Send the packet over the Socket.
 		 * @param InPacket The packet to send.
 		 */
-		void SendPacketInternal(const TSharedPtr<IMqttifyControlPacket>& InPacket);
+		void SendPacketInternal(const TSharedRef<IMqttifyControlPacket>& InPacket);
 
 		/**
 		 * @brief Trigger the action

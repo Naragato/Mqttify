@@ -4,6 +4,14 @@
 
 namespace Mqttify
 {
+	class IMqttifyControlPacket;
+}
+
+class MqttifyMqttifySocketSpec;
+class MqttifyMqttifyWebSocketSpec;
+
+namespace Mqttify
+{
 	using FMqttifySocketRef = TSharedRef<class FMqttifySocketBase>;
 	using FMqttifySocketWeakPtr = TWeakPtr<FMqttifySocketBase>;
 
@@ -41,13 +49,7 @@ namespace Mqttify
 		// then send on tick ? We could use a thread safe queue for that. Which would
 		// allow us to remove the lock on the send function.
 
-		/**
-		* @brief Send data to the server.
-		* @param Data The data to send.
-		* @param Size The size of the data to send.
-		* @return True if the data was sent successfully, false otherwise.
-		*/
-		virtual void Send(const uint8* Data, uint32 Size) = 0;
+
 		/// @brief Tick the connection (e.g., poll for incoming data, check for timeouts, etc.)
 		virtual void Tick() = 0;
 
@@ -56,6 +58,12 @@ namespace Mqttify
 
 		void ReadPacketsFromBuffer();
 
+		/**
+		 * @brief Send a packet to the server.
+		 * @param InPacket The packet to send.
+		 */
+		virtual void Send(const TSharedRef<IMqttifyControlPacket>& InPacket) = 0;
+
 	protected:
 		mutable FCriticalSection SocketAccessLock{};
 		FOnDataReceivedDelegate OnDataReceiveDelegate{};
@@ -63,5 +71,16 @@ namespace Mqttify
 		FOnDisconnectDelegate OnDisconnectDelegate{};
 		TArray<uint8> DataBuffer;
 		const FMqttifyConnectionSettingsRef ConnectionSettings;
+
+	protected:
+		/**
+		* @brief Send data to the server.
+		* @param Data The data to send.
+		* @param Size The size of the data to send.
+		* @return True if the data was sent successfully, false otherwise.
+		*/
+		virtual void Send(const uint8* Data, uint32 Size) = 0;
+		friend  ::MqttifyMqttifySocketSpec;
+		friend ::MqttifyMqttifyWebSocketSpec;
 	};
 } // namespace Mqttify

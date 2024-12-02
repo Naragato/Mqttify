@@ -29,27 +29,24 @@ namespace Mqttify
 		}
 
 		const FDateTime Now = FDateTime::Now();
-		if (Now - LastConnectAttempt < FTimespan::FromSeconds(Context->GetConnectionSettings()->GetPacketRetryIntervalSeconds()) * (AttemptCount + 1))
+		if (Now - LastConnectAttempt < FTimespan::FromSeconds(
+			Context->GetConnectionSettings()->GetPacketRetryIntervalSeconds()) * (AttemptCount + 1))
 		{
 			return;
 		}
 		LastConnectAttempt = Now;
 		++AttemptCount;
-		FMqttifyCredentialsProviderRef Credentials = Context->GetConnectionSettings()->GetCredentialsProvider();
 
-		TMqttifyConnectPacket<GMqttifyProtocol> ConnectPacket{
+		const FMqttifyCredentialsProviderRef Credentials = Context->GetConnectionSettings()->GetCredentialsProvider();
+		const auto ConnectPacketRef = MakeShared<TMqttifyConnectPacket<GMqttifyProtocol>>(
 			Context->GetConnectionSettings()->GetClientId(),
 			Context->GetConnectionSettings()->GetKeepAliveIntervalSeconds(),
 			Credentials->GetCredentials().Username,
 			Credentials->GetCredentials().Password,
 			bCleanSession,
-			false
-		};
+			false);
 
-		TArray<uint8> ActualBytes;
-		FMemoryWriter Writer(ActualBytes);
-		ConnectPacket.Encode(Writer);
-		Socket->Send(ActualBytes.GetData(), ActualBytes.Num());
+		Socket->Send(ConnectPacketRef);
 	}
 
 	FConnectFuture FMqttifyClientConnectingState::ConnectAsync(bool bInCleanSession)
@@ -116,7 +113,10 @@ namespace Mqttify
 
 		if (Packet->GetPacketType() != EMqttifyPacketType::ConnAck)
 		{
-			LOG_MQTTIFY(Error, TEXT("Expected ConnAck packet, but got %s."), EnumToTCharString(Packet->GetPacketType()));
+			LOG_MQTTIFY(
+				Error,
+				TEXT("Expected ConnAck packet, but got %s."),
+				EnumToTCharString(Packet->GetPacketType()));
 			Socket->Disconnect();
 			return;
 		}
@@ -127,7 +127,10 @@ namespace Mqttify
 				static_cast<TMqttifyConnAckPacket<EMqttifyProtocolVersion::Mqtt_5>*>(Packet.Release()));
 			if (ConnAckPacket->GetReasonCode() != EMqttifyReasonCode::Success)
 			{
-				LOG_MQTTIFY(Error, TEXT("Failed to connect. Reason: %s."), EnumToTCharString(ConnAckPacket->GetReasonCode()));
+				LOG_MQTTIFY(
+					Error,
+					TEXT("Failed to connect. Reason: %s."),
+					EnumToTCharString(ConnAckPacket->GetReasonCode()));
 				Socket->Disconnect();
 				return;
 			}
@@ -138,7 +141,10 @@ namespace Mqttify
 				static_cast<TMqttifyConnAckPacket<EMqttifyProtocolVersion::Mqtt_3_1_1>*>(Packet.Release()));
 			if (ConnAckPacket->GetReasonCode() != EMqttifyConnectReturnCode::Accepted)
 			{
-				LOG_MQTTIFY(Error, TEXT("Failed to connect. Reason: %s."), EnumToTCharString(ConnAckPacket->GetReasonCode()));
+				LOG_MQTTIFY(
+					Error,
+					TEXT("Failed to connect. Reason: %s."),
+					EnumToTCharString(ConnAckPacket->GetReasonCode()));
 				Socket->Disconnect();
 				return;
 			}

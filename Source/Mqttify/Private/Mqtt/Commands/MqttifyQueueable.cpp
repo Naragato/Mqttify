@@ -2,7 +2,6 @@
 
 #include "LogMqttify.h"
 #include "Packets/Interface/IMqttifyControlPacket.h"
-#include "Serialization/MemoryWriter.h"
 
 namespace Mqttify
 {
@@ -29,12 +28,9 @@ namespace Mqttify
 		return NextImpl();
 	}
 
-	void FMqttifyQueueable::SendPacketInternal(const TSharedPtr<IMqttifyControlPacket>& InPacket)
+	void FMqttifyQueueable::SendPacketInternal(const TSharedRef<IMqttifyControlPacket>& InPacket)
 	{
-		if (!InPacket.IsValid())
-		{
-			return;
-		}
+
 		if (const TSharedPtr<FMqttifySocketBase> PinnedSocket = Socket.Pin())
 		{
 			if (!PinnedSocket->IsConnected())
@@ -45,22 +41,20 @@ namespace Mqttify
 			LOG_MQTTIFY_PACKET(
 				VeryVerbose,
 				TEXT( "(Connection %s, ClientId %s) Sending %s, Attempt %d"),
-				InPacket.ToSharedRef(),
+				InPacket,
 				*Settings->GetHost(),
 				*Settings->GetClientId(),
 				EnumToTCharString(InPacket->GetPacketType()),
 				PacketTries);
-			TArray<uint8> ActualBytes;
-			FMemoryWriter Writer(ActualBytes);
-			InPacket->Encode(Writer);
-			PinnedSocket->Send(ActualBytes.GetData(), ActualBytes.Num());
+
+			PinnedSocket->Send(InPacket);
 
 			if (!PinnedSocket->IsConnected())
 			{
 				LOG_MQTTIFY_PACKET(
 					Error,
 					TEXT( "(Connection %s, ClientId %s) Socket disconnected while sending packet"),
-					InPacket.ToSharedRef(),
+					InPacket,
 					*Settings->GetHost(),
 					*Settings->GetClientId());
 				Abandon();

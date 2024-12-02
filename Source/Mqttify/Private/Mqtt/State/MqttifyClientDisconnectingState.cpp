@@ -42,11 +42,8 @@ namespace Mqttify
 	{
 		if (Socket->IsConnected())
 		{
-			TMqttifyDisconnectPacket<GMqttifyProtocol> DisconnectPacket;
-			TArray<uint8> ActualBytes;
-			FMemoryWriter Writer(ActualBytes);
-			DisconnectPacket.Encode(Writer);
-			Socket->Send(ActualBytes.GetData(), ActualBytes.Num());
+			const auto DisconnectPacketRef = MakeShared<TMqttifyDisconnectPacket<GMqttifyProtocol>>();
+			Socket->Send(DisconnectPacketRef);
 			Socket->Disconnect();
 		}
 		else

@@ -64,7 +64,6 @@ namespace Mqttify
 		case EPubRecState::Unacknowledged:
 			Packet = GetPacket<FPubRecPacket>();
 			break;
-
 		case EPubRecState::Released:
 			Packet = GetPacket<FPubCompPacket>();
 			PubRecState = EPubRecState::Complete;
@@ -73,7 +72,9 @@ namespace Mqttify
 			return true;
 		}
 
-		SendPacketInternal(Packet);
+		check(Packet.IsValid())
+
+		SendPacketInternal(Packet.ToSharedRef());
 		return PubRecState == EPubRecState::Complete;
 	}
 

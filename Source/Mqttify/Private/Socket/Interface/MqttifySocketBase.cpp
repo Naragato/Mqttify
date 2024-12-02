@@ -1,6 +1,9 @@
 #include "MqttifySocketBase.h"
 
 #include "LogMqttify.h"
+#include "MqttifyConstants.h"
+#include "Async/Async.h"
+#include "Socket/MqttifySecureSocket.h"
 #include "Socket/MqttifyWebSocket.h"
 
 namespace Mqttify
@@ -19,11 +22,8 @@ namespace Mqttify
 		switch (InConnectionSettings->GetTransportProtocol())
 		{
 			case EMqttifyConnectionProtocol::Mqtt:
-				LOG_MQTTIFY(Error, TEXT("MQTT not supported yet"));
-				checkNoEntry();
 			case EMqttifyConnectionProtocol::Mqtts:
-				LOG_MQTTIFY(Error, TEXT("MQTTS not supported yet"));
-				checkNoEntry();
+				return MakeShared<FMqttifySecureSocket>(InConnectionSettings);
 			case EMqttifyConnectionProtocol::Ws:
 			case EMqttifyConnectionProtocol::Wss:
 			default:
