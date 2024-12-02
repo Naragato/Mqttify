@@ -20,7 +20,13 @@ namespace Mqttify
 		FMqttifySocketRef SocketUnderTest;
 		FRunnableThread* Thread;
 
-		explicit FMqttifySocketRunnable(const FString& InUrl) : SocketUnderTest{FMqttifySocketBase::Create(FMqttifyConnectionSettingsBuilder(InUrl).Build().ToSharedRef())}
+		explicit FMqttifySocketRunnable(const FString& InUrl) : SocketUnderTest{
+																FMqttifySocketBase::Create(
+																	FMqttifyConnectionSettingsBuilder(InUrl)
+																	.SetShouldVerifyCertificate(false)
+																	.Build().
+																	ToSharedRef())
+															}
 		{
 			SocketUnderTest->GetOnConnectDelegate().AddLambda(
 				[this](const bool bWasSuccessful)

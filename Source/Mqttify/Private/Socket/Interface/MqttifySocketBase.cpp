@@ -89,7 +89,7 @@ namespace Mqttify
 			TSharedPtr<FArrayReader> Packet = MakeShared<FArrayReader>(false);
 			Packet->Append(&DataBuffer[PacketStartIndex], TotalPacketSize);
 
-			DataBuffer.RemoveAt(0, TotalPacketSize);
+			DataBuffer.RemoveAt(0, TotalPacketSize, EAllowShrinking::No);
 
 			if (GetOnDataReceivedDelegate().IsBound())
 			{

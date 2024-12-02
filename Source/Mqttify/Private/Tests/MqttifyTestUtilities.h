@@ -11,11 +11,18 @@
 
 namespace Mqttify
 {
+	enum class ContainerType
+	{
+		Mqtt,
+		Echo
+	};
+
 	struct FMqttifyTestDockerSpec
 	{
 		uint32 PrivatePort;
 		uint32 PublicPort;
 		EMqttifyConnectionProtocol Protocol;
+		ContainerType Type = ContainerType::Mqtt;
 	};
 
 	inline FString GetDockerExecutable()
@@ -90,7 +97,7 @@ namespace Mqttify
 		{
 			FPlatformProcess::ExecProcess(*GetDockerExecutable(), *RunningParams, &ReturnCode, &OutString, nullptr);
 			OutString.TrimStartAndEndInline();
-			if (ReturnCode == 0 && OutString.Equals(TEXT("true"), ESearchCase::IgnoreCase))
+			if (OutString.Equals(TEXT("true"), ESearchCase::IgnoreCase))
 			{
 				return true;
 			}
@@ -107,11 +114,6 @@ namespace Mqttify
 		FString OutString;
 		const FString StopParams = FString::Printf(TEXT("stop %s"), *InDockerContainerName);
 		FPlatformProcess::ExecProcess(*GetDockerExecutable(), *StopParams, &ReturnCode, &OutString, nullptr);
-		if (ReturnCode != 0)
-		{
-			return false;
-		}
-
 		const FString RemoveParams = FString::Printf(TEXT("rm %s"), *InDockerContainerName);
 		FPlatformProcess::ExecProcess(*GetDockerExecutable(), *RemoveParams, &ReturnCode, &OutString, nullptr);
 		if (ReturnCode != 0)
@@ -151,7 +153,7 @@ namespace Mqttify
 					Socket->SetReuseAddr(true);
 					Socket->SetRecvErr();
 
-					bool bConnected = Socket->Connect(*Addr);
+					const bool bConnected = Socket->Connect(*Addr);
 					if (bConnected)
 					{
 						SocketSubsystem->DestroySocket(Socket);
@@ -186,12 +188,20 @@ namespace Mqttify
 			LOG_MQTTIFY(Warning, TEXT("Failed to remove MQTT broker container."));
 		}
 
-		const FString RunParams = FString::Printf(
-			TEXT(
-				"run -p %d:%d -e \"DOCKER_VERNEMQ_ACCEPT_EULA=yes\" -e \"DOCKER_VERNEMQ_LOG__CONSOLE__LEVEL=debug\" -e \"DOCKER_VERNEMQ_ALLOW_ANONYMOUS=on\" --name %s -d vernemq/vernemq"),
-			InSpec.PublicPort,
-			InSpec.PrivatePort,
-			*InDockerContainerName);
+		const FString RunParams = InSpec.Type == ContainerType::Mqtt
+									? FString::Printf(
+										TEXT(
+											"run -p %d:%d -e \"DOCKER_VERNEMQ_ACCEPT_EULA=yes\" -e \"DOCKER_VERNEMQ_LOG__CONSOLE__LEVEL=debug\" -e \"DOCKER_VERNEMQ_ALLOW_ANONYMOUS=on\" --name %s -d vernemq/vernemq"),
+										InSpec.PublicPort,
+										InSpec.PrivatePort,
+										*InDockerContainerName)
+									: FString::Printf(
+										TEXT(
+											"run -p %d:%d --name %s -d alpine sh -c  \"apk add --no-cache openssl && openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes -subj '/CN=localhost' && openssl s_server -accept %d -cert cert.pem -key key.pem -rev\""),
+										InSpec.PublicPort,
+										InSpec.PrivatePort,
+										*InDockerContainerName,
+										InSpec.PrivatePort);
 
 		FPlatformProcess::ExecProcess(*GetDockerExecutable(), *RunParams, &ReturnCode, &OutString, nullptr);
 

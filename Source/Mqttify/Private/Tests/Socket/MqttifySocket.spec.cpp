@@ -14,63 +14,64 @@
 using namespace Mqttify;
 BEGIN_DEFINE_SPEC(
 	MqttifyMqttifySocketSpec,
-	"Mqttify.Automation.MqttifySocket",
+	"Mqttify.Automation.FMqttifySecureSocket",
 	EAutomationTestFlags::ProductFilter | EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext |
 	EAutomationTestFlags::ServerContext | EAutomationTestFlags::CommandletContext)
 	TSharedPtr<FMqttifySocketRunnable> SocketRunner;
 	FSocket* ListeningSocket;
 	static constexpr TCHAR SocketError[] = TEXT("SocketError");
-
+	FString DockerContainerName = TEXT("tcp-ssl-echo");
+	ELogVerbosity::Type OriginalLogVerbosity = LogMqttify.GetVerbosity();
 END_DEFINE_SPEC(MqttifyMqttifySocketSpec)
 
 void MqttifyMqttifySocketSpec::Define()
 {
-	// Define the setup function for each test case
-	BeforeEach(
-		[this]
-		{
-			const uint16 Port = FindAvailablePort(1024, 32000);
-			SocketRunner = MakeShared<FMqttifySocketRunnable>(FString::Printf(TEXT("mqtt://localhost:%d"), Port));
-
-			// Create a listening socket to simulate a server
-			ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
-			const TSharedPtr<FInternetAddr> Addr = SocketSubsystem->CreateInternetAddr();
-			Addr->SetPort(Port);
-			const TSharedRef<FInternetAddr> LocalAddress = Addr.ToSharedRef();
-			ListeningSocket = SocketSubsystem->CreateSocket(NAME_Stream, TEXT("ListeningSocket"), false);
-			ListeningSocket->SetNonBlocking(true);
-
-			while (!ListeningSocket->Bind(*LocalAddress))
-			{
-				FPlatformProcess::YieldThread();
-			}
-
-			// Start listening for incoming connections
-			const bool bListenSuccessful = ListeningSocket->Listen(5);
-			if (!bListenSuccessful)
-			{
-				// Handle the case where starting listening fails
-				LOG_MQTTIFY(Error, TEXT("Starting listening failed"));
-			}
-		});
-
-	// Define the teardown function for each test case
-	AfterEach(
-		[this]
-		{
-			// Clean up the listening socket
-			ListeningSocket->Shutdown(ESocketShutdownMode::ReadWrite);
-			ListeningSocket->Close();
-			SocketRunner->Stop();
-			SocketRunner.Reset();
-			delete ListeningSocket;
-		});
-
-	// Describe the behavior of the BSD style socket
 	Describe(
-		"BSD Style Socket",
+		TEXT("BSD Style Socket"),
 		[this]
 		{
+			// Define the setup function for each test case
+			BeforeEach(
+				[this]
+				{
+					const uint16 Port = FindAvailablePort(1024, 32000);
+					SocketRunner = MakeShared<FMqttifySocketRunnable>(
+						FString::Printf(TEXT("mqtt://localhost:%d"), Port));
+
+					// Create a listening socket to simulate a server
+					ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+					const TSharedPtr<FInternetAddr> Addr = SocketSubsystem->CreateInternetAddr();
+					Addr->SetPort(Port);
+					const TSharedRef<FInternetAddr> LocalAddress = Addr.ToSharedRef();
+					ListeningSocket = SocketSubsystem->CreateSocket(NAME_Stream, TEXT("ListeningSocket"), false);
+					ListeningSocket->SetNonBlocking(true);
+
+					while (!ListeningSocket->Bind(*LocalAddress))
+					{
+						FPlatformProcess::YieldThread();
+					}
+
+					// Start listening for incoming connections
+					const bool bListenSuccessful = ListeningSocket->Listen(5);
+					if (!bListenSuccessful)
+					{
+						// Handle the case where starting listening fails
+						LOG_MQTTIFY(Error, TEXT("Starting listening failed"));
+					}
+				});
+
+			// Define the teardown function for each test case
+			AfterEach(
+				[this]
+				{
+					// Clean up the listening socket
+					ListeningSocket->Shutdown(ESocketShutdownMode::ReadWrite);
+					ListeningSocket->Close();
+					SocketRunner->Stop();
+					SocketRunner.Reset();
+					delete ListeningSocket;
+				});
+
 			// Test the connecting functionality
 			LatentIt(
 				"should connect to the server successfully",
@@ -105,7 +106,9 @@ void MqttifyMqttifySocketSpec::Define()
 
 							bool bHasPendingConnection = false;
 							ListeningSocket->WaitForPendingConnection(bHasPendingConnection, 5.0f);
-							TestTrue(TEXT("Listening socket should have a pending connection"), bHasPendingConnection);
+							TestTrue(
+								TEXT("Listening socket should have a pending connection"),
+								bHasPendingConnection);
 
 							if (!bHasPendingConnection)
 							{
@@ -163,7 +166,10 @@ void MqttifyMqttifySocketSpec::Define()
 							TestTrue(TEXT("Data should be received"), bDataReceived);
 							if (bDataReceived)
 							{
-								TestEqual(TEXT("Number of bytes received should match"), BytesRead, (int32)Size);
+								TestEqual(
+									TEXT("Number of bytes received should match"),
+									BytesRead,
+									(int32)Size);
 								TestEqual(
 									TEXT("Received data should be equal to sent data [0]"),
 									ReceivedData[0],
@@ -271,7 +277,9 @@ void MqttifyMqttifySocketSpec::Define()
 
 							bool bHasPendingConnection = false;
 							ListeningSocket->WaitForPendingConnection(bHasPendingConnection, 20.0f);
-							TestTrue(TEXT("Listening socket should have a pending connection"), bHasPendingConnection);
+							TestTrue(
+								TEXT("Listening socket should have a pending connection"),
+								bHasPendingConnection);
 
 							if (!bHasPendingConnection)
 							{
@@ -282,7 +290,9 @@ void MqttifyMqttifySocketSpec::Define()
 							FSocket* ClientSocket = ListeningSocket->Accept(TEXT("AcceptedSocket"));
 							ClientSocket->SetNonBlocking(false);
 
-							ClientSocket->Wait(ESocketWaitConditions::WaitForWrite, FTimespan::FromSeconds(5.0f));
+							ClientSocket->Wait(
+								ESocketWaitConditions::WaitForWrite,
+								FTimespan::FromSeconds(5.0f));
 							int32 BytesSent;
 							const bool bSendSucceeded = ClientSocket->Send(
 								Mqtt3BasicWithUsernamePassword.GetData(),
@@ -302,18 +312,101 @@ void MqttifyMqttifySocketSpec::Define()
 					// Connect the socket first
 					SocketRunner->GetSocket()->Connect();
 				});
+
+			// Test the disconnecting functionality
+			It(
+				"should disconnect from the server successfully",
+				[this]
+				{
+					// Connect the socket first
+					SocketRunner->GetSocket()->Connect();
+					// Disconnect the socket
+					SocketRunner->GetSocket()->Disconnect();
+					TestFalse(
+						TEXT("Socket should not be connected to the server"),
+						SocketRunner->GetSocket()->IsConnected());
+				});
 		});
 
-	// Test the disconnecting functionality
-	It(
-		"should disconnect from the server successfully",
+	Describe(
+		TEXT("BSD Style Socket with TLS"),
 		[this]
 		{
-			// Connect the socket first
-			SocketRunner->GetSocket()->Connect();
-			// Disconnect the socket
-			SocketRunner->GetSocket()->Disconnect();
-			TestFalse(TEXT("Socket should not be connected to the server"), SocketRunner->GetSocket()->IsConnected());
+			const FMqttifyTestDockerSpec Spec{
+				8080,
+				FindAvailablePort(5000, 10000),
+				EMqttifyConnectionProtocol::Mqtts,
+				ContainerType::Echo
+			};
+
+			LatentBeforeEach(
+				FTimespan::FromSeconds(120),
+				[this, Spec](const FDoneDelegate& BeforeDone)
+				{
+					LogMqttify.SetVerbosity(ELogVerbosity::VeryVerbose);
+					if (!StartBroker(DockerContainerName, Spec))
+					{
+						AddError(TEXT("Failed to start docker container"));
+						LOG_MQTTIFY(Error, TEXT("Failed to start docker container"));
+						BeforeDone.Execute();
+					}
+
+
+					SocketRunner = MakeShared<FMqttifySocketRunnable>(
+						FString::Printf(TEXT("mqtts://localhost:%d"), Spec.PublicPort));
+					BeforeDone.Execute();
+				});
+
+			LatentIt(
+				"Server should echo data sent by the client",
+				FTimespan::FromSeconds(120),
+				[this, Spec](const FDoneDelegate& Done)
+				{
+					FMqttifySocketRef Socket = SocketRunner->GetSocket();
+					const TArray<uint8> Data = {0x01, 0x02, 0x03};
+
+					Socket->OnDataReceiveDelegate.AddLambda(
+						[this, Done, Data](const TSharedPtr<FArrayReader>& Reader)
+						{
+							TArray<uint8> ReceivedData;
+							ReceivedData.SetNumUninitialized(Reader->TotalSize());
+							for (int32 i = Reader->TotalSize() - 1; i >= 0; --i)
+							{
+								ReceivedData.Add(Reader->GetData()[i]);
+							}
+
+							TestArrayEqual(
+								TEXT("Received data should be equal to sent data"),
+								ReceivedData,
+								Data,
+								this);
+							Done.Execute();
+						});
+
+					Socket->OnConnectDelegate.AddLambda(
+						[this, Done, Socket, Data](const bool bWasSuccessful)
+						{
+							TestTrue(TEXT("Socket should be connected to the server"), bWasSuccessful);
+
+							if (!bWasSuccessful)
+							{
+								Done.Execute();
+								return;
+							}
+							Socket->Send(Data.GetData(), Data.Num());
+						});
+
+					LOG_MQTTIFY(Display, TEXT("Connecting Socket"));
+					Socket->Connect();
+				});
+
+			AfterEach(
+				[this, Spec]
+				{
+					LogMqttify.SetVerbosity(OriginalLogVerbosity);
+					SocketRunner->Stop();
+					SocketRunner.Reset();
+				});
 		});
 }
 
