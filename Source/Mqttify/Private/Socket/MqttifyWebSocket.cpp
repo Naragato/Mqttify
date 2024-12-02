@@ -113,16 +113,24 @@ namespace Mqttify
 				*ConnectionSettings->GetClientId());
 			return;
 		}
-		TWeakPtr<FMqttifyWebSocket> WeakSelf = AsShared();
-		AsyncTask(
-			ENamedThreads::GameThread,
-			[WeakSelf]
-			{
-				if (const TSharedPtr<FMqttifyWebSocket> StrongThis = WeakSelf.Pin())
+
+		if constexpr (GMqttifyThreadMode == EMqttifyThreadMode::GameThread)
+		{
+			Connect_Internal();
+		}
+		else
+		{
+			TWeakPtr<FMqttifyWebSocket> WeakSelf = AsShared();
+			AsyncTask(
+				ENamedThreads::GameThread,
+				[WeakSelf]
 				{
-					StrongThis->Connect_Internal();
-				}
-			});
+					if (const TSharedPtr<FMqttifyWebSocket> StrongThis = WeakSelf.Pin())
+					{
+						StrongThis->Connect_Internal();
+					}
+				});
+		}
 	}
 
 	void FMqttifyWebSocket::Disconnect()
@@ -153,16 +161,23 @@ namespace Mqttify
 			return;
 		}
 
-		TWeakPtr<FMqttifyWebSocket> WeakSelf = AsShared();
-		AsyncTask(
-			ENamedThreads::GameThread,
-			[WeakSelf]
-			{
-				if (const TSharedPtr<FMqttifyWebSocket> StrongThis = WeakSelf.Pin())
+		if constexpr (GMqttifyThreadMode == EMqttifyThreadMode::GameThread)
+		{
+			Disconnect_Internal();
+		}
+		else
+		{
+			TWeakPtr<FMqttifyWebSocket> WeakSelf = AsShared();
+			AsyncTask(
+				ENamedThreads::GameThread,
+				[WeakSelf]
 				{
-					StrongThis->Disconnect_Internal();
-				}
-			});
+					if (const TSharedPtr<FMqttifyWebSocket> StrongThis = WeakSelf.Pin())
+					{
+						StrongThis->Disconnect_Internal();
+					}
+				});
+		}
 	}
 
 	void FMqttifyWebSocket::Disconnect_Internal()
@@ -242,7 +257,7 @@ namespace Mqttify
 
 	void FMqttifyWebSocket::Send(const TSharedRef<IMqttifyControlPacket>& InPacket)
 	{
-		if constexpr (GMqttifyThreadMode != EMqttifyThreadMode::BackgroundThreadWithCallbackMarshalling)
+		if constexpr (GMqttifyThreadMode == EMqttifyThreadMode::GameThread)
 		{
 			TArray<uint8> ActualBytes;
 			FMemoryWriter Writer(ActualBytes);
