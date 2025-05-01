@@ -49,4 +49,10 @@ public:
 	 * @return Is client currently connected?
 	 */
 	virtual bool IsConnected() const = 0;
+
+	/**
+	 * @warning May be unimplemented depending on implementation.
+	 * @sa IWebSocket::Close
+	 */
+	virtual void CloseSocket(int32 Code = 1000, const FString& Reason = {}) = 0;
 };

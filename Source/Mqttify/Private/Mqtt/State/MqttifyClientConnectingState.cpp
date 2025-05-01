@@ -37,6 +37,16 @@ namespace Mqttify
 		LastConnectAttempt = Now;
 		++AttemptCount;
 
+		TArray<FMqttifyProperty> PropertyArr;
+		const uint32 SessionExpiryInterval = Context->GetConnectionSettings()->GetSessionExpiryInterval();
+		if (SessionExpiryInterval > 0)
+		{
+			PropertyArr.Add(
+				{ 
+					FMqttifyProperty::Create<EMqttifyPropertyIdentifier::SessionExpiryInterval>(static_cast<uint32>(SessionExpiryInterval)) 
+				});
+		}
+
 		const FMqttifyCredentialsProviderRef Credentials = Context->GetConnectionSettings()->GetCredentialsProvider();
 		const auto ConnectPacketRef = MakeShared<TMqttifyConnectPacket<GMqttifyProtocol>>(
 			Context->GetConnectionSettings()->GetClientId(),
@@ -44,7 +54,12 @@ namespace Mqttify
 			Credentials->GetCredentials().Username,
 			Credentials->GetCredentials().Password,
 			bCleanSession,
-			false);
+			false,
+			FString(),
+			FString(),
+			EMqttifyQualityOfService::AtMostOnce,
+			FMqttifyProperties(),
+			FMqttifyProperties(PropertyArr));
 
 		Socket->Send(ConnectPacketRef);
 	}
@@ -133,6 +148,13 @@ namespace Mqttify
 					EnumToTCharString(ConnAckPacket->GetReasonCode()));
 				Socket->Disconnect();
 				return;
+			}
+			else
+			{
+				LOG_MQTTIFY(
+					Log,
+					TEXT("Mqtt_5 connect success. GetSessionPresent(): %s."),
+					ConnAckPacket->GetSessionPresent() ? TEXT("TRUE") : TEXT("FALSE"));
 			}
 		}
 		else if constexpr (GMqttifyProtocol == EMqttifyProtocolVersion::Mqtt_3_1_1)

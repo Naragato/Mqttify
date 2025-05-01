@@ -24,6 +24,7 @@ namespace Mqttify
 		// FMqttifySocketBase
 		virtual void Connect() override;
 		virtual void Disconnect() override;
+		virtual void Close(int32 Code = 1000, const FString& Reason = {}) override;
 
 		virtual void Tick() override;
 		virtual bool IsConnected() const override;

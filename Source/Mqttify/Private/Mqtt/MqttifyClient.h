@@ -56,6 +56,7 @@ namespace Mqttify
 		virtual FOnMessage& OnMessage() override;
 		virtual const FMqttifyConnectionSettingsRef GetConnectionSettings() const override;
 		virtual bool IsConnected() const override;
+		virtual void CloseSocket(int32 Code = 1000, const FString& Reason = {}) override;
 		// ~IMqttifyClient
 
 		// IMqttifyConnectableAsync

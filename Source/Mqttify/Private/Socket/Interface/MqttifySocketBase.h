@@ -41,6 +41,8 @@ namespace Mqttify
 		virtual void Connect() = 0;
 		/// @brief Disconnect connect from the host.
 		virtual void Disconnect() = 0;
+		/// @brief Close socket.
+		virtual void Close(int32 Code = 1000, const FString& Reason = {}) = 0;
 		/// @brief Check if the Socket is connected.
 		virtual bool IsConnected() const = 0;
 
