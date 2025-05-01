@@ -284,6 +284,14 @@ namespace Mqttify
 		return CurrentState->GetState() == EMqttifyState::Connected;
 	}
 
+	void FMqttifyClient::CloseSocket(int32 Code, const FString& Reason)
+	{
+		if (Socket->IsConnected())
+		{
+			Socket->Close(Code, Reason);
+		}
+	}
+
 	void FMqttifyClient::TransitionTo(
 		const FMqttifyClientState* InPrevious,
 		const TSharedPtr<FMqttifyClientState>& InState

@@ -180,6 +180,20 @@ namespace Mqttify
 		}
 	}
 
+	void FMqttifyWebSocket::Close(int32 Code, const FString& Reason)
+	{
+		FScopeLock Lock{ &SocketAccessLock };
+		LOG_MQTTIFY(
+			Display,
+			TEXT("Closing socket on %s, ClientId %s"),
+			*ConnectionSettings->ToString(),
+			*ConnectionSettings->GetClientId());
+		if (Socket.IsValid() && Socket->IsConnected())
+		{
+			Socket->Close(Code, Reason);
+		}
+	}
+
 	void FMqttifyWebSocket::Disconnect_Internal()
 	{
 		FScopeLock Lock{&SocketAccessLock};

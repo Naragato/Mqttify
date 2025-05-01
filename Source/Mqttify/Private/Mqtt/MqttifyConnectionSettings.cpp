@@ -21,6 +21,7 @@ FMqttifyConnectionSettings::FMqttifyConnectionSettings(
 	const uint8 InMaxConnectionRetries,
 	const uint8 InMaxPacketRetries,
 	const bool bInShouldVerifyCertificate,
+	const uint32 InSessionExpiryInterval,
 	FString&& InClientId
 	)
 	: MaxPacketSize{InMaxPacketSize}
@@ -40,6 +41,7 @@ FMqttifyConnectionSettings::FMqttifyConnectionSettings(
 	, MaxConnectionRetries{InMaxConnectionRetries}
 	, MaxPacketRetries{InMaxPacketRetries}
 	, bShouldVerifyServerCertificate{bInShouldVerifyCertificate}
+	, SessionExpiryInterval(InSessionExpiryInterval)
 {
 	if (ClientId.IsEmpty())
 	{
@@ -110,6 +112,7 @@ TSharedPtr<FMqttifyConnectionSettings> FMqttifyConnectionSettings::CreateShared(
 	const uint8 InMaxConnectionRetries,
 	const uint8 InMaxPacketRetries,
 	const bool bInShouldVerifyCertificate,
+	const uint32 InSessionExpiryInterval,
 	FString&& InClientId
 	)
 {
@@ -153,6 +156,7 @@ TSharedPtr<FMqttifyConnectionSettings> FMqttifyConnectionSettings::CreateShared(
 			InMaxConnectionRetries,
 			InMaxPacketRetries,
 			bInShouldVerifyCertificate,
+			InSessionExpiryInterval,
 			MoveTemp(InClientId));
 	}
 
@@ -174,6 +178,7 @@ TSharedPtr<FMqttifyConnectionSettings> FMqttifyConnectionSettings::CreateShared(
 	const uint8 InMaxConnectionRetries,
 	const uint8 InMaxPacketRetries,
 	const bool bInShouldVerifyCertificate,
+	const uint32 InSessionExpiryInterval,
 	FString&& InClientId
 	)
 {
@@ -219,6 +224,7 @@ TSharedPtr<FMqttifyConnectionSettings> FMqttifyConnectionSettings::CreateShared(
 			InMaxConnectionRetries,
 			InMaxPacketRetries,
 			bInShouldVerifyCertificate,
+			InSessionExpiryInterval,
 			MoveTemp(InClientId));
 	}
 

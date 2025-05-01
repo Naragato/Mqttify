@@ -149,6 +149,11 @@ namespace Mqttify
 		}
 	}
 
+	void FMqttifySecureSocket::Close(int32 Code, const FString& Reason)
+	{
+		unimplemented();
+	}
+
 	void FMqttifySecureSocket::Send(const uint8* InData, uint32 InSize)
 	{
 		bool bShouldDisconnect = false;

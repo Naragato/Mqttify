@@ -56,6 +56,9 @@ private:
 	/// @breif Verify the server certificate.
 	bool bShouldVerifyServerCertificate;
 
+	/// @brief Session expiration interval (seconds) for reconnect.
+	uint32 SessionExpiryInterval = 0;
+
 public:
 	/// @brief Copy constructor.
 	FMqttifyConnectionSettings(const FMqttifyConnectionSettings& Other)
@@ -76,6 +79,7 @@ public:
 		MaxConnectionRetries = Other.MaxConnectionRetries;
 		MaxPacketRetries = Other.MaxPacketRetries;
 		bShouldVerifyServerCertificate = Other.bShouldVerifyServerCertificate;
+		SessionExpiryInterval = Other.SessionExpiryInterval;
 		MaxPacketSize = Other.MaxPacketSize;
 	}
 
@@ -132,6 +136,9 @@ public:
 	/// @brief Whether to verify the server certificate.
 	bool ShouldVerifyServerCertificate() const { return bShouldVerifyServerCertificate; }
 
+	/// @brief Session expiration interval, see MQTT 5 spec.
+	uint32 GetSessionExpiryInterval() const { return SessionExpiryInterval; }
+
 	/**
 	 * @brief Generates a deterministic ClientId based on the connection settings.
 	 * We're using the host, path and username to generate a unique id.
@@ -164,6 +171,7 @@ public:
 		uint8 InMaxConnectionRetries,
 		uint8 InMaxPacketRetries,
 		bool bInShouldVerifyCertificate,
+		uint32 InSessionExpiryInterval,
 		FString&& InClientId = {}
 		);
 
@@ -181,6 +189,7 @@ public:
 		uint8 InMaxConnectionRetries,
 		uint8 InMaxPacketRetries,
 		bool bInShouldVerifyCertificate,
+		uint32 InSessionExpiryInterval,
 		FString&& InClientId = {}
 		);
 
@@ -202,6 +211,7 @@ public:
 		const uint8 InMaxConnectionRetries,
 		const uint8 InMaxPacketRetries,
 		const bool bInShouldVerifyServerCertificate,
+		const uint32 InSessionExpiryInterval,
 		FString&& InClientId
 		)
 	{
@@ -223,6 +233,7 @@ public:
 				InMaxConnectionRetries,
 				InMaxPacketRetries,
 				bInShouldVerifyServerCertificate,
+				InSessionExpiryInterval,
 				MoveTemp(InClientId)));
 	}
 
@@ -273,6 +284,7 @@ private:
 		uint8 InMaxConnectionRetries,
 		uint8 InMaxPacketRetries,
 		bool bInShouldVerifyCertificate,
+		uint32 InSessionExpiryInterval,
 		FString&& InClientId = TEXT("")
 		);
 

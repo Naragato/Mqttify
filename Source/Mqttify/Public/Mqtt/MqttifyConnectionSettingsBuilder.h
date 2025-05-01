@@ -22,6 +22,7 @@ private:
 	uint8 MaxPacketRetries = 5;
 	uint16 InitialRetryIntervalSeconds = 3.0f;
 	bool bShouldVerifyCertificate = true;
+	uint32 SessionExpiryInterval = 0;
 	EMqttifyProtocolVersion MqttProtocolVersion = EMqttifyProtocolVersion::Mqtt_5;
 	EMqttifyThreadMode ThreadMode = EMqttifyThreadMode::BackgroundThreadWithCallbackMarshalling;
 
@@ -145,6 +146,17 @@ public:
 		return *this;
 	}
 
+	/**
+	 * @brief Sets the session expiry interval (seconds).
+	 * @param InSessionExpiryInterval The session expiry interval in seconds.
+	 * @return A reference to this builder.
+	 */
+	FMqttifyConnectionSettingsBuilder& SetSessionExpiryInterval(const uint32 InSessionExpiryInterval)
+	{
+		SessionExpiryInterval = InSessionExpiryInterval;
+		return *this;
+	}
+
 	FMqttifyConnectionSettingsBuilder& SetCredentialsProvider(
 		const TSharedRef<IMqttifyCredentialsProvider>& InCredentialsProvider
 		)
@@ -185,6 +197,7 @@ public:
 				       MaxConnectionRetries,
 				       MaxPacketRetries,
 				       bShouldVerifyCertificate,
+					   SessionExpiryInterval,
 				       FString{ClientId})
 			       : FMqttifyConnectionSettings::CreateShared(
 				       Url,
@@ -200,6 +213,7 @@ public:
 				       MaxConnectionRetries,
 				       MaxPacketRetries,
 				       bShouldVerifyCertificate,
+					   SessionExpiryInterval,
 				       FString{ClientId});
 	}
 };
