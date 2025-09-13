@@ -37,7 +37,7 @@ public class Mqttify : ModuleRules
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenSSL");
 
 		// Build
-		CppStandard = CppStandardVersion.Cpp17;
+		CppStandard = CppStandardVersion.Cpp20;
 		PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "Public"));
 		PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "Private"));
 

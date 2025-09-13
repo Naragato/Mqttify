@@ -71,7 +71,6 @@ namespace Mqttify
 				TEXT("[Unsubscribe  (Connection %s, ClientId %s)] %s Expected: Actual: %s"),
 				*Settings->GetHost(),
 				*Settings->GetClientId(),
-				MqttifyPacketType::InvalidPacketType,
 				EnumToTCharString(EMqttifyPacketType::UnsubAck),
 				EnumToTCharString(InPacket->GetPacketType()));
 			Abandon();
