@@ -55,7 +55,6 @@ namespace Mqttify
 				TEXT("[Publish (Connection %s, ClientId %s)] %s Expected: Actual: %s"),
 				*Settings->GetHost(),
 				*Settings->GetClientId(),
-				MqttifyPacketType::InvalidPacketType,
 				EnumToTCharString(EMqttifyPacketType::PubAck),
 				EnumToTCharString(InPacket->GetPacketType()));
 			Abandon();

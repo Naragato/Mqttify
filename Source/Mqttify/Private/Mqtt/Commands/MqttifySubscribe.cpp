@@ -52,7 +52,6 @@ namespace Mqttify
 			LOG_MQTTIFY(
 				Error,
 				TEXT("[Subscribe] %s Expected: Actual: %s"),
-				MqttifyPacketType::InvalidPacketType,
 				EnumToTCharString(EMqttifyPacketType::SubAck),
 				EnumToTCharString(InPacket->GetPacketType()));
 			Abandon();
