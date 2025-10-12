@@ -33,70 +33,86 @@ namespace Mqttify
 
 	void FMqttifySocketBase::ReadPacketsFromBuffer()
 	{
-		FScopeLock Lock{&SocketAccessLock};
-		while (DataBuffer.Num() > 1)
-		{
-			uint32 RemainingLength           = 0;
-			uint32 Multiplier                = 1;
-			int32 Index                      = 1;
-			bool bHaveRemainingLength        = false;
+		TArray<TSharedPtr<FArrayReader>> PacketsToDispatch;
+		bool bShouldDisconnect = false;
 
-			for (; Index < 5; ++Index)
+		{
+			FScopeLock Lock{&SocketAccessLock};
+			while (DataBuffer.Num() > 1)
 			{
-				if (Index >= DataBuffer.Num())
+				uint32 RemainingLength    = 0;
+				uint32 Multiplier         = 1;
+				int32 Index               = 1;
+				bool bHaveRemainingLength = false;
+
+				// Parse Remaining Length (MQTT varint, up to 4 bytes)
+				for (; Index < 5; ++Index)
 				{
-					return;
+					if (Index >= DataBuffer.Num())
+					{
+						// Header not complete yet
+						break;
+					}
+
+					const uint8 EncodedByte = DataBuffer[Index];
+					RemainingLength += (EncodedByte & 127) * Multiplier;
+					Multiplier *= 128;
+
+					if ((EncodedByte & 128) == 0)
+					{
+						bHaveRemainingLength = true;
+						++Index;
+						break;
+					}
 				}
 
-				const uint8 EncodedByte = DataBuffer[Index];
-				RemainingLength += (EncodedByte & 127) * Multiplier;
-				Multiplier *= 128;
-
-				if ((EncodedByte & 128) == 0)
+				if (!bHaveRemainingLength)
 				{
-					bHaveRemainingLength = true;
-					++Index;
+					LOG_MQTTIFY(VeryVerbose, TEXT("Header not complete yet"));
 					break;
 				}
-			}
 
-			if (!bHaveRemainingLength)
-			{
-				LOG_MQTTIFY(VeryVerbose, TEXT("Header not complete yet"));
-				return;
-			}
+				if (RemainingLength > ConnectionSettings->GetMaxPacketSize())
+				{
+					LOG_MQTTIFY(
+						Error,
+						TEXT("Packet too large: %d, Max: %d"),
+						RemainingLength,
+						ConnectionSettings->GetMaxPacketSize());
+					bShouldDisconnect = true;
+					break;
+				}
 
-			if (RemainingLength > ConnectionSettings->GetMaxPacketSize())
-			{
-				LOG_MQTTIFY(
-					Error,
-					TEXT("Packet too large: %d, Max: %d"),
-					RemainingLength,
-					ConnectionSettings->GetMaxPacketSize());
-				Disconnect();
-				return;
-			}
-			const int32 FixedHeaderSize = Index;
-			int32 TotalPacketSize = FixedHeaderSize + static_cast<int32>(RemainingLength);
+				const int32 FixedHeaderSize = Index;
+				const int32 TotalPacketSize = FixedHeaderSize + static_cast<int32>(RemainingLength);
 
-			if (DataBuffer.Num() < TotalPacketSize)
-			{
-				// We don't have the full packet yet
-				return;
-			}
+				if (DataBuffer.Num() < TotalPacketSize)
+				{
+					// We don't have the full packet yet
+					break;
+				}
 
-			TSharedPtr<FArrayReader> Packet = MakeShared<FArrayReader>(false);
-			Packet->SetNumUninitialized(TotalPacketSize);
-			FMemory::Memcpy(Packet->GetData(), DataBuffer.GetData(), TotalPacketSize);
-			DataBuffer.RemoveAt(0, TotalPacketSize, EAllowShrinking::No);
-			LOG_MQTTIFY(VeryVerbose, TEXT("Packet prepared of size %d"), TotalPacketSize);
-			if (Packet.IsValid() && GetOnDataReceivedDelegate().IsBound())
+				TSharedPtr<FArrayReader> Packet = MakeShared<FArrayReader>(false);
+				Packet->SetNumUninitialized(TotalPacketSize);
+				FMemory::Memcpy(Packet->GetData(), DataBuffer.GetData(), TotalPacketSize);
+				DataBuffer.RemoveAt(0, TotalPacketSize, EAllowShrinking::No);
+				LOG_MQTTIFY(VeryVerbose, TEXT("Packet prepared of size %d"), TotalPacketSize);
+
+				PacketsToDispatch.Emplace(MoveTemp(Packet));
+			}
+		}
+
+		if (bShouldDisconnect)
+		{
+			Disconnect();
+			return;
+		}
+
+		if (GetOnDataReceivedDelegate().IsBound())
+		{
+			for (const TSharedPtr<FArrayReader>& Packet : PacketsToDispatch)
 			{
 				GetOnDataReceivedDelegate().Broadcast(Packet);
-			}
-			else
-			{
-				break;
 			}
 		}
 	}
