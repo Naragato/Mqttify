@@ -10,6 +10,7 @@ namespace Mqttify
 		Disconnected,
 		Connecting,
 		Connected,
+		SslConnecting,
 		Disconnecting
 	};
 
@@ -22,6 +23,8 @@ namespace Mqttify
 				return TEXT("Disconnected");
 			case EMqttifySocketState::Connecting:
 				return TEXT("Connecting");
+			case EMqttifySocketState::SslConnecting:
+				return TEXT("SslConnecting");
 			case EMqttifySocketState::Connected:
 				return TEXT("Connected");
 			case EMqttifySocketState::Disconnecting:

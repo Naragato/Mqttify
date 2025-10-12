@@ -10,7 +10,7 @@ namespace Mqttify
 {
 	FMqttifySocketBase::~FMqttifySocketBase()
 	{
-		FScopeLock Lock{ &SocketAccessLock };
+		FScopeLock Lock{&SocketAccessLock};
 		OnConnectDelegate.Clear();
 		OnDisconnectDelegate.Clear();
 		OnDataReceiveDelegate.Clear();
@@ -36,10 +36,10 @@ namespace Mqttify
 		while (DataBuffer.Num() >= 1)
 		{
 			constexpr int32 PacketStartIndex = 0;
-			uint32 RemainingLength = 0;
-			uint32 Multiplier = 1;
-			int32 Index = 1;
-			bool bHaveRemainingLength = false;
+			uint32 RemainingLength           = 0;
+			uint32 Multiplier                = 1;
+			int32 Index                      = 1;
+			bool bHaveRemainingLength        = false;
 
 			for (; Index < 5; ++Index)
 			{
@@ -87,7 +87,8 @@ namespace Mqttify
 			}
 
 			TSharedPtr<FArrayReader> Packet = MakeShared<FArrayReader>(false);
-			Packet->Append(&DataBuffer[PacketStartIndex], TotalPacketSize);
+			Packet->SetNumUninitialized(TotalPacketSize);
+			FMemory::Memcpy(Packet->GetData(), DataBuffer.GetData(), TotalPacketSize);
 
 			DataBuffer.RemoveAt(0, TotalPacketSize, EAllowShrinking::No);
 
