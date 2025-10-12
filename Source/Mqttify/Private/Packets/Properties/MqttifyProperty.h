@@ -16,7 +16,7 @@ namespace Mqttify
 	private:
 		template <typename TData>
 		explicit FMqttifyProperty(const EMqttifyPropertyIdentifier InIdentifier, TData InValue)
-			: Identifier{ InIdentifier }
+			: Identifier{InIdentifier}
 		{
 			Data.SetSubtype<TData>(InValue);
 		}
@@ -138,7 +138,7 @@ namespace Mqttify
 
 	{
 		static_assert("Invalid type for given enum value");
-		return FMqttifyProperty{ EMqttifyPropertyIdentifier::Unknown, 0 };
+		return FMqttifyProperty{EMqttifyPropertyIdentifier::Unknown, 0};
 	}
 
 	// uint32

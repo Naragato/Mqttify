@@ -14,13 +14,13 @@ class IMqttifyClient;
 class FMqttifyModule final : public IMqttifyModule
 {
 public:
-
 	/**
 	 * @brief Get or create a client for the given connection settings.
 	 * @param InConnectionSettings The connection settings to use.
 	 * @return A shared pointer to the MQTT client if the URL was valid
 	 */
-	virtual TSharedPtr<IMqttifyClient> GetOrCreateClient(const FMqttifyConnectionSettingsRef& InConnectionSettings) override;
+	virtual TSharedPtr<IMqttifyClient>
+	GetOrCreateClient(const FMqttifyConnectionSettingsRef& InConnectionSettings) override;
 
 	/**
 	 * @Brief Update the credentials of a client.

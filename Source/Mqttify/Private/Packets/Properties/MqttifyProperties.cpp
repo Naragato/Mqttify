@@ -6,10 +6,10 @@ void Mqttify::FMqttifyProperties::Decode(FArrayReader& InReader)
 {
 	InReader.SetByteSwapping(true);
 	int RemainingLength = Data::DecodeVariableByteInteger(InReader);
-	int32 ReaderPos     = InReader.Tell();
+	int32 ReaderPos = InReader.Tell();
 	while (RemainingLength > 0)
 	{
-		FMqttifyProperty Property{ InReader };
+		FMqttifyProperty Property{InReader};
 		if (ReaderPos == InReader.Tell())
 		{
 			LOG_MQTTIFY(

@@ -59,8 +59,7 @@ namespace Mqttify
 
 				TWeakPtr<FMqttifyClientConnectedState> WeakConnectedPtr = AsWeak();
 				PingReqCommand->GetFuture().Next(
-					[this, WeakConnectedPtr](const TMqttifyResult<void>& InResult)
-					{
+					[this, WeakConnectedPtr](const TMqttifyResult<void>& InResult) {
 						const TSharedPtr<FMqttifyClientConnectedState> SharedConnectedPtr = WeakConnectedPtr.Pin();
 						if (!InResult.HasSucceeded() && SharedConnectedPtr.IsValid())
 						{
@@ -99,7 +98,7 @@ namespace Mqttify
 
 		switch (Packet->GetPacketType())
 		{
-		case EMqttifyPacketType::PingResp:
+			case EMqttifyPacketType::PingResp:
 			{
 				if (PingReqCommand != nullptr && PingReqCommand->Acknowledge(Packet))
 				{
@@ -107,15 +106,15 @@ namespace Mqttify
 				}
 				break;
 			}
-		case EMqttifyPacketType::PubAck:
-		case EMqttifyPacketType::PubRec:
-		case EMqttifyPacketType::PubComp:
-		case EMqttifyPacketType::SubAck:
-		case EMqttifyPacketType::UnsubAck:
-			Context->Acknowledge(Packet);
-			break;
+			case EMqttifyPacketType::PubAck:
+			case EMqttifyPacketType::PubRec:
+			case EMqttifyPacketType::PubComp:
+			case EMqttifyPacketType::SubAck:
+			case EMqttifyPacketType::UnsubAck:
+				Context->Acknowledge(Packet);
+				break;
 
-		case EMqttifyPacketType::Publish:
+			case EMqttifyPacketType::Publish:
 			{
 				const uint32 ServerId = static_cast<uint32>(Packet->GetPacketId()) << 16;
 				TUniquePtr<FMqttifyPublishPacketBase> PublishPacket = TUniquePtr<FMqttifyPublishPacketBase>(
@@ -130,14 +129,14 @@ namespace Mqttify
 				// ReSharper disable once CppDefaultCaseNotHandledInSwitchStatement
 				switch (PublishPacket->GetQualityOfService())
 				{
-				case EMqttifyQualityOfService::AtLeastOnce:
+					case EMqttifyQualityOfService::AtLeastOnce:
 					{
 						const auto PubAckPacket = MakeShared<TMqttifyPubAckPacket<GMqttifyProtocol>>(
 							PublishPacket->GetPacketId());
 						Socket->Send(PubAckPacket);
 						break;
 					}
-				case EMqttifyQualityOfService::ExactlyOnce:
+					case EMqttifyQualityOfService::ExactlyOnce:
 					{
 						const auto PubRec = MakeShared<FMqttifyPubRec>(
 							PublishPacket->GetPacketId(),
@@ -153,12 +152,12 @@ namespace Mqttify
 				break;
 			}
 
-		case EMqttifyPacketType::PubRel:
+			case EMqttifyPacketType::PubRel:
 			{
 				Context->Acknowledge(Packet);
 				break;
 			}
-		default: ;
+			default: ;
 		}
 	}
 } // namespace Mqttify

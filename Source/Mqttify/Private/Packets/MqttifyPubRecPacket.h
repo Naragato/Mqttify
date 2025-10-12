@@ -12,11 +12,11 @@ namespace Mqttify
 	{
 	public:
 		explicit FMqttifyPubRecPacketBase(const FMqttifyFixedHeader& InFixedHeader)
-			: TMqttifyControlPacket{ InFixedHeader }
-			, PacketIdentifier{ 0 } {}
+			: TMqttifyControlPacket{InFixedHeader}
+			, PacketIdentifier{0} {}
 
 		explicit FMqttifyPubRecPacketBase(const uint16 InPacketIdentifier)
-			: PacketIdentifier{ InPacketIdentifier } {}
+			: PacketIdentifier{InPacketIdentifier} {}
 
 	public:
 		/**
@@ -36,13 +36,13 @@ namespace Mqttify
 	struct TMqttifyPubRecPacket<EMqttifyProtocolVersion::Mqtt_3_1_1> final : FMqttifyPubRecPacketBase
 	{
 		explicit TMqttifyPubRecPacket(const uint16 InPacketIdentifier)
-			: FMqttifyPubRecPacketBase{ InPacketIdentifier }
+			: FMqttifyPubRecPacketBase{InPacketIdentifier}
 		{
 			FixedHeader = FMqttifyFixedHeader::Create(this);
 		}
 
 		explicit TMqttifyPubRecPacket(FArrayReader& InReader, const FMqttifyFixedHeader& InFixedHeader)
-			: FMqttifyPubRecPacketBase{ InFixedHeader }
+			: FMqttifyPubRecPacketBase{InFixedHeader}
 		{
 			Decode(InReader);
 		}
@@ -58,18 +58,18 @@ namespace Mqttify
 	{
 	public:
 		explicit TMqttifyPubRecPacket(const uint16 InPacketIdentifier,
-									const EMqttifyReasonCode InReasonCode  = EMqttifyReasonCode::Success,
-									const FMqttifyProperties& InProperties = FMqttifyProperties{})
-			: FMqttifyPubRecPacketBase{ InPacketIdentifier }
-			, ReasonCode{ InReasonCode }
-			, Properties{ InProperties }
+		                              const EMqttifyReasonCode InReasonCode = EMqttifyReasonCode::Success,
+		                              const FMqttifyProperties& InProperties = FMqttifyProperties{})
+			: FMqttifyPubRecPacketBase{InPacketIdentifier}
+			, ReasonCode{InReasonCode}
+			, Properties{InProperties}
 		{
 			FixedHeader = FMqttifyFixedHeader::Create(this);
 		}
 
 		explicit TMqttifyPubRecPacket(FArrayReader& InReader, const FMqttifyFixedHeader& InFixedHeader)
-			: FMqttifyPubRecPacketBase{ InFixedHeader }
-			, ReasonCode{ EMqttifyReasonCode::Success }
+			: FMqttifyPubRecPacketBase{InFixedHeader}
+			, ReasonCode{EMqttifyReasonCode::Success}
 		{
 			Decode(InReader);
 		}

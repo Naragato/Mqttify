@@ -13,7 +13,7 @@ namespace Mqttify
 	{
 	public:
 		explicit FMqttifyDisconnectPacketBase(const FMqttifyFixedHeader& InFixedHeader)
-			: TMqttifyControlPacket{ InFixedHeader } {}
+			: TMqttifyControlPacket{InFixedHeader} {}
 
 		explicit FMqttifyDisconnectPacketBase() {}
 
@@ -31,7 +31,7 @@ namespace Mqttify
 		}
 
 		explicit TMqttifyDisconnectPacket(FArrayReader& InReader, const FMqttifyFixedHeader& InFixedHeader)
-			: FMqttifyDisconnectPacketBase{ InFixedHeader }
+			: FMqttifyDisconnectPacketBase{InFixedHeader}
 		{
 			Decode(InReader);
 		}
@@ -47,9 +47,9 @@ namespace Mqttify
 	{
 	public:
 		explicit TMqttifyDisconnectPacket(const EMqttifyReasonCode InReasonCode = EMqttifyReasonCode::Success,
-										const FMqttifyProperties& InProperties  = FMqttifyProperties{})
-			: ReasonCode{ InReasonCode }
-			, Properties{ InProperties }
+		                                  const FMqttifyProperties& InProperties = FMqttifyProperties{})
+			: ReasonCode{InReasonCode}
+			, Properties{InProperties}
 		{
 			FixedHeader = FMqttifyFixedHeader::Create(this);
 			if (!IsReasonCodeValid(InReasonCode))
@@ -64,8 +64,8 @@ namespace Mqttify
 		}
 
 		explicit TMqttifyDisconnectPacket(FArrayReader& InReader, const FMqttifyFixedHeader& InFixedHeader)
-			: FMqttifyDisconnectPacketBase{ InFixedHeader }
-			, ReasonCode{ EMqttifyReasonCode::Success }
+			: FMqttifyDisconnectPacketBase{InFixedHeader}
+			, ReasonCode{EMqttifyReasonCode::Success}
 		{
 			Decode(InReader);
 		}

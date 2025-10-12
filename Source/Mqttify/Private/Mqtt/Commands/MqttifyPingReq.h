@@ -6,11 +6,11 @@ namespace Mqttify
 	class FMqttifyPingReq final : public TMqttifyAcknowledgeable<void>
 	{
 	private:
-		bool bIsDone{ false };
+		bool bIsDone{false};
 
 	public:
 		FMqttifyPingReq(const TWeakPtr<FMqttifySocketBase>& InSocket,
-						const TSharedRef<FMqttifyConnectionSettings>& InConnectionSettings)
+		                const TSharedRef<FMqttifyConnectionSettings>& InConnectionSettings)
 			: TMqttifyAcknowledgeable(0, InSocket, InConnectionSettings) {}
 
 		virtual bool Acknowledge(const FMqttifyPacketPtr& InPacket) override;

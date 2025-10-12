@@ -5,12 +5,12 @@
 
 namespace Mqttify::Data
 {
-	constexpr TCHAR CharLimitExceeded[]          = TEXT("String length exceeds uint16 limit");
-	constexpr TCHAR ArchiveNotSaving[]           = TEXT("Expected a saving archive");
-	constexpr TCHAR ArchiveNotLoading[]          = TEXT("Expected a loading archive");
-	constexpr TCHAR UnexpectedNullTerminator[]   = TEXT("Unexpected null terminator");
+	constexpr TCHAR CharLimitExceeded[] = TEXT("String length exceeds uint16 limit");
+	constexpr TCHAR ArchiveNotSaving[] = TEXT("Expected a saving archive");
+	constexpr TCHAR ArchiveNotLoading[] = TEXT("Expected a loading archive");
+	constexpr TCHAR UnexpectedNullTerminator[] = TEXT("Unexpected null terminator");
 	constexpr TCHAR InvalidVariableByteInteger[] = TEXT("Invalid variable byte integer");
-	constexpr TCHAR PayloadLimitExceeded[]       = TEXT("Payload length exceeds uint32 limit");
+	constexpr TCHAR PayloadLimitExceeded[] = TEXT("Payload length exceeds uint32 limit");
 
 
 	/**
@@ -48,7 +48,7 @@ namespace Mqttify::Data
 	inline uint32 DecodeVariableByteInteger(FArchive& InArchive)
 	{
 		SIZE_T Value = 0;
-		uint8 Shift  = 0;
+		uint8 Shift = 0;
 		uint8 Byte;
 
 		do
@@ -156,7 +156,7 @@ namespace Mqttify::Data
 		if (InArchive.IsLoading())
 		{
 			Result.Init(0, PayloadSize);
-			for(uint32 Idx = 0; Idx < PayloadSize; ++Idx)
+			for (uint32 Idx = 0; Idx < PayloadSize; ++Idx)
 			{
 				InArchive << Result[Idx];
 			}

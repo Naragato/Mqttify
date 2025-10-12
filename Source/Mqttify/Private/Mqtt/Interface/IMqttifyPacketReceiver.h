@@ -17,6 +17,6 @@ namespace Mqttify
          * @param InPacket The packet to receive
          * @return A future that contains the result of the receive, which can be checked for success.
          */
-        virtual void OnReceivePacket(const TSharedPtr<FArrayReader>& InPacket) = 0;
+		virtual void OnReceivePacket(const TSharedPtr<FArrayReader>& InPacket) = 0;
 	};
 } // namespace Mqttify

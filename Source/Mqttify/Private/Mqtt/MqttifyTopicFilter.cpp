@@ -3,10 +3,10 @@
 #include "Internationalization/Regex.h"
 
 FMqttifyTopicFilter::FMqttifyTopicFilter()
-	: InQualityOfService{ EMqttifyQualityOfService::AtMostOnce }
-	, bNoLocal{ false }
-	, bRetainAsPublished{ false }
-	, RetainHandlingOptions{ EMqttifyRetainHandlingOptions::SendRetainedMessagesAtSubscribeTime } {}
+	: InQualityOfService{EMqttifyQualityOfService::AtMostOnce}
+	, bNoLocal{false}
+	, bRetainAsPublished{false}
+	, RetainHandlingOptions{EMqttifyRetainHandlingOptions::SendRetainedMessagesAtSubscribeTime} {}
 
 bool FMqttifyTopicFilter::IsValid() const
 {

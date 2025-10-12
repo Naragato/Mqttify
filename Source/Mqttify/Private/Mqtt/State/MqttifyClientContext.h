@@ -74,7 +74,8 @@ namespace Mqttify
 	/**
 	 * @brief Implementation of the MQTT client context.
 	 */
-	class FMqttifyClientContext final : public IMqttifyClientContext, public TSharedFromThis<FMqttifyClientContext, ESPMode::ThreadSafe>
+	class FMqttifyClientContext final : public IMqttifyClientContext,
+	                                    public TSharedFromThis<FMqttifyClientContext, ESPMode::ThreadSafe>
 	{
 	private:
 		FOnConnect OnConnectDelegate{};

@@ -9,23 +9,15 @@
 namespace Mqttify
 {
 	template <typename T>
-	struct IsAllowedPointerType : std::false_type
-	{
-	};
+	struct IsAllowedPointerType : std::false_type {};
 
 	// Specializations for TSharedRef, TSharedPtr, and TUniquePtr
 	template <typename U>
-	struct IsAllowedPointerType<TSharedRef<U>> : std::true_type
-	{
-	};
+	struct IsAllowedPointerType<TSharedRef<U>> : std::true_type {};
 
 	template <typename U>
-	struct IsAllowedPointerType<TSharedPtr<U>> : std::true_type
-	{
-	};
+	struct IsAllowedPointerType<TSharedPtr<U>> : std::true_type {};
 
 	template <typename U>
-	struct IsAllowedPointerType<TUniquePtr<U>> : std::true_type
-	{
-	};
+	struct IsAllowedPointerType<TUniquePtr<U>> : std::true_type {};
 }

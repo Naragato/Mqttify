@@ -10,7 +10,7 @@ namespace Mqttify
 	uint32 TMqttifyConnectPacket<EMqttifyProtocolVersion::Mqtt_3_1_1>::GetLength() const
 	{
 		constexpr uint32 VariableHeaderLength = 10;
-		uint32 PayloadLength                  = 0;
+		uint32 PayloadLength = 0;
 
 		PayloadLength += StringLengthFieldSize + ClientId.Len();
 		PayloadLength += WillTopic.IsEmpty()
@@ -99,7 +99,7 @@ namespace Mqttify
 				MqttifyPacketType::InvalidPacketType,
 				EnumToTCharString(FixedHeader.GetPacketType()));
 			ReturnCode = EMqttifyConnectReturnCode::RefusedProtocolVersion;
-			bIsValid   = false;
+			bIsValid = false;
 			return;
 		}
 
@@ -108,7 +108,7 @@ namespace Mqttify
 		{
 			LOG_MQTTIFY(Error, TEXT("[Connect] %s %s"), InvalidProtocolName, *ProtocolName);
 			ReturnCode = EMqttifyConnectReturnCode::RefusedProtocolVersion;
-			bIsValid   = false;
+			bIsValid = false;
 			return;
 		}
 
@@ -118,7 +118,7 @@ namespace Mqttify
 		{
 			LOG_MQTTIFY(Error, TEXT("[Connect] %s %d"), InvalidProtocolVersion, ProtocolLevel);
 			ReturnCode = EMqttifyConnectReturnCode::RefusedProtocolVersion;
-			bIsValid   = false;
+			bIsValid = false;
 			return;
 		}
 
@@ -151,7 +151,7 @@ namespace Mqttify
 			{
 				LOG_MQTTIFY(Error, TEXT("[Connect] %s."), WillTopicEmpty);
 				ReturnCode = EMqttifyConnectReturnCode::RefusedProtocolVersion;
-				bIsValid   = false;
+				bIsValid = false;
 				return;
 			}
 
@@ -159,7 +159,7 @@ namespace Mqttify
 			{
 				LOG_MQTTIFY(Error, TEXT("[Connect] %s."), WillMessageEmpty);
 				ReturnCode = EMqttifyConnectReturnCode::RefusedProtocolVersion;
-				bIsValid   = false;
+				bIsValid = false;
 				return;
 			}
 		}
@@ -170,7 +170,7 @@ namespace Mqttify
 			{
 				LOG_MQTTIFY(Error, TEXT("[Connect] %s."), WillQosMustBe0WithFlag0);
 				ReturnCode = EMqttifyConnectReturnCode::RefusedProtocolVersion;
-				bIsValid   = false;
+				bIsValid = false;
 				return;
 			}
 			// Check will retain is 0
@@ -178,7 +178,7 @@ namespace Mqttify
 			{
 				LOG_MQTTIFY(Error, TEXT("[Connect] %s."), WillRetainMustBe0WithFlag0);
 				ReturnCode = EMqttifyConnectReturnCode::RefusedProtocolVersion;
-				bIsValid   = false;
+				bIsValid = false;
 				return;
 			}
 		}
@@ -201,7 +201,7 @@ namespace Mqttify
 	uint32 TMqttifyConnectPacket<EMqttifyProtocolVersion::Mqtt_5>::GetLength() const
 	{
 		constexpr uint32 VariableHeaderLength = 10;
-		uint32 PayloadLength                  = 0;
+		uint32 PayloadLength = 0;
 
 		PayloadLength += StringLengthFieldSize + ClientId.Len();
 		PayloadLength += WillTopic.IsEmpty()
@@ -298,7 +298,7 @@ namespace Mqttify
 				MqttifyPacketType::InvalidPacketType,
 				EnumToTCharString(FixedHeader.GetPacketType()));
 			ReasonCode = EMqttifyReasonCode::MalformedPacket;
-			bIsValid   = false;
+			bIsValid = false;
 			return;
 		}
 
@@ -307,7 +307,7 @@ namespace Mqttify
 		{
 			LOG_MQTTIFY(Error, TEXT("[Connect] %s %s."), InvalidProtocolName, *ProtocolName);
 			ReasonCode = EMqttifyReasonCode::UnsupportedProtocolVersion;
-			bIsValid   = false;
+			bIsValid = false;
 			return;
 		}
 
@@ -317,7 +317,7 @@ namespace Mqttify
 		{
 			LOG_MQTTIFY(Error, TEXT("[Connect] %s %d."), InvalidProtocolVersion, ProtocolLevel);
 			ReasonCode = EMqttifyReasonCode::UnsupportedProtocolVersion;
-			bIsValid   = false;
+			bIsValid = false;
 			return;
 		}
 
@@ -356,7 +356,7 @@ namespace Mqttify
 			{
 				LOG_MQTTIFY(Error, TEXT("[Connect] %s."), WillTopicEmpty);
 				ReasonCode = EMqttifyReasonCode::MalformedPacket;
-				bIsValid   = false;
+				bIsValid = false;
 				return;
 			}
 
@@ -364,7 +364,7 @@ namespace Mqttify
 			{
 				LOG_MQTTIFY(Error, TEXT("[Connect] %s."), WillMessageEmpty);
 				ReasonCode = EMqttifyReasonCode::MalformedPacket;
-				bIsValid   = false;
+				bIsValid = false;
 				return;
 			}
 		}
@@ -375,7 +375,7 @@ namespace Mqttify
 			{
 				LOG_MQTTIFY(Error, TEXT("[Connect] %s."), WillQosMustBe0WithFlag0);
 				ReasonCode = EMqttifyReasonCode::MalformedPacket;
-				bIsValid   = false;
+				bIsValid = false;
 				return;
 			}
 			// Check will retain is 0
@@ -383,7 +383,7 @@ namespace Mqttify
 			{
 				LOG_MQTTIFY(Error, TEXT("[Connect] %s."), WillRetainMustBe0WithFlag0);
 				ReasonCode = EMqttifyReasonCode::MalformedPacket;
-				bIsValid   = false;
+				bIsValid = false;
 				return;
 			}
 		}

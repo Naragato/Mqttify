@@ -38,7 +38,7 @@ namespace Mqttify
 				MqttifyPacketType::InvalidPacketType,
 				EnumToTCharString(FixedHeader.GetPacketType()));
 			ReasonCode = EMqttifyReasonCode::UnspecifiedError;
-			bIsValid   = false;
+			bIsValid = false;
 		}
 
 		if (FixedHeader.GetRemainingLength() == 0)

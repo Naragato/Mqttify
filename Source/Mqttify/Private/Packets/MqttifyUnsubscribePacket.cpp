@@ -62,7 +62,7 @@ namespace Mqttify
 				return;
 			}
 			ReaderPos = InReader.Tell();
-			TopicFilters.Add(FMqttifyTopicFilter{ TopicFilter });
+			TopicFilters.Add(FMqttifyTopicFilter{TopicFilter});
 			PayloadSize -= TopicFilter.Len() + StringLengthFieldSize;
 		}
 	}
@@ -131,7 +131,7 @@ namespace Mqttify
 				return;
 			}
 			ReaderPos = InReader.Tell();
-			TopicFilters.Add(FMqttifyTopicFilter{ TopicFilter });
+			TopicFilters.Add(FMqttifyTopicFilter{TopicFilter});
 			PayloadSize -= TopicFilter.Len() + StringLengthFieldSize;
 		}
 	}

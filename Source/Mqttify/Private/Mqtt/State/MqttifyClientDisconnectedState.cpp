@@ -10,9 +10,7 @@ namespace Mqttify
 		const FMqttifySocketRef& InSocket
 		)
 		: FMqttifyClientState{InOnStateChanged, InContext}
-		, Socket{InSocket}
-	{
-	}
+		, Socket{InSocket} {}
 
 	TFuture<TMqttifyResult<void>> FMqttifyClientDisconnectedState::ConnectAsync(bool bCleanSession)
 	{

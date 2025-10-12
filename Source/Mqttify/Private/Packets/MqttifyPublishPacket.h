@@ -14,17 +14,16 @@ namespace Mqttify
 	{
 	public:
 		explicit FMqttifyPublishPacketBase(const FMqttifyFixedHeader& InFixedHeader)
-			: TMqttifyControlPacket{InFixedHeader}, PacketIdentifier{}
-		{
-		}
+			: TMqttifyControlPacket{InFixedHeader}
+			, PacketIdentifier{} {}
 
 		explicit FMqttifyPublishPacketBase(
 			TArray<uint8>&& InPayload,
 			FString&& InTopicName,
 			const uint16 InPacketIdentifier)
-			: TopicName{MoveTemp(InTopicName)}, PacketIdentifier{InPacketIdentifier}, Payload{MoveTemp(InPayload)}
-		{
-		}
+			: TopicName{MoveTemp(InTopicName)}
+			, PacketIdentifier{InPacketIdentifier}
+			, Payload{MoveTemp(InPayload)} {}
 
 	public:
 		/**
@@ -182,8 +181,8 @@ namespace Mqttify
 			FMqttifyMessage&& InMessage,
 			const uint16 InPacketIdentifier,
 			const FMqttifyProperties& InProperties = FMqttifyProperties{})
-			: FMqttifyPublishPacketBase{MoveTemp(InMessage.Payload), MoveTemp(InMessage.Topic), InPacketIdentifier},
-			Properties{InProperties}
+			: FMqttifyPublishPacketBase{MoveTemp(InMessage.Payload), MoveTemp(InMessage.Topic), InPacketIdentifier}
+			, Properties{InProperties}
 		{
 			const uint32 PayloadSize = GetLength(
 				GetTopicName().Len(),
@@ -243,8 +242,8 @@ namespace Mqttify
 			const bool bInShouldRetain,
 			const bool bInIsDuplicate,
 			FMqttifyProperties&& InProperties)
-			: FMqttifyPublishPacketBase{MoveTemp(InPayload), MoveTemp(InTopicName), InPacketIdentifier},
-			Properties{MoveTemp(InProperties)}
+			: FMqttifyPublishPacketBase{MoveTemp(InPayload), MoveTemp(InTopicName), InPacketIdentifier}
+			, Properties{MoveTemp(InProperties)}
 		{
 			const uint32 PayloadSize = GetLength(
 				TopicName.Len(),

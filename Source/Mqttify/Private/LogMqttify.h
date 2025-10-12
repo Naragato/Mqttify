@@ -61,7 +61,8 @@ namespace Mqttify
 			IsAllowedPointerType<TPointerType>::value,
 			"TPointerType must be TSharedRef, TSharedPtr, or TUniquePtr");
 
-		if constexpr (std::is_same_v<TPointerType, TUniquePtr<IMqttifyControlPacket>> || std::is_same_v<TPointerType, TSharedPtr<IMqttifyControlPacket>>)
+		if constexpr (std::is_same_v<TPointerType, TUniquePtr<IMqttifyControlPacket>> || std::is_same_v<
+			TPointerType, TSharedPtr<IMqttifyControlPacket>>)
 		{
 			if (!InLogPacket.IsValid())
 			{

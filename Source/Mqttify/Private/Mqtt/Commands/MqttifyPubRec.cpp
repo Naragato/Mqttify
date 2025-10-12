@@ -16,9 +16,7 @@ namespace Mqttify
 		)
 		: TMqttifyAcknowledgeable{InPacketId, InSocket, InConnectionSettings}
 		, ReasonCode{InReasonCode}
-		, PubRecState{EPubRecState::Unacknowledged}
-	{
-	}
+		, PubRecState{EPubRecState::Unacknowledged} {}
 
 	void FMqttifyPubRec::Abandon()
 	{
@@ -61,15 +59,15 @@ namespace Mqttify
 		TSharedPtr<IMqttifyControlPacket> Packet;
 		switch (PubRecState)
 		{
-		case EPubRecState::Unacknowledged:
-			Packet = GetPacket<FPubRecPacket>();
-			break;
-		case EPubRecState::Released:
-			Packet = GetPacket<FPubCompPacket>();
-			PubRecState = EPubRecState::Complete;
-			break;
-		case EPubRecState::Complete:
-			return true;
+			case EPubRecState::Unacknowledged:
+				Packet = GetPacket<FPubRecPacket>();
+				break;
+			case EPubRecState::Released:
+				Packet = GetPacket<FPubCompPacket>();
+				PubRecState = EPubRecState::Complete;
+				break;
+			case EPubRecState::Complete:
+				return true;
 		}
 
 		check(Packet.IsValid())

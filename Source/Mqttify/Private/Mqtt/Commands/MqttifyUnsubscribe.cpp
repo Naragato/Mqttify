@@ -14,9 +14,7 @@ namespace Mqttify
 		)
 		: TMqttifyAcknowledgeable{InPacketId, InSocket, InConnectionSettings}
 		, bIsDone{false}
-		, TopicFilters{InTopicFilters}
-	{
-	}
+		, TopicFilters{InTopicFilters} {}
 
 	void FMqttifyUnsubscribe::Abandon()
 	{
@@ -88,19 +86,19 @@ namespace Mqttify
 			{
 				switch (UnsubAckPacket->GetReasonCodes()[i])
 				{
-				case EMqttifyReasonCode::Success:
-				case EMqttifyReasonCode::NoSubscriptionExisted:
-					LOG_MQTTIFY(
-						Display,
-						TEXT("%s - %s, unsubscribed from %s"),
-						*Settings->GetHost(),
-						*Settings->GetClientId(),
-						*TopicFilters[i].GetFilter());
-					UnsubscribeResults.Add(FMqttifyUnsubscribeResult{TopicFilters[i], true});
-					break;
-				default:
-					UnsubscribeResults.Add(FMqttifyUnsubscribeResult{TopicFilters[i], false});
-					break;
+					case EMqttifyReasonCode::Success:
+					case EMqttifyReasonCode::NoSubscriptionExisted:
+						LOG_MQTTIFY(
+							Display,
+							TEXT("%s - %s, unsubscribed from %s"),
+							*Settings->GetHost(),
+							*Settings->GetClientId(),
+							*TopicFilters[i].GetFilter());
+						UnsubscribeResults.Add(FMqttifyUnsubscribeResult{TopicFilters[i], true});
+						break;
+					default:
+						UnsubscribeResults.Add(FMqttifyUnsubscribeResult{TopicFilters[i], false});
+						break;
 				}
 			}
 		}

@@ -70,10 +70,10 @@ namespace Mqttify
 #pragma region MQTT 5
 
 	uint32 TMqttifyPublishPacket<EMqttifyProtocolVersion::Mqtt_5>::GetLength(const uint32 InTopicNameLength,
-																			const uint32 InPayloadLength,
-																			const uint32 InPropertiesLength,
-																			EMqttifyQualityOfService
-																			InQualityOfService)
+	                                                                         const uint32 InPayloadLength,
+	                                                                         const uint32 InPropertiesLength,
+	                                                                         EMqttifyQualityOfService
+	                                                                         InQualityOfService)
 	{
 		uint32 PayloadLength = StringLengthFieldSize + InTopicNameLength + InPropertiesLength + InPayloadLength;
 

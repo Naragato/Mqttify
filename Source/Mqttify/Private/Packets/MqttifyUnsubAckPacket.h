@@ -12,11 +12,11 @@ namespace Mqttify
 	{
 	public:
 		explicit FMqttifyUnsubAckPacketBase(const FMqttifyFixedHeader& InFixedHeader)
-			: TMqttifyControlPacket{ InFixedHeader }
-			, PacketIdentifier{ 0 } {}
+			: TMqttifyControlPacket{InFixedHeader}
+			, PacketIdentifier{0} {}
 
 		explicit FMqttifyUnsubAckPacketBase(const uint16 InPacketIdentifier)
-			: PacketIdentifier{ InPacketIdentifier } {}
+			: PacketIdentifier{InPacketIdentifier} {}
 
 	public:
 		/**
@@ -36,13 +36,13 @@ namespace Mqttify
 	struct TMqttifyUnsubAckPacket<EMqttifyProtocolVersion::Mqtt_3_1_1> final : FMqttifyUnsubAckPacketBase
 	{
 		explicit TMqttifyUnsubAckPacket(const uint16 InPacketIdentifier)
-			: FMqttifyUnsubAckPacketBase{ InPacketIdentifier }
+			: FMqttifyUnsubAckPacketBase{InPacketIdentifier}
 		{
 			FixedHeader = FMqttifyFixedHeader::Create(this);
 		}
 
 		explicit TMqttifyUnsubAckPacket(FArrayReader& InReader, const FMqttifyFixedHeader& InFixedHeader)
-			: FMqttifyUnsubAckPacketBase{ InFixedHeader }
+			: FMqttifyUnsubAckPacketBase{InFixedHeader}
 		{
 			Decode(InReader);
 		}
@@ -58,17 +58,17 @@ namespace Mqttify
 	{
 	public:
 		explicit TMqttifyUnsubAckPacket(const uint16 InPacketIdentifier,
-										const TArray<EMqttifyReasonCode>& InReasonCodes,
-										const FMqttifyProperties& InProperties = FMqttifyProperties{})
-			: FMqttifyUnsubAckPacketBase{ InPacketIdentifier }
-			, ReasonCodes{ InReasonCodes }
-			, Properties{ InProperties }
+		                                const TArray<EMqttifyReasonCode>& InReasonCodes,
+		                                const FMqttifyProperties& InProperties = FMqttifyProperties{})
+			: FMqttifyUnsubAckPacketBase{InPacketIdentifier}
+			, ReasonCodes{InReasonCodes}
+			, Properties{InProperties}
 		{
 			FixedHeader = FMqttifyFixedHeader::Create(this);
 		}
 
 		explicit TMqttifyUnsubAckPacket(FArrayReader& InReader, const FMqttifyFixedHeader& InFixedHeader)
-			: FMqttifyUnsubAckPacketBase{ InFixedHeader }
+			: FMqttifyUnsubAckPacketBase{InFixedHeader}
 		{
 			Decode(InReader);
 		}

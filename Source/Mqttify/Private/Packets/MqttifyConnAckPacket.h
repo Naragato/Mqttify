@@ -14,11 +14,11 @@ namespace Mqttify
 	{
 	public:
 		explicit FMqttifyConnAckPacketBase(const FMqttifyFixedHeader& InFixedHeader)
-			: TMqttifyControlPacket{ InFixedHeader }
-			, bSessionPresent{ false } {}
+			: TMqttifyControlPacket{InFixedHeader}
+			, bSessionPresent{false} {}
 
 		explicit FMqttifyConnAckPacketBase(const bool bInSessionPresent)
-			: bSessionPresent{ bInSessionPresent } {}
+			: bSessionPresent{bInSessionPresent} {}
 
 	public:
 		/**
@@ -38,14 +38,14 @@ namespace Mqttify
 	struct TMqttifyConnAckPacket<EMqttifyProtocolVersion::Mqtt_3_1_1> final : FMqttifyConnAckPacketBase
 	{
 		explicit TMqttifyConnAckPacket(const bool bInSessionPresent, const EMqttifyConnectReturnCode InReturnCode)
-			: FMqttifyConnAckPacketBase{ bInSessionPresent }
-			, ReturnCode{ InReturnCode }
+			: FMqttifyConnAckPacketBase{bInSessionPresent}
+			, ReturnCode{InReturnCode}
 		{
 			FixedHeader = FMqttifyFixedHeader::Create(this);
 		}
 
 		explicit TMqttifyConnAckPacket(FArrayReader& InReader, const FMqttifyFixedHeader& InFixedHeader)
-			: FMqttifyConnAckPacketBase{ InFixedHeader }
+			: FMqttifyConnAckPacketBase{InFixedHeader}
 		{
 			Decode(InReader);
 		}
@@ -70,11 +70,11 @@ namespace Mqttify
 	{
 	public:
 		explicit TMqttifyConnAckPacket(const bool bInSessionPresent,
-										const EMqttifyReasonCode InReasonCode,
-										const FMqttifyProperties& InProperties = FMqttifyProperties{})
-			: FMqttifyConnAckPacketBase{ bInSessionPresent }
-			, ReasonCode{ InReasonCode }
-			, Properties{ InProperties }
+		                               const EMqttifyReasonCode InReasonCode,
+		                               const FMqttifyProperties& InProperties = FMqttifyProperties{})
+			: FMqttifyConnAckPacketBase{bInSessionPresent}
+			, ReasonCode{InReasonCode}
+			, Properties{InProperties}
 		{
 			FixedHeader = FMqttifyFixedHeader::Create(this);
 			if (!IsReasonCodeValid(InReasonCode))
@@ -90,8 +90,8 @@ namespace Mqttify
 		}
 
 		explicit TMqttifyConnAckPacket(FArrayReader& InReader, const FMqttifyFixedHeader& InFixedHeader)
-			: FMqttifyConnAckPacketBase{ InFixedHeader }
-			, ReasonCode{ EMqttifyReasonCode::Success }
+			: FMqttifyConnAckPacketBase{InFixedHeader}
+			, ReasonCode{EMqttifyReasonCode::Success}
 		{
 			Decode(InReader);
 		}

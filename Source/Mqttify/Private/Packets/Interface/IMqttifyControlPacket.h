@@ -9,7 +9,7 @@ namespace Mqttify
 	class IMqttifyControlPacket : public ISerializable
 	{
 	public:
-		IMqttifyControlPacket()           = default;
+		IMqttifyControlPacket() = default;
 		virtual ~IMqttifyControlPacket() override = default;
 
 		/**

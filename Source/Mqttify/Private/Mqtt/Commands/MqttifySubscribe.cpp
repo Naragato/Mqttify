@@ -14,9 +14,7 @@ namespace Mqttify
 		)
 		: TMqttifyAcknowledgeable{InPacketId, InSocket, InConnectionSettings}
 		, bIsDone{false}
-		, TopicFilters{InTopicFilters}
-	{
-	}
+		, TopicFilters{InTopicFilters} {}
 
 	void FMqttifySubscribe::Abandon()
 	{
@@ -27,11 +25,11 @@ namespace Mqttify
 		}
 
 		LOG_MQTTIFY(
-				Warning,
-				TEXT("(Connection %s, ClientId %s, PacketId %u) Abandoning Subscribe"),
-				*Settings->GetHost(),
-				*Settings->GetClientId(),
-				GetId());
+			Warning,
+			TEXT("(Connection %s, ClientId %s, PacketId %u) Abandoning Subscribe"),
+			*Settings->GetHost(),
+			*Settings->GetClientId(),
+			GetId());
 
 		bIsDone = true;
 		SetPromiseValue(TMqttifyResult<TArray<FMqttifySubscribeResult>>{false, {}});
@@ -68,20 +66,20 @@ namespace Mqttify
 			{
 				switch (SubAckPacket->GetReasonCodes()[i])
 				{
-				case EMqttifyReasonCode::Success:
-				case EMqttifyReasonCode::GrantedQualityOfService1:
-				case EMqttifyReasonCode::GrantedQualityOfService2:
-					LOG_MQTTIFY(
-						Display,
-						TEXT("%s - %s, subscribed to %s"),
-						*Settings->GetHost(),
-						*Settings->GetClientId(),
-						*TopicFilters[i].Get<0>().GetFilter());
-					SubscribeResults.Add(
-						FMqttifySubscribeResult{TopicFilters[i].Get<0>(), true, TopicFilters[i].Get<1>()});
-					break;
-				default:
-					SubscribeResults.Add(FMqttifySubscribeResult{TopicFilters[i].Get<0>(), false});;
+					case EMqttifyReasonCode::Success:
+					case EMqttifyReasonCode::GrantedQualityOfService1:
+					case EMqttifyReasonCode::GrantedQualityOfService2:
+						LOG_MQTTIFY(
+							Display,
+							TEXT("%s - %s, subscribed to %s"),
+							*Settings->GetHost(),
+							*Settings->GetClientId(),
+							*TopicFilters[i].Get<0>().GetFilter());
+						SubscribeResults.Add(
+							FMqttifySubscribeResult{TopicFilters[i].Get<0>(), true, TopicFilters[i].Get<1>()});
+						break;
+					default:
+						SubscribeResults.Add(FMqttifySubscribeResult{TopicFilters[i].Get<0>(), false});;
 				}
 			}
 		}
@@ -122,7 +120,6 @@ namespace Mqttify
 				}
 			}
 		}
-
 
 		SetPromiseValue(TMqttifyResult{true, MoveTemp(SubscribeResults)});
 
