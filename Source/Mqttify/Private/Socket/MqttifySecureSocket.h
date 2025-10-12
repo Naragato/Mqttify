@@ -30,12 +30,11 @@ namespace Mqttify
 		virtual bool IsConnected() const override;
 		// ~FMqttifySocketBase
 	private:
-
 		virtual void Send(const TSharedRef<IMqttifyControlPacket>& InPacket) override;
 		virtual void Send(const uint8* InData, uint32 InSize) override;
-		static constexpr uint32 kBufferSize = 1024 * 1024 + 1;
+		static constexpr uint32 kBufferSize  = 2 * 1024 * 1024;
+		static constexpr uint32 kMaxChunkSize = 16 * 1024;
 		FUniqueSocket Socket;
-		TArray<uint8> ReadBuffer;
 		mutable FCriticalSection SocketAccessLock;
 
 		std::atomic<EMqttifySocketState> CurrentState;
@@ -44,27 +43,38 @@ namespace Mqttify
 #if WITH_SSL
 		SSL_CTX* SslCtx;
 		SSL* Ssl;
-		BIO* WriteBio;
-		BIO* ReadBio;
+		BIO* Bio;
+
 #endif // WITH_SSL
 
-	private:
 		void Disconnect_Internal();
 		void InitializeSocket();
 		bool IsSocketReadyForWrite() const;
+		// Plain socket receive.
+		bool ReceiveFromSocket(int32 Want, TArray<uint8>& Tmp, size_t& OutBytesRead) const;
+		// Reads pending data (if any) using the provided reader lambda.
+		// The reader must have signature: bool(int32 Want, TArray<uint8>& Tmp, int32& BytesRead).
+		bool ReadAvailableData(const TUniqueFunction<bool(const int32 Want, TArray<uint8>& Tmp, size_t& OutBytesRead)>&& Reader);
 #if WITH_SSL
 		bool InitializeSSL();
 		void CleanupSSL();
-		bool PerformSSLHandshake() const;
+		bool PerformSSLHandshake();
+		bool ReceiveFromSSL(int32 Want, TArray<uint8>& Tmp, size_t& BytesRead) const;
+		void AppendAndProcess(const uint8* Data, int32 Len);
+		static FString GetLastSslErrorString(bool bConsume /*= false*/) noexcept;
+		static int32 SslCertVerify(int32 PreverifyOk, X509_STORE_CTX* Context);
 		static BIO_METHOD* GetSocketBioMethod();
-		static int SocketBioWrite(BIO* Bio, const char* Buf, int BufferSize);
-		static int SocketBioRead(BIO* Bio, char* Buf, int BufferSize);
+		static int SocketBioWrite(BIO* Bio, const char* InBuffer, int32 BufferSize);
+		static int SocketBioRead(BIO* Bio, char* OutBuffer, int32 BufferSize);
 		static long SocketBioCtrl(BIO* Bio, int Cmd, long Num, void* Ptr);
 		static int SocketBioCreate(BIO* Bio);
 		static int SocketBioDestroy(BIO* Bio);
-		static int SslCertVerify(int PreverifyOk, X509_STORE_CTX* Context);
-
-	private:
+		
+#if !UE_BUILD_SHIPPING
+		void DebugSslBioState(EMqttifySocketState State);
+		FString LastSslBioDebugLog{};
+#endif // !UE_BUILD_SHIPPING
+		
 #endif // WITH_SSL
 	};
 } // namespace Mqttify

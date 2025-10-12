@@ -1,15 +1,14 @@
 #include "Socket/MqttifySecureSocket.h"
 
 #include "LogMqttify.h"
-#include "MqttifyConstants.h"
 #include "MqttifySocketState.h"
 #include "Sockets.h"
 #include "SslModule.h"
-#include "Async/Async.h"
 #include "Interfaces/ISslCertificateManager.h"
 
 #if WITH_SSL
 #define UI UI_ST
+#include <openssl/x509v3.h>
 #include <openssl/ssl.h>
 #undef UI
 #endif // WITH_SSL
@@ -24,17 +23,9 @@ namespace Mqttify
 #if WITH_SSL
 		, SslCtx{nullptr}
 		, Ssl{nullptr}
-		, WriteBio{nullptr}
-		, ReadBio{nullptr}
+		, Bio{nullptr}
 #endif // WITH_SSL
-	{
-		ReadBuffer.SetNumZeroed(kBufferSize);
-		LOG_MQTTIFY(
-			VeryVerbose,
-			TEXT("ReadBuffer %p of size %d"),
-			ReadBuffer.GetData(),
-			ReadBuffer.Max());
-	}
+	{}
 
 	FMqttifySecureSocket::~FMqttifySecureSocket()
 	{
@@ -44,7 +35,7 @@ namespace Mqttify
 	void FMqttifySecureSocket::Connect()
 	{
 		TSharedRef<FMqttifySecureSocket> Self = AsShared();
-		EMqttifySocketState Expected = EMqttifySocketState::Disconnected;
+		EMqttifySocketState Expected          = EMqttifySocketState::Disconnected;
 		if (!CurrentState.compare_exchange_strong(
 			Expected,
 			EMqttifySocketState::Connecting,
@@ -60,7 +51,7 @@ namespace Mqttify
 			InitializeSocket();
 			if (Socket.IsValid())
 			{
-				ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+				ISocketSubsystem* SocketSubsystem    = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
 				FAddressInfoResult AddressInfoResult = SocketSubsystem->GetAddressInfo(
 					*ConnectionSettings->GetHost(),
 					nullptr,
@@ -90,16 +81,14 @@ namespace Mqttify
 					else
 					{
 						Addr->SetPort(ConnectionSettings->GetPort());
-
-						const bool bConnected = Socket->Connect(*Addr);
-						if (bConnected)
+						if (Socket->Connect(*Addr))
 						{
 #if WITH_SSL
 							if (bUseSSL)
 							{
-								if (InitializeSSL() && PerformSSLHandshake())
+								if (InitializeSSL())
 								{
-									CurrentState.store(EMqttifySocketState::Connected, std::memory_order_release);
+									CurrentState.store(EMqttifySocketState::SslConnecting, std::memory_order_release);
 								}
 							}
 							else
@@ -122,7 +111,7 @@ namespace Mqttify
 				*ConnectionSettings->GetClientId());
 			OnConnectDelegate.Broadcast(true);
 		}
-		else
+		else if (CurrentState.load(std::memory_order_acquire) != EMqttifySocketState::SslConnecting)
 		{
 			LOG_MQTTIFY(Error, TEXT("Failed to connect to %s"), *ConnectionSettings->ToString());
 			OnConnectDelegate.Broadcast(false);
@@ -141,11 +130,16 @@ namespace Mqttify
 			FPlatformProcess::YieldThread();
 		}
 
-		EMqttifySocketState Expected = EMqttifySocketState::Connected;
-		if (CurrentState.compare_exchange_strong(Expected, EMqttifySocketState::Disconnected))
+		// Allow disconnecting from either Connected or SslConnecting states
+		EMqttifySocketState Expected = CurrentState.load(std::memory_order_acquire);
+		while (Expected == EMqttifySocketState::Connected || Expected == EMqttifySocketState::SslConnecting)
 		{
-			Disconnect_Internal();
-			OnDisconnectDelegate.Broadcast();
+			if (CurrentState.compare_exchange_weak(Expected, EMqttifySocketState::Disconnected))
+			{
+				Disconnect_Internal();
+				OnDisconnectDelegate.Broadcast();
+				break;
+			}
 		}
 	}
 
@@ -156,7 +150,13 @@ namespace Mqttify
 
 	void FMqttifySecureSocket::Send(const uint8* InData, uint32 InSize)
 	{
-		bool bShouldDisconnect = false;
+		LOG_MQTTIFY_PACKET_DATA(VeryVerbose,
+		                        InData,
+		                        InSize,
+		                        TEXT("Sending data to socket %s, ClientId %s"),
+		                        *ConnectionSettings->ToString(),
+		                        *ConnectionSettings->GetClientId());
+
 		{
 			FScopeLock Lock{&SocketAccessLock};
 			if (!IsConnected())
@@ -164,108 +164,85 @@ namespace Mqttify
 				LOG_MQTTIFY(Warning, TEXT("Socket is not connected"));
 				return;
 			}
-
-			if (!IsSocketReadyForWrite())
+#if WITH_SSL
+			if (bUseSSL)
 			{
-				LOG_MQTTIFY(Error, TEXT("Socket is not available for writing"));
-				bShouldDisconnect = true;
+				const int32 Ret = SSL_write(Ssl, InData, InSize);;
+				if (Ret < 0)
+				{
+					const int32 ErrCode = SSL_get_error(Ssl, Ret);
+					if (ErrCode != SSL_ERROR_WANT_READ && ErrCode != SSL_ERROR_WANT_WRITE)
+					{
+
+						LOG_MQTTIFY(Error,
+						            TEXT("SSL_write failed: %s, %d"),
+						            *GetLastSslErrorString(true),
+						            Ret);
+						Disconnect();
+					}
+				}
 			}
 			else
+#endif
 			{
-				LOG_MQTTIFY_PACKET_DATA(
-					VeryVerbose,
-					InData,
-					InSize,
-					TEXT("Sending data to socket %s, ClientId %s"),
-					*ConnectionSettings->ToString(),
-					*ConnectionSettings->GetClientId());
+				SIZE_T TotalBytesSent = 0;
+				while (TotalBytesSent < InSize)
+				{
 
-#if WITH_SSL
-				if (bUseSSL)
-				{
-					const int Ret = SSL_write(Ssl, InData, InSize);
-					if (Ret <= 0)
-					{
-						const int Error = SSL_get_error(Ssl, Ret);
-						LOG_MQTTIFY(Error, TEXT("SSL_write failed with error %d"), Error);
-						bShouldDisconnect = true;
-					}
-				}
-				else
-#endif // WITH_SSL
-				{
 					int32 BytesSent = 0;
-					if (!Socket->Send(InData, InSize, BytesSent))
+					if (!Socket->Send(InData + TotalBytesSent, InSize - TotalBytesSent, BytesSent) || BytesSent == 0)
 					{
-						LOG_MQTTIFY(Error, TEXT("Socket send failed"));
-						bShouldDisconnect = true;
+						Disconnect();
+						return;
 					}
+					TotalBytesSent += BytesSent;
 				}
 			}
-		}
-
-		if (bShouldDisconnect)
-		{
-			Disconnect();
 		}
 	}
 
 	void FMqttifySecureSocket::Tick()
 	{
 		bool bShouldDisconnect = false;
+
 		{
 			FScopeLock Lock{&SocketAccessLock};
-			if (!IsConnected())
+
+			const EMqttifySocketState State = CurrentState.load(std::memory_order_acquire);
+			if (State == EMqttifySocketState::Disconnected)
 			{
 				return;
 			}
 
-			int32 BytesReceived = 0;
 #if WITH_SSL
 			if (bUseSSL)
 			{
-				const int Ret = SSL_read(Ssl, ReadBuffer.GetData(), ReadBuffer.Max());
-				if (Ret < 0)
+#if !UE_BUILD_SHIPPING
+				DebugSslBioState(State);
+#endif
+
+				if (State == EMqttifySocketState::SslConnecting)
 				{
-					const int Error = SSL_get_error(Ssl, Ret);
-					if (Error != SSL_ERROR_WANT_READ && Error != SSL_ERROR_WANT_WRITE)
-					{
-						LOG_MQTTIFY(Error, TEXT("SSL_read failed with error %d"), Error);
-						bShouldDisconnect = true;
-					}
+					bShouldDisconnect = !PerformSSLHandshake();
 				}
-				else
+
+				else if (IsConnected())
 				{
-					BytesReceived = Ret;
+					bShouldDisconnect |= !ReadAvailableData(
+						[this](const int32 Want, TArray<uint8>& Tmp, size_t& BytesRead) {
+							return ReceiveFromSSL(Want, Tmp, BytesRead);
+						});
 				}
 			}
 			else
 #endif // WITH_SSL
-			{
-				uint32 Size = 0;
-				if (!Socket->HasPendingData(Size))
+				if (IsConnected())
 				{
-					return;
+					bShouldDisconnect = !ReadAvailableData(
+						[this](const int32 Want, TArray<uint8>& Tmp, size_t& BytesRead) {
+							return ReceiveFromSocket(Want, Tmp, BytesRead);
+						});
 				}
-				LOG_MQTTIFY(VeryVerbose, TEXT("Socket has pending data: %d"), Size);
-				if (!Socket->Recv(ReadBuffer.GetData(), ReadBuffer.Max(), BytesReceived))
-				{
-					LOG_MQTTIFY(Error, TEXT("Socket receive failed"));
-					bShouldDisconnect = true;
-				}
-			}
-			if (BytesReceived > 0)
-			{
-				LOG_MQTTIFY(
-					VeryVerbose,
-					TEXT("Socket Data Received (%s , %s): Length %d"),
-					*ConnectionSettings->ToString(),
-					*ConnectionSettings->GetClientId(),
-					BytesReceived);
-
-				DataBuffer.Append(ReadBuffer.GetData(), BytesReceived);
-				ReadPacketsFromBuffer();
-			}
 		}
 
 		if (bShouldDisconnect)
@@ -277,7 +254,7 @@ namespace Mqttify
 	bool FMqttifySecureSocket::IsConnected() const
 	{
 		FScopeLock Lock{&SocketAccessLock};
-		return CurrentState.load(std::memory_order_acquire) == EMqttifySocketState::Connected
+		return (CurrentState.load(std::memory_order_acquire) == EMqttifySocketState::Connected)
 			&& Socket.IsValid()
 			&& Socket->GetConnectionState() == ESocketConnectionState::SCS_Connected;
 	}
@@ -293,6 +270,7 @@ namespace Mqttify
 	void FMqttifySecureSocket::Disconnect_Internal()
 	{
 		FScopeLock Lock{&SocketAccessLock};
+		LOG_MQTTIFY(Display, TEXT("Disconnect"));
 #if WITH_SSL
 		if (bUseSSL)
 		{
@@ -316,8 +294,21 @@ namespace Mqttify
 			LOG_MQTTIFY(Error, TEXT("Failed to create socket"));
 			return;
 		}
-		Socket->SetNonBlocking(true);
-		Socket->SetNoDelay(false);
+
+		const bool bSuccess = Socket->SetReuseAddr(true) &&
+			Socket->SetNonBlocking(true) &&
+			Socket->SetNoDelay(true) &&
+			Socket->SetLinger(false, 0) &&
+			Socket->SetRecvErr();
+
+		if (!bSuccess)
+		{
+			LOG_MQTTIFY(Error, TEXT("Failed to set socket"));
+			Socket->Close();
+			Socket.Reset();
+			return;
+		}
+
 		int32 BufferSize = 0;
 		Socket->SetReceiveBufferSize(kBufferSize, BufferSize);
 		LOG_MQTTIFY(VeryVerbose, TEXT("Socket receive buffer size: %d."), BufferSize);
@@ -334,7 +325,7 @@ namespace Mqttify
 		}
 
 		int32 BytesRead = 0;
-		uint8 Dummy = 0;
+		uint8 Dummy     = 0;
 		if (!Socket->Recv(&Dummy, 1, BytesRead, ESocketReceiveFlags::Peek))
 		{
 			LOG_MQTTIFY(Verbose, TEXT("Socket is not ready for writing"));
@@ -343,50 +334,109 @@ namespace Mqttify
 		return true;
 	}
 
-#if WITH_SSL
-	bool FMqttifySecureSocket::InitializeSSL()
+	bool FMqttifySecureSocket::ReceiveFromSocket(const int32 Want, TArray<uint8>& Tmp, size_t& OutBytesRead) const
 	{
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
-		SSL_library_init();
-		SSL_load_error_strings();
-		OpenSSL_add_all_algorithms();
-#else
-		OPENSSL_init_ssl(0, nullptr);
-#endif // (OPENSSL_VERSION_NUMBER < 0x10100000L)
-
-		SslCtx = SSL_CTX_new(TLS_client_method());
-		if (!SslCtx)
+		OutBytesRead    = 0;
+		int32 BytesRead = 0;
+		if (!Socket->Recv(Tmp.GetData(), Want, BytesRead))
 		{
-			LOG_MQTTIFY(Error, TEXT("Failed to create SSL context"));
+			LOG_MQTTIFY(Error, TEXT("Socket Recv failed"));
 			return false;
 		}
 
-		SSL_CTX_set_default_verify_paths(SslCtx);
-		FSslModule::Get().GetCertificateManager().AddCertificatesToSslContext(SslCtx);
+		OutBytesRead = BytesRead;
+		// Treat zero bytes as a clean “nothing available” (not a hard error).
+		return true;
+	}
+
+#if WITH_SSL
+#if !UE_BUILD_SHIPPING
+	void FMqttifySecureSocket::DebugSslBioState(const EMqttifySocketState State)
+	{
+		FString Msg;
+		Msg.Reserve(256);
+		Msg += FString::Printf(TEXT("Tick: bUseSSL=1, MqttifyState=%s, SocketConnState=%d"),
+		                       EnumToTCharString(State),
+		                       Socket.IsValid()
+		                       ? static_cast<int32>(Socket->GetConnectionState())
+		                       : static_cast<int32>(ESocketConnectionState::SCS_ConnectionError));
+
+		if (Ssl != nullptr)
+		{
+			const char* SslStateAnsi = SSL_state_string_long(Ssl);
+			const char* VersionAnsi  = SSL_get_version(Ssl);
+			const bool bInitFinished = SSL_is_init_finished(Ssl) == 1;
+			const int PendingApp     = SSL_pending(Ssl);
+			Msg += TEXT(" | ");
+			Msg += FString::Printf(TEXT("SSL: state=%s, version=%s, init_finished=%s, pending_app=%d"),
+			                       ANSI_TO_TCHAR(SslStateAnsi),
+			                       ANSI_TO_TCHAR(VersionAnsi),
+			                       bInitFinished ? TEXT("true") : TEXT("false"),
+			                       PendingApp);
+		}
+
+		if (Bio != nullptr)
+		{
+			const size_t Pending   = BIO_ctrl_pending(Bio);
+			const size_t WPending  = BIO_ctrl_wpending(Bio);
+			const bool ShouldRead  = !!BIO_should_read(Bio);
+			const bool ShouldWrite = !!BIO_should_write(Bio);
+			const bool ShouldRetry = !!BIO_should_retry(Bio);
+			Msg += TEXT(" | ");
+			Msg += FString::Printf(
+				TEXT("BIO: pending=%llu, wpending=%llu, should_read=%d, should_write=%d, should_retry=%d"),
+				Pending,
+				WPending,
+				ShouldRead ? 1 : 0,
+				ShouldWrite ? 1 : 0,
+				ShouldRetry ? 1 : 0);
+		}
+
+		if (Msg != LastSslBioDebugLog)
+		{
+			LastSslBioDebugLog = Msg;
+			LOG_MQTTIFY(Verbose, TEXT("%s"), *Msg);
+		}
+	}
+#endif // !UE_BUILD_SHIPPING
+
+	bool FMqttifySecureSocket::InitializeSSL()
+	{
+
+		OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_LOAD_CRYPTO_STRINGS, nullptr);
+		SslCtx = SSL_CTX_new(TLS_client_method());
+		if (nullptr == SslCtx)
+		{
+			LOG_MQTTIFY(Error, TEXT("SSL_CTX_new failed: %s"), *GetLastSslErrorString(true));
+			return false;
+		}
+
+		SSL_CTX_set_min_proto_version(SslCtx, TLS1_2_VERSION);
+
 		if (ConnectionSettings->ShouldVerifyServerCertificate())
 		{
 			SSL_CTX_set_verify(SslCtx, SSL_VERIFY_PEER, SslCertVerify);
 		}
 		else
 		{
-			SSL_CTX_set_verify(SslCtx, SSL_VERIFY_NONE, SslCertVerify);
+			SSL_CTX_set_verify(SslCtx, SSL_VERIFY_NONE, nullptr);
 		}
 
-		SSL_CTX_set_session_cache_mode(
-			SslCtx,
-			SSL_SESS_CACHE_CLIENT
-			| SSL_SESS_CACHE_NO_INTERNAL_STORE);
+		FSslModule::Get().GetCertificateManager().AddCertificatesToSslContext(SslCtx);
 
 		Ssl = SSL_new(SslCtx);
-		if (!Ssl)
+
+		if (nullptr == Ssl)
 		{
-			LOG_MQTTIFY(Error, TEXT("Failed to create SSL object"));
+			SSL_CTX_free(SslCtx);
+			SslCtx = nullptr;
+			LOG_MQTTIFY(Error, TEXT("Failed to create SSL object %s"), *GetLastSslErrorString(true));
 			return false;
 		}
 
-		SSL_CTX_set_min_proto_version(SslCtx, TLS1_2_VERSION);
 		SSL_set_min_proto_version(Ssl, TLS1_2_VERSION);
-		SSL_set_tlsext_host_name(Ssl, TCHAR_TO_ANSI(*ConnectionSettings->GetHost()));
+		SSL_set_hostflags(Ssl, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
+		SSL_set1_host(Ssl, TCHAR_TO_ANSI(*ConnectionSettings->GetHost()));
 
 		const auto CipherList =
 			"HIGH:"
@@ -418,40 +468,19 @@ namespace Mqttify
 		// Restrict the curves to approved ones
 		SSL_CTX_set1_curves_list(SslCtx, "P-521:P-384:P-256");
 		SSL_set1_curves_list(Ssl, "P-521:P-384:P-256");
+		SSL_CTX_set_options(SslCtx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1);
+		Bio = BIO_new(GetSocketBioMethod());
 
-		WriteBio = BIO_new(GetSocketBioMethod());
-		ReadBio = BIO_new(GetSocketBioMethod());
-		if (nullptr == WriteBio)
+		if (nullptr == Bio)
 		{
-			LOG_MQTTIFY(Error, TEXT("Failed to create custom write BIO"));
+			LOG_MQTTIFY(Error, TEXT("BIO_new Failed to create custom BIOs"));
+			CleanupSSL();
 			return false;
 		}
 
-		if (nullptr == ReadBio)
-		{
-			LOG_MQTTIFY(Error, TEXT("Failed to create custom read BIO"));
-			return false;
-		}
-
-		SSL_CTX_set_options(
-			SslCtx,
-			SSL_OP_CIPHER_SERVER_PREFERENCE |
-			SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION |
-			SSL_OP_NO_RENEGOTIATION);
-		SSL_set_options(
-			Ssl,
-			SSL_OP_CIPHER_SERVER_PREFERENCE |
-			SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION |
-			SSL_OP_NO_RENEGOTIATION);
-
-		BIO_set_data(WriteBio, this);
-		BIO_set_data(ReadBio, this);
-		BIO_set_init(WriteBio, 1);
-		BIO_set_init(ReadBio, 1);
-		SSL_set0_rbio(Ssl, ReadBio);
-		SSL_set0_wbio(Ssl, WriteBio);
-		BIO_up_ref(WriteBio);
-		BIO_up_ref(ReadBio);
+		BIO_set_data(Bio, this);
+		SSL_set_bio(Ssl, Bio, Bio);
+		// SSL_set_mode(Ssl, SSL_MODE_ENABLE_PARTIAL_WRITE | SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER | SSL_MODE_AUTO_RETRY);
 		SSL_set_connect_state(Ssl);
 		SSL_set_app_data(Ssl, this);
 		return true;
@@ -465,13 +494,9 @@ namespace Mqttify
 			SSL_free(Ssl);
 			Ssl = nullptr;
 		}
-		if (nullptr != WriteBio)
+		if (nullptr != Bio)
 		{
-			WriteBio = nullptr;
-		}
-		if (nullptr != ReadBio)
-		{
-			ReadBio = nullptr;
+			Bio = nullptr;
 		}
 		if (nullptr != SslCtx)
 		{
@@ -480,232 +505,110 @@ namespace Mqttify
 		}
 	}
 
-	bool FMqttifySecureSocket::PerformSSLHandshake() const
+	bool FMqttifySecureSocket::PerformSSLHandshake()
 	{
-		FScopeLock Lock(&SocketAccessLock);
 		LOG_MQTTIFY(Verbose, TEXT("Performing SSL handshake"));
 
-		int SslError;
-		do
+		const int Ret = SSL_connect(Ssl);
+		switch (const int SslError = SSL_get_error(Ssl, Ret))
 		{
-			const int Ret = SSL_do_handshake(Ssl);
-			SslError = SSL_get_error(Ssl, Ret);
-			LOG_MQTTIFY(Verbose, TEXT("SSL_do_handshake returned %d, %d"), SslError, Ret);
-			if (SslError == SSL_ERROR_NONE)
-			{
-				break;
-			}
-
-			if (SslError != SSL_ERROR_WANT_READ && SslError != SSL_ERROR_WANT_WRITE && SslError != SSL_ERROR_SYSCALL)
-			{
-				break;
-			}
-
-			FPlatformProcess::YieldThread();
-		}
-		while (true);
-
-		if (ConnectionSettings->ShouldVerifyServerCertificate())
-		{
-			if (const long VerifyResult = SSL_get_verify_result(Ssl); VerifyResult != X509_V_OK)
-			{
-				LOG_MQTTIFY(
-					Error,
-					TEXT("SSL certificate verification failed: %hs"),
-					X509_verify_cert_error_string(VerifyResult));
+			case SSL_ERROR_WANT_READ:
+			case SSL_ERROR_WANT_WRITE:
+				// Not an error; no bytes now. Let Tick continue later.
+				return true;
+			case SSL_ERROR_NONE:
+				if (ConnectionSettings->ShouldVerifyServerCertificate())
+				{
+					if (const long VerifyResult = SSL_get_verify_result(Ssl); VerifyResult != X509_V_OK)
+					{
+						LOG_MQTTIFY(
+							Error,
+							TEXT("SSL certificate verification failed: %hs"),
+							X509_verify_cert_error_string(VerifyResult));
+						return false;
+					}
+				}
+				CurrentState.store(EMqttifySocketState::Connected, std::memory_order_release);
+				LOG_MQTTIFY(Display, TEXT("TLS handshake completed %d"), Ret);
+				OnConnectDelegate.Broadcast(true);
+				return true;
+			case SSL_ERROR_ZERO_RETURN:
+				LOG_MQTTIFY(Error, TEXT("SSL_connect returned SSL_ERROR_ZERO_RETURN"));
 				return false;
-			}
-		}
+			case SSL_ERROR_SYSCALL:
+				LOG_MQTTIFY(Error, TEXT("SSL_connect returned SSL_ERROR_SYSCALL"));
+				return false;
+			default:
+				if (ERR_peek_last_error() == SSL_R_NO_SHARED_CIPHER)
+				{
+					LOG_MQTTIFY(
+						Error,
+						TEXT("SSL_connect returned %s Incompatible cipher suit"),
+						*GetLastSslErrorString(true));
+					return false;
+				}
 
-		if (SslError != SSL_ERROR_NONE)
-		{
-			LOG_MQTTIFY(Error, TEXT("SSL handshake failed with error %d"), SslError);
-			return false;
+				LOG_MQTTIFY(Error, TEXT("SSL_connect returned %d %d"), SslError, ERR_peek_last_error());
+				return false;
 		}
-
-		return true;
 	}
 
-	// bool FMqttifySecureSocket::PerformSSLHandshake()
-	// {
-	// 	FScopeLock Lock(&SocketAccessLock);
-	// 	LOG_MQTTIFY(Verbose, TEXT("Performing SSL handshake"));
-	//
-	// 	while (true)
-	// 	{
-	// 		if (SSL_is_init_finished(Ssl))
-	// 		{
-	// 			LOG_MQTTIFY(Verbose, TEXT("SSL handshake is finished"));
-	// 			break;
-	// 		}
-	//
-	// 		const int RC = SSL_do_handshake(Ssl);
-	// 		LOG_MQTTIFY(Verbose, TEXT("SSL_do_handshake returned %d"), RC);
-	// 		if (RC > 0)
-	// 		{
-	// 			break;
-	// 		}
-	//
-	// 		const int SSLError = SSL_get_error(Ssl, RC);
-	// 		switch (SSLError)
-	// 		{
-	// 		case SSL_ERROR_WANT_READ:
-	// 		case SSL_ERROR_WANT_WRITE:
-	// 			// The handshake needs to read/write more data
-	// 			Tick();
-	// 			FPlatformProcess::YieldThread();
-	// 			continue;
-	//
-	// 		case SSL_ERROR_ZERO_RETURN:
-	// 			// The TLS/SSL connection has been closed
-	// 			LOG_MQTTIFY(Error, TEXT("SSL connection was closed during handshake"));
-	// 			return false;
-	//
-	// 		case SSL_ERROR_SSL:
-	// 			// A failure in the SSL library occurred, usually a protocol error
-	// 			LOG_MQTTIFY(Error, TEXT("SSL protocol error during handshake"));
-	// 			return false;
-	//
-	// 		case SSL_ERROR_SYSCALL:
-	// 			// Some I/O error occurred
-	// 			LOG_MQTTIFY(Error, TEXT("I/O error during SSL handshake"));
-	// 			return false;
-	//
-	// 		default:
-	// 			// Other errors
-	// 			LOG_MQTTIFY(Error, TEXT("SSL handshake failed with error %d"), SSLError);
-	// 			return false;
-	// 		}
-	// 	}
-	//
-	// 	if (ConnectionSettings->ShouldVerifyServerCertificate())
-	// 	{
-	// 		const long VerifyResult = SSL_get_verify_result(Ssl);
-	// 		if (VerifyResult != X509_V_OK)
-	// 		{
-	// 			LOG_MQTTIFY(
-	// 				Error,
-	// 				TEXT("SSL certificate verification failed: %hs"),
-	// 				X509_verify_cert_error_string(VerifyResult));
-	// 			return false;
-	// 		}
-	// 	}
-	//
-	// 	LOG_MQTTIFY(Verbose, TEXT("SSL handshake completed successfully"));
-	// 	return true;
-	// }
-
-	BIO_METHOD* FMqttifySecureSocket::GetSocketBioMethod()
+	bool FMqttifySecureSocket::ReceiveFromSSL(const int32 Want, TArray<uint8>& Tmp, size_t& BytesRead) const
 	{
-		static BIO_METHOD* Method = nullptr;
-		if (nullptr == Method)
+		const int32 Ret = SSL_read_ex(Ssl, Tmp.GetData(), Want, &BytesRead);
+
+		LOG_MQTTIFY(VeryVerbose, TEXT("SSL_read returned %d %lld"), Ret, BytesRead);
+		if (BytesRead > 0 && Ret == 1)
 		{
-			const int32 BioId = BIO_get_new_index() | BIO_TYPE_SOURCE_SINK;
-			Method = BIO_meth_new(BioId, "Socket BIO");
-			BIO_meth_set_write(Method, SocketBioWrite);
-			BIO_meth_set_read(Method, SocketBioRead);
-			BIO_meth_set_ctrl(Method, SocketBioCtrl);
-			BIO_meth_set_create(Method, SocketBioCreate);
-			BIO_meth_set_destroy(Method, SocketBioDestroy);
+			return true;
 		}
-		return Method;
+
+		// Interpret SSL error conditions: only disconnect on hard errors.
+		switch (const int Err = SSL_get_error(Ssl, Ret))
+		{
+			case SSL_ERROR_WANT_READ:
+			case SSL_ERROR_WANT_WRITE:
+				return true;
+			default:
+				LOG_MQTTIFY(Error, TEXT("SSL_read failed, error=%d, %llu, %d"), Err, BytesRead, Ret);
+				return false;
+		}
 	}
 
-	int FMqttifySecureSocket::SocketBioWrite(BIO* Bio, const char* Buf, int BufferSize)
+	FString FMqttifySecureSocket::GetLastSslErrorString(bool bConsume) noexcept
 	{
-		LOG_MQTTIFY(VeryVerbose, TEXT("Writing: %d bytes"), BufferSize);
-		const FMqttifySecureSocket* Socket = static_cast<FMqttifySecureSocket*>(BIO_get_data(Bio));
-		if (!Socket || !Socket->Socket.IsValid())
+		// OpenSSL per-thread error queue: 0 means "no error".
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+		const unsigned long Err = bConsume ? ERR_get_error() : ERR_peek_last_error();
+#else
+		// On very old OpenSSL, fallback to popping (closest to original behavior).
+		const unsigned long Err = ERR_get_error();
+#endif
+
+		if (Err == 0)
 		{
-			return -1;
+			return TEXT("No OpenSSL error (queue empty)");
 		}
 
-		BIO_clear_retry_flags(Bio);
-		int32 BytesSent = 0;
-		const bool bSuccess = Socket->Socket->Send(reinterpret_cast<const uint8*>(Buf), BufferSize, BytesSent);
+		char Buf[256] = {};
+		ERR_error_string_n(Err, Buf, sizeof(Buf));
 
-		if (!bSuccess)
+		const char* LibStr    = ERR_lib_error_string(Err);
+		const char* ReasonStr = ERR_reason_error_string(Err);
+
+		if (LibStr || ReasonStr)
 		{
-			LOG_MQTTIFY(VeryVerbose, TEXT("Socket write failed"));
-			// TODO consider using BIO_set_flags(Bio, BIO_FLAGS_WRITE | BIO_FLAGS_SHOULD_RETRY);
-			return -1;
+			return FString::Printf(
+				TEXT("%s | lib=%s | reason=%s"),
+				UTF8_TO_TCHAR(Buf),
+				LibStr ? UTF8_TO_TCHAR(LibStr) : TEXT("?"),
+				ReasonStr ? UTF8_TO_TCHAR(ReasonStr) : TEXT("?"));
 		}
 
-		return BytesSent;
+		return UTF8_TO_TCHAR(Buf);
 	}
 
-	int FMqttifySecureSocket::SocketBioRead(BIO* Bio, char* Buf, int BufferSize)
-	{
-		const FMqttifySecureSocket* Socket = static_cast<FMqttifySecureSocket*>(BIO_get_data(Bio));
-		BIO_clear_retry_flags(Bio);
-		if (!Socket || !Socket->Socket.IsValid())
-		{
-			return -1;
-		}
-
-		uint32 Size = 0;
-		if (!Socket->Socket->HasPendingData(Size))
-		{
-			return 0;
-		}
-
-		LOG_MQTTIFY(VeryVerbose, TEXT("Buffer address: %p, size: %d"), Buf, BufferSize);
-
-		int32 BytesRead = 0;
-		const bool bSuccess = Socket->Socket->Recv(
-			reinterpret_cast<uint8*>(Buf),
-			BufferSize,
-			BytesRead,
-			ESocketReceiveFlags::None);
-
-		if (!bSuccess)
-		{
-			LOG_MQTTIFY(VeryVerbose, TEXT("Socket read failed"));
-			return -1;
-		}
-
-		if (BytesRead == 0)
-		{
-			LOG_MQTTIFY(VeryVerbose, TEXT("BytesRead is 0"));
-			return 0;
-		}
-
-		LOG_MQTTIFY_PACKET_DATA(VeryVerbose, reinterpret_cast<uint8*>(Buf), BytesRead, TEXT("SocketBioRead"));
-		return BytesRead;
-	}
-
-	long FMqttifySecureSocket::SocketBioCtrl(BIO* Bio, int Cmd, long Num, void* Ptr)
-	{
-		LOG_MQTTIFY(VeryVerbose, TEXT("SocketBioCtrl: Cmd %d, Num %ld"), Cmd, Num);
-		switch (Cmd)
-		{
-		case BIO_CTRL_FLUSH:
-			return 1;
-		default:
-			return 0;
-		}
-	}
-
-	int FMqttifySecureSocket::SocketBioCreate(BIO* Bio)
-	{
-		BIO_set_init(Bio, 1);
-		return 1;
-	}
-
-	int FMqttifySecureSocket::SocketBioDestroy(BIO* Bio)
-	{
-		if (nullptr == Bio)
-		{
-			LOG_MQTTIFY(Verbose, TEXT("SocketBioDestroy: bio is nullptr"));
-			return 0;
-		}
-
-		BIO_set_init(Bio, 0);
-		BIO_set_data(Bio, nullptr);
-		return 1;
-	}
-
-	int FMqttifySecureSocket::SslCertVerify(int PreverifyOk, X509_STORE_CTX* Context)
+	int32 FMqttifySecureSocket::SslCertVerify(int32 PreverifyOk, X509_STORE_CTX* Context)
 	{
 		LOG_MQTTIFY(VeryVerbose, TEXT("SslCertVerify: PreverifyOk %d"), PreverifyOk);
 		const SSL* Handle = static_cast<SSL*>(X509_STORE_CTX_get_ex_data(
@@ -731,6 +634,183 @@ namespace Mqttify
 			}
 		}
 		return PreverifyOk;
+	}
+
+
+	void FMqttifySecureSocket::AppendAndProcess(const uint8* Data, int32 Len)
+	{
+		DataBuffer.Append(Data, Len);
+		ReadPacketsFromBuffer();
+	}
+
+	BIO_METHOD* FMqttifySecureSocket::GetSocketBioMethod()
+	{
+		static BIO_METHOD* Method = nullptr;
+		if (nullptr == Method)
+		{
+			const int32 BioId = BIO_get_new_index() | BIO_TYPE_SOURCE_SINK;
+			Method            = BIO_meth_new(BioId, "Mqttify Socket BIO");
+			BIO_meth_set_write(Method, SocketBioWrite);
+			BIO_meth_set_read(Method, SocketBioRead);
+			BIO_meth_set_ctrl(Method, SocketBioCtrl);
+			BIO_meth_set_create(Method, SocketBioCreate);
+			BIO_meth_set_destroy(Method, SocketBioDestroy);
+		}
+		return Method;
+	}
+
+	int FMqttifySecureSocket::SocketBioWrite(BIO* Bio, const char* InBuffer, const int32 BufferSize)
+	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("Writing: %d bytes"), BufferSize);
+		BIO_clear_retry_flags(Bio);
+
+		const FMqttifySecureSocket* Self = static_cast<const FMqttifySecureSocket*>(BIO_get_data(Bio));
+		if (nullptr == Self || !Self->Socket.IsValid() || BufferSize <= 0)
+		{
+			return 0;
+		}
+
+		int32 BytesSent = 0;
+		const bool bOk  = Self->Socket->Send(reinterpret_cast<const uint8*>(InBuffer), BufferSize, BytesSent);
+
+		if (bOk && BytesSent > 0)
+		{
+			LOG_MQTTIFY(VeryVerbose, TEXT("SocketBioWrite: %d bytes"), BytesSent);
+			return BytesSent;
+		}
+
+		// Map would-block to retry
+		const ESocketErrors Err = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetLastErrorCode();
+		if (Err == SE_EWOULDBLOCK)
+		{
+			BIO_set_retry_write(Bio);
+			return -1;
+		}
+
+		// Hard error
+		return -1;
+	}
+
+	int FMqttifySecureSocket::SocketBioRead(BIO* Bio, char* OutBuffer, const int32 BufferSize)
+	{
+		LOG_MQTTIFY(VeryVerbose, TEXT("Reading, buffer size: %d"), BufferSize);
+		BIO_clear_retry_flags(Bio);
+
+		if (nullptr == OutBuffer)
+		{
+			LOG_MQTTIFY(Error, TEXT("SocketBioRead: OutputBuffer is nullptr"));
+			return -1;
+		}
+
+		const auto* Self = static_cast<const FMqttifySecureSocket*>(BIO_get_data(Bio));
+		if (!Self || !Self->Socket.IsValid())
+		{
+			LOG_MQTTIFY(Error, TEXT("SocketBioRead: Self or Socket is nullptr"));
+			return -1;
+		}
+
+		uint32 Size = BufferSize;
+		if (!Self->Socket->HasPendingData(Size))
+		{
+			LOG_MQTTIFY(Verbose, TEXT("SocketBioRead: Socket has no pending data"));
+			BIO_set_retry_read(Bio);
+			return 0;
+		}
+
+		int32 BytesRead = 0;
+		const bool bOk  = Self->Socket->Recv(reinterpret_cast<uint8*>(OutBuffer), BufferSize, BytesRead);
+		if (bOk && BytesRead > 0)
+		{
+			LOG_MQTTIFY(VeryVerbose, TEXT("SocketBioRead: %d bytes read"), BytesRead);
+			return BytesRead;
+		}
+
+		const ESocketErrors Err = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetLastErrorCode();
+
+		if ((bOk && BytesRead == 0) || Err == SE_EWOULDBLOCK)
+		{
+			BIO_set_retry_read(Bio);
+			LOG_MQTTIFY(Verbose, TEXT("SocketBioRead: Socket read returned 0 bytes"));
+			return -1;
+		}
+
+		if (!bOk)
+		{
+			LOG_MQTTIFY(Error, TEXT("SocketBioRead: Socket read failed"));
+			return 0;
+		}
+
+		LOG_MQTTIFY(Verbose, TEXT("Socket read failed for unknown reason, retrying"));
+		return -1;
+	}
+
+	long FMqttifySecureSocket::SocketBioCtrl(BIO* Bio, int Cmd, long Num, void* Ptr)
+	{
+		switch (Cmd)
+		{
+			case BIO_CTRL_FLUSH:
+				return 1;
+			default:
+				return 0;
+		}
+	}
+
+	int FMqttifySecureSocket::SocketBioCreate(BIO* Bio)
+	{
+		BIO_set_shutdown(Bio, 0);
+		BIO_set_init(Bio, 1);
+		BIO_set_data(Bio, nullptr);
+		return 1;
+	}
+
+	int FMqttifySecureSocket::SocketBioDestroy(BIO* Bio)
+	{
+		if (nullptr == Bio)
+		{
+			LOG_MQTTIFY(Verbose, TEXT("SocketBioDestroy: bio is nullptr"));
+			return 0;
+		}
+
+		BIO_set_init(Bio, 0);
+		BIO_set_data(Bio, nullptr);
+		return 1;
+	}
+
+	bool FMqttifySecureSocket::ReadAvailableData(
+		const TUniqueFunction<bool(const int32 Want, TArray<uint8>& Tmp, size_t& OutBytesRead)>&& Reader)
+	{
+		uint32 PendingData = 0;
+		Socket->HasPendingData(PendingData);
+
+#if WITH_SSL
+		if (bUseSSL && nullptr != Ssl)
+		{
+			PendingData = FMath::Max<int32>(PendingData, SSL_pending(Ssl));
+		}
+#endif // WITH_SSL
+
+		if (PendingData == 0)
+		{
+			return true;
+		}
+
+		const int32 Want = FMath::Min<int32>(kMaxChunkSize, static_cast<int32>(PendingData));
+
+		TArray<uint8> Tmp;
+		Tmp.SetNumUninitialized(Want);
+
+		size_t BytesRead = 0;
+		if (!Reader(Want, Tmp, BytesRead))
+		{
+			return false; // Reader indicated a hard failure.
+		}
+
+		if (BytesRead > 0)
+		{
+			AppendAndProcess(Tmp.GetData(), BytesRead);
+		}
+
+		return true;
 	}
 #endif // WITH_SSL
 } // namespace Mqttify

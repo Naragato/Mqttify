@@ -19,8 +19,8 @@ BEGIN_DEFINE_SPEC(
 	EAutomationTestFlags::ServerContext | EAutomationTestFlags::CommandletContext)
 	TSharedPtr<FMqttifySocketRunnable> SocketRunner;
 	FSocket* ListeningSocket;
-	static constexpr TCHAR SocketError[] = TEXT("SocketError");
-	FString DockerContainerName = TEXT("tcp-ssl-echo");
+	static constexpr TCHAR SocketError[]     = TEXT("SocketError");
+	FString DockerContainerName              = TEXT("tcp-ssl-echo");
 	ELogVerbosity::Type OriginalLogVerbosity = LogMqttify.GetVerbosity();
 END_DEFINE_SPEC(MqttifyMqttifySocketSpec)
 
@@ -28,18 +28,16 @@ void MqttifyMqttifySocketSpec::Define()
 {
 	Describe(
 		TEXT("BSD Style Socket"),
-		[this]
-		{
+		[this] {
 			// Define the setup function for each test case
 			BeforeEach(
-				[this]
-				{
+				[this] {
 					const uint16 Port = FindAvailablePort(1024, 32000);
-					SocketRunner = MakeShared<FMqttifySocketRunnable>(
+					SocketRunner      = MakeShared<FMqttifySocketRunnable>(
 						FString::Printf(TEXT("mqtt://localhost:%d"), Port));
 
 					// Create a listening socket to simulate a server
-					ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+					ISocketSubsystem* SocketSubsystem    = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
 					const TSharedPtr<FInternetAddr> Addr = SocketSubsystem->CreateInternetAddr();
 					Addr->SetPort(Port);
 					const TSharedRef<FInternetAddr> LocalAddress = Addr.ToSharedRef();
@@ -62,8 +60,7 @@ void MqttifyMqttifySocketSpec::Define()
 
 			// Define the teardown function for each test case
 			AfterEach(
-				[this]
-				{
+				[this] {
 					// Clean up the listening socket
 					ListeningSocket->Shutdown(ESocketShutdownMode::ReadWrite);
 					ListeningSocket->Close();
@@ -75,11 +72,9 @@ void MqttifyMqttifySocketSpec::Define()
 			// Test the connecting functionality
 			LatentIt(
 				"should connect to the server successfully",
-				[this](const FDoneDelegate& Done)
-				{
+				[this](const FDoneDelegate& Done) {
 					SocketRunner->GetSocket()->GetOnConnectDelegate().AddLambda(
-						[this, Done](const bool bWasSuccessful)
-						{
+						[this, Done](const bool bWasSuccessful) {
 							TestTrue(TEXT("Socket should be connected to the server"), bWasSuccessful);
 							if (Done.IsBound())
 							{
@@ -92,11 +87,9 @@ void MqttifyMqttifySocketSpec::Define()
 			// Test the sending functionality
 			LatentIt(
 				"should send data to the server successfully",
-				[this](const FDoneDelegate& Done)
-				{
+				[this](const FDoneDelegate& Done) {
 					SocketRunner->GetSocket()->GetOnConnectDelegate().AddLambda(
-						[this, Done](const bool bWasSuccessful)
-						{
+						[this, Done](const bool bWasSuccessful) {
 							if (!bWasSuccessful)
 							{
 								AddError(TEXT("Socket should be connected to the server"));
@@ -131,16 +124,16 @@ void MqttifyMqttifySocketSpec::Define()
 
 							// Send data using the socket
 							constexpr uint8 Data[] = {0x01, 0x02, 0x03};
-							constexpr uint32 Size = sizeof(Data);
+							constexpr uint32 Size  = sizeof(Data);
 
 							SocketRunner->GetSocket()->Send(Data, Size);
 
 							// **Wait until data is available for reading**
 							uint8 ReceivedData[Size]{};
-							int32 BytesRead = 0;
-							bool bDataReceived = false;
+							int32 BytesRead          = 0;
+							bool bDataReceived       = false;
 							const FTimespan WaitTime = FTimespan::FromSeconds(60.0f);
-							const FDateTime EndTime = FDateTime::Now() + WaitTime;
+							const FDateTime EndTime  = FDateTime::Now() + WaitTime;
 
 							while (FDateTime::Now() < EndTime)
 							{
@@ -198,8 +191,7 @@ void MqttifyMqttifySocketSpec::Define()
 			// Test the receiving functionality
 			LatentIt(
 				"should receive data from the server successfully",
-				[this](const FDoneDelegate& Done)
-				{
+				[this](const FDoneDelegate& Done) {
 					const TArray<uint8> Mqtt3BasicWithUsernamePassword = {
 						// Fixed header
 						0x10,
@@ -256,8 +248,7 @@ void MqttifyMqttifySocketSpec::Define()
 						'd' // Password (10 bytes)
 					};
 					SocketRunner->GetSocket()->GetOnDataReceivedDelegate().AddLambda(
-						[this, Mqtt3BasicWithUsernamePassword, Done](const TSharedPtr<FArrayReader>& Reader)
-						{
+						[this, Mqtt3BasicWithUsernamePassword, Done](const TSharedPtr<FArrayReader>& Reader) {
 							const FMqttifyFixedHeader Header = FMqttifyFixedHeader::Create(*Reader);
 							FMqttifyConnectPacket3 Packet(*Reader, Header);
 							TestPacketsEqual(
@@ -271,8 +262,7 @@ void MqttifyMqttifySocketSpec::Define()
 							}
 						});
 					SocketRunner->GetSocket()->GetOnConnectDelegate().AddLambda(
-						[this, Done, Mqtt3BasicWithUsernamePassword](const bool bWasSuccessful)
-						{
+						[this, Done, Mqtt3BasicWithUsernamePassword](const bool bWasSuccessful) {
 							TestTrue(TEXT("Socket should be connected to the server"), bWasSuccessful);
 
 							bool bHasPendingConnection = false;
@@ -316,8 +306,7 @@ void MqttifyMqttifySocketSpec::Define()
 			// Test the disconnecting functionality
 			It(
 				"should disconnect from the server successfully",
-				[this]
-				{
+				[this] {
 					// Connect the socket first
 					SocketRunner->GetSocket()->Connect();
 					// Disconnect the socket
@@ -330,8 +319,7 @@ void MqttifyMqttifySocketSpec::Define()
 
 	Describe(
 		TEXT("BSD Style Socket with TLS"),
-		[this]
-		{
+		[this] {
 			const FMqttifyTestDockerSpec Spec{
 				8080,
 				FindAvailablePort(5000, 10000),
@@ -341,8 +329,7 @@ void MqttifyMqttifySocketSpec::Define()
 
 			LatentBeforeEach(
 				FTimespan::FromSeconds(120),
-				[this, Spec](const FDoneDelegate& BeforeDone)
-				{
+				[this, Spec](const FDoneDelegate& BeforeDone) {
 					LogMqttify.SetVerbosity(ELogVerbosity::VeryVerbose);
 					if (!StartBroker(DockerContainerName, Spec))
 					{
@@ -350,7 +337,6 @@ void MqttifyMqttifySocketSpec::Define()
 						LOG_MQTTIFY(Error, TEXT("Failed to start docker container"));
 						BeforeDone.Execute();
 					}
-
 
 					SocketRunner = MakeShared<FMqttifySocketRunnable>(
 						FString::Printf(TEXT("mqtts://localhost:%d"), Spec.PublicPort));
@@ -360,20 +346,22 @@ void MqttifyMqttifySocketSpec::Define()
 			LatentIt(
 				"Server should echo data sent by the client",
 				FTimespan::FromSeconds(120),
-				[this, Spec](const FDoneDelegate& Done)
-				{
+				[this, Spec](const FDoneDelegate& Done) {
 					FMqttifySocketRef Socket = SocketRunner->GetSocket();
-					const TArray<uint8> Data = {0x01, 0x02, 0x03};
+					const TArray<uint8> Data = {0x01, 0x02, 0x03, 0x0A};
 
 					Socket->OnDataReceiveDelegate.AddLambda(
-						[this, Done, Data](const TSharedPtr<FArrayReader>& Reader)
-						{
+						[this, Done, Data](const TSharedPtr<FArrayReader>& Reader) {
 							TArray<uint8> ReceivedData;
-							ReceivedData.SetNumUninitialized(Reader->TotalSize());
-							for (int32 i = Reader->TotalSize() - 1; i >= 0; --i)
+							ReceivedData.SetNumUninitialized(4, EAllowShrinking::Yes);
+							int32 j = 0;
+							for (int32 i = Reader->TotalSize() - 2; i >= 0; --i)
 							{
-								ReceivedData.Add(Reader->GetData()[i]);
+								ReceivedData[j] = Reader->GetData()[i];
+								++j;
 							}
+
+							ReceivedData[j] = 0x0A;
 
 							TestArrayEqual(
 								TEXT("Received data should be equal to sent data"),
@@ -384,8 +372,7 @@ void MqttifyMqttifySocketSpec::Define()
 						});
 
 					Socket->OnConnectDelegate.AddLambda(
-						[this, Done, Socket, Data](const bool bWasSuccessful)
-						{
+						[this, Done, Socket, Data](const bool bWasSuccessful) {
 							TestTrue(TEXT("Socket should be connected to the server"), bWasSuccessful);
 
 							if (!bWasSuccessful)
@@ -401,8 +388,7 @@ void MqttifyMqttifySocketSpec::Define()
 				});
 
 			AfterEach(
-				[this, Spec]
-				{
+				[this, Spec] {
 					LogMqttify.SetVerbosity(OriginalLogVerbosity);
 					SocketRunner->Stop();
 					SocketRunner.Reset();
