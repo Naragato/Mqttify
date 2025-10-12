@@ -14,13 +14,13 @@ namespace Mqttify
 	{
 	public:
 		explicit FMqttifySubscribePacketBase(const FMqttifyFixedHeader& InFixedHeader)
-			: TMqttifyControlPacket{ InFixedHeader }
+			: TMqttifyControlPacket{InFixedHeader}
 			, PacketIdentifier{} {}
 
 		explicit FMqttifySubscribePacketBase(const TArray<FMqttifyTopicFilter>& InTopicFilters,
-											const uint16 InPacketIdentifier)
-			: PacketIdentifier{ InPacketIdentifier }
-			, TopicFilters{ InTopicFilters } {}
+		                                     const uint16 InPacketIdentifier)
+			: PacketIdentifier{InPacketIdentifier}
+			, TopicFilters{InTopicFilters} {}
 
 	public:
 		/**
@@ -68,14 +68,14 @@ namespace Mqttify
 	struct TMqttifySubscribePacket<EMqttifyProtocolVersion::Mqtt_3_1_1> final : FMqttifySubscribePacketBase
 	{
 		explicit TMqttifySubscribePacket(const TArray<FMqttifyTopicFilter>& InTopicFilters,
-										const uint16 InPacketIdentifier)
-			: FMqttifySubscribePacketBase{ InTopicFilters, InPacketIdentifier }
+		                                 const uint16 InPacketIdentifier)
+			: FMqttifySubscribePacketBase{InTopicFilters, InPacketIdentifier}
 		{
 			FixedHeader = FMqttifyFixedHeader::Create(this);
 		}
 
 		explicit TMqttifySubscribePacket(FArrayReader& InReader, const FMqttifyFixedHeader& InFixedHeader)
-			: FMqttifySubscribePacketBase{ InFixedHeader }
+			: FMqttifySubscribePacketBase{InFixedHeader}
 		{
 			Decode(InReader);
 		}
@@ -90,16 +90,16 @@ namespace Mqttify
 	{
 	public:
 		explicit TMqttifySubscribePacket(const TArray<FMqttifyTopicFilter>& InTopicFilters,
-										const uint16 InPacketIdentifier,
-										const FMqttifyProperties& InProperties = FMqttifyProperties{})
-			: FMqttifySubscribePacketBase{ InTopicFilters, InPacketIdentifier }
-			, Properties{ InProperties }
+		                                 const uint16 InPacketIdentifier,
+		                                 const FMqttifyProperties& InProperties = FMqttifyProperties{})
+			: FMqttifySubscribePacketBase{InTopicFilters, InPacketIdentifier}
+			, Properties{InProperties}
 		{
 			FixedHeader = FMqttifyFixedHeader::Create(this);
 		}
 
 		explicit TMqttifySubscribePacket(FArrayReader& InReader, const FMqttifyFixedHeader& InFixedHeader)
-			: FMqttifySubscribePacketBase{ InFixedHeader }
+			: FMqttifySubscribePacketBase{InFixedHeader}
 		{
 			Decode(InReader);
 		}

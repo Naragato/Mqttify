@@ -19,9 +19,7 @@ namespace Mqttify
 {
 	FMqttifyClient::FMqttifyClient(const FMqttifyConnectionSettingsRef& InConnectionSettings)
 		: Context{MakeShared<FMqttifyClientContext>(InConnectionSettings)}
-		, Socket{FMqttifySocketBase::Create(InConnectionSettings)}
-	{
-	}
+		, Socket{FMqttifySocketBase::Create(InConnectionSettings)} {}
 
 	void FMqttifyClient::Tick()
 	{
@@ -89,15 +87,15 @@ namespace Mqttify
 	{
 		FScopeLock Lock{&StateLock};
 		LOG_MQTTIFY(
-        			Verbose,
-        			TEXT("[Publishing (Connection %s, ClientId %s)] %s, QoS %s"),
-        			*GetConnectionSettings()->GetHost(),
-        			*GetConnectionSettings()->GetClientId(),
-        			*InMessage.GetTopic(),
-        			EnumToTCharString(InMessage.GetQualityOfService()));
+			Verbose,
+			TEXT("[Publishing (Connection %s, ClientId %s)] %s, QoS %s"),
+			*GetConnectionSettings()->GetHost(),
+			*GetConnectionSettings()->GetClientId(),
+			*InMessage.GetTopic(),
+			EnumToTCharString(InMessage.GetQualityOfService()));
 		switch (InMessage.GetQualityOfService())
 		{
-		case EMqttifyQualityOfService::AtMostOnce:
+			case EMqttifyQualityOfService::AtMostOnce:
 			{
 				const FMqttifyPubAtMostOnceRef PublishCommand = MakeShared<FMqttifyPubAtMostOnce, ESPMode::ThreadSafe>(
 					MoveTemp(InMessage),
@@ -106,7 +104,7 @@ namespace Mqttify
 				Context->AddOneShotCommand(PublishCommand);
 				return PublishCommand->GetFuture();
 			}
-		case EMqttifyQualityOfService::AtLeastOnce:
+			case EMqttifyQualityOfService::AtLeastOnce:
 			{
 				const uint16 PacketId = Context->GetNextId();
 				const FMqttifyPubAtLeastOnceRef PublishCommand = MakeShared<
@@ -118,7 +116,7 @@ namespace Mqttify
 				Context->AddAcknowledgeableCommand(PublishCommand);
 				return PublishCommand->GetFuture();
 			}
-		case EMqttifyQualityOfService::ExactlyOnce:
+			case EMqttifyQualityOfService::ExactlyOnce:
 			{
 				const uint16 PacketId = Context->GetNextId();
 				const FMqttifyPubExactlyOnceRef PublishCommand = MakeShared<
@@ -130,7 +128,7 @@ namespace Mqttify
 				Context->AddAcknowledgeableCommand(PublishCommand);
 				return PublishCommand->GetFuture();
 			}
-		default:
+			default:
 			{
 				ensureMsgf(false, TEXT("Invalid quality of service"));
 				return MakeThreadAwareFulfilledPromise<TMqttifyResult<void>>(TMqttifyResult<void>{false});
@@ -160,8 +158,7 @@ namespace Mqttify
 		Context->AddAcknowledgeableCommand(SubscribeCommand);
 		TWeakPtr<FMqttifyClientContext> WeakContext = Context;
 		return SubscribeCommand->GetFuture().Next(
-			[WeakContext](const TMqttifyResult<TArray<FMqttifySubscribeResult>>& InResult)
-			{
+			[WeakContext](const TMqttifyResult<TArray<FMqttifySubscribeResult>>& InResult) {
 				if (InResult.HasSucceeded())
 				{
 					if (const TSharedPtr<FMqttifyClientContext> ContextPtr = WeakContext.Pin())
@@ -182,8 +179,7 @@ namespace Mqttify
 	TFuture<TMqttifyResult<FMqttifySubscribeResult>> FMqttifyClient::SubscribeAsync(FMqttifyTopicFilter&& InTopicFilter)
 	{
 		return SubscribeAsync(TArray{InTopicFilter}).Next(
-			[](const TMqttifyResult<TArray<FMqttifySubscribeResult>>& InResult)
-			{
+			[](const TMqttifyResult<TArray<FMqttifySubscribeResult>>& InResult) {
 				if (InResult.HasSucceeded() && InResult.GetResult()->Num() == 1)
 				{
 					FMqttifySubscribeResult OutResult = InResult.GetResult()->operator[](0);
@@ -224,8 +220,7 @@ namespace Mqttify
 		Context->AddAcknowledgeableCommand(UnsubscribeCommand);
 		TWeakPtr<FMqttifyClientContext> WeakContext = Context;
 		return UnsubscribeCommand->GetFuture().Next(
-			[WeakContext](const TMqttifyResult<TArray<FMqttifyUnsubscribeResult>>& InResult)
-			{
+			[WeakContext](const TMqttifyResult<TArray<FMqttifyUnsubscribeResult>>& InResult) {
 				if (InResult.HasSucceeded())
 				{
 					if (const TSharedPtr<FMqttifyClientContext> ContextPtr = WeakContext.Pin())

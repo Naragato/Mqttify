@@ -13,11 +13,11 @@ namespace Mqttify
 	{
 	public:
 		explicit FMqttifySubAckPacketBase(const FMqttifyFixedHeader& InFixedHeader)
-			: TMqttifyControlPacket{ InFixedHeader }
-			, PacketIdentifier{ 0 } {}
+			: TMqttifyControlPacket{InFixedHeader}
+			, PacketIdentifier{0} {}
 
 		explicit FMqttifySubAckPacketBase(const uint16 InPacketIdentifier)
-			: PacketIdentifier{ InPacketIdentifier } {}
+			: PacketIdentifier{InPacketIdentifier} {}
 
 	public:
 		/**
@@ -37,15 +37,15 @@ namespace Mqttify
 	struct TMqttifySubAckPacket<EMqttifyProtocolVersion::Mqtt_3_1_1> final : FMqttifySubAckPacketBase
 	{
 		explicit TMqttifySubAckPacket(const uint16 InPacketIdentifier,
-									const TArray<EMqttifySubscribeReturnCode>& InReturnCodes)
-			: FMqttifySubAckPacketBase{ InPacketIdentifier }
-			, ReturnCodes{ InReturnCodes }
+		                              const TArray<EMqttifySubscribeReturnCode>& InReturnCodes)
+			: FMqttifySubAckPacketBase{InPacketIdentifier}
+			, ReturnCodes{InReturnCodes}
 		{
 			FixedHeader = FMqttifyFixedHeader::Create(this);
 		}
 
 		explicit TMqttifySubAckPacket(FArrayReader& InReader, const FMqttifyFixedHeader& InFixedHeader)
-			: FMqttifySubAckPacketBase{ InFixedHeader }
+			: FMqttifySubAckPacketBase{InFixedHeader}
 		{
 			Decode(InReader);
 		}
@@ -70,17 +70,17 @@ namespace Mqttify
 	{
 	public:
 		explicit TMqttifySubAckPacket(const uint16 InPacketIdentifier,
-									const TArray<EMqttifyReasonCode>& InReasonCodes,
-									const FMqttifyProperties& InProperties = FMqttifyProperties{})
-			: FMqttifySubAckPacketBase{ InPacketIdentifier }
-			, ReasonCodes{ InReasonCodes }
-			, Properties{ InProperties }
+		                              const TArray<EMqttifyReasonCode>& InReasonCodes,
+		                              const FMqttifyProperties& InProperties = FMqttifyProperties{})
+			: FMqttifySubAckPacketBase{InPacketIdentifier}
+			, ReasonCodes{InReasonCodes}
+			, Properties{InProperties}
 		{
 			FixedHeader = FMqttifyFixedHeader::Create(this);
 		}
 
 		explicit TMqttifySubAckPacket(FArrayReader& InReader, const FMqttifyFixedHeader& InFixedHeader)
-			: FMqttifySubAckPacketBase{ InFixedHeader }
+			: FMqttifySubAckPacketBase{InFixedHeader}
 		{
 			Decode(InReader);
 		}

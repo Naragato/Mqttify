@@ -13,9 +13,7 @@ namespace Mqttify
 		)
 		: TMqttifyAcknowledgeable{InPacketId, InSocket, InConnectionSettings}
 		, PublishPacket{MakeShared<TMqttifyPublishPacket<GMqttifyProtocol>>(MoveTemp(InMessage), InPacketId)}
-		, bIsDone{false}
-	{
-	}
+		, bIsDone{false} {}
 
 	bool TMqttifyPublish<EMqttifyQualityOfService::AtLeastOnce>::NextImpl()
 	{
@@ -84,29 +82,27 @@ namespace Mqttify
 		)
 		: TMqttifyAcknowledgeable{InPacketId, InSocket, InConnectionSettings}
 		, PublishPacket{MakeShared<TMqttifyPublishPacket<GMqttifyProtocol>>(MoveTemp(InMessage), InPacketId)}
-		, PublishState{EPublishState::Unacknowledged}
-	{
-	}
+		, PublishState{EPublishState::Unacknowledged} {}
 
 	bool TMqttifyPublish<EMqttifyQualityOfService::ExactlyOnce>::Acknowledge(const FMqttifyPacketPtr& InPacket)
 	{
 		FScopeLock Lock{&CriticalSection};
 		switch (InPacket->GetPacketType())
 		{
-		case EMqttifyPacketType::PubRec:
-			return HandlePubRec(InPacket);
-		case EMqttifyPacketType::PubComp:
-			return HandlePubComp(InPacket);
-		default: LOG_MQTTIFY(
-				Error,
-				TEXT("[Publish (Connection %s, ClientId %s)] %s Expected: %s Actual: %s"),
-				*Settings->GetHost(),
-				*Settings->GetClientId(),
-				MqttifyPacketType::InvalidPacketType,
-				EnumToTCharString(EMqttifyPacketType::PubRec),
-				EnumToTCharString(InPacket->GetPacketType()))			;
-			Abandon();
-			return true;
+			case EMqttifyPacketType::PubRec:
+				return HandlePubRec(InPacket);
+			case EMqttifyPacketType::PubComp:
+				return HandlePubComp(InPacket);
+			default: LOG_MQTTIFY(
+					Error,
+					TEXT("[Publish (Connection %s, ClientId %s)] %s Expected: %s Actual: %s"),
+					*Settings->GetHost(),
+					*Settings->GetClientId(),
+					MqttifyPacketType::InvalidPacketType,
+					EnumToTCharString(EMqttifyPacketType::PubRec),
+					EnumToTCharString(InPacket->GetPacketType()))				;
+				Abandon();
+				return true;
 		}
 	}
 
@@ -114,14 +110,14 @@ namespace Mqttify
 	{
 		switch (PublishState)
 		{
-		case EPublishState::Unacknowledged:
-			SendPacketInternal(PublishPacket);
-			return false;
-		case EPublishState::Received:
-			SendPacketInternal(MakeShared<TMqttifyPubRelPacket<GMqttifyProtocol>>(PacketId));
-			return false;
-		case EPublishState::Complete:
-			return true;
+			case EPublishState::Unacknowledged:
+				SendPacketInternal(PublishPacket);
+				return false;
+			case EPublishState::Received:
+				SendPacketInternal(MakeShared<TMqttifyPubRelPacket<GMqttifyProtocol>>(PacketId));
+				return false;
+			case EPublishState::Complete:
+				return true;
 		}
 		return false;
 	}
@@ -199,9 +195,7 @@ namespace Mqttify
 		)
 		: TMqttifyQueueable{InSocket, InConnectionSettings}
 		, PublishPacket{MakeShared<TMqttifyPublishPacket<GMqttifyProtocol>>(MoveTemp(InMessage), 0)}
-		, bIsDone{false}
-	{
-	}
+		, bIsDone{false} {}
 
 	bool TMqttifyPublish<EMqttifyQualityOfService::AtMostOnce>::NextImpl()
 	{

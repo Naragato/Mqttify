@@ -26,10 +26,9 @@ namespace Mqttify
 			const uint16 InPacketId,
 			const TWeakPtr<FMqttifySocketBase>& InSocket,
 			const FMqttifyConnectionSettingsRef& InConnectionSettings
-			) : TMqttifyQueueable<TReturnValue>{InSocket, InConnectionSettings}
-			  , PacketId{InPacketId}
-		{
-		}
+			)
+			: TMqttifyQueueable<TReturnValue>{InSocket, InConnectionSettings}
+			, PacketId{InPacketId} {}
 
 		virtual IMqttifyAcknowledgeable* AsAcknowledgeable() override
 		{

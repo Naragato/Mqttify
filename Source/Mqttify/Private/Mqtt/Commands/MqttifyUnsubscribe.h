@@ -19,9 +19,9 @@ namespace Mqttify
 		 * @param InConnectionSettings The connection settings
 		 */
 		explicit FMqttifyUnsubscribe(const TArray<FMqttifyTopicFilter>& InTopicFilters,
-									const uint16 InPacketId,
-									const TWeakPtr<FMqttifySocketBase>& InSocket,
-									const FMqttifyConnectionSettingsRef& InConnectionSettings);
+		                             const uint16 InPacketId,
+		                             const TWeakPtr<FMqttifySocketBase>& InSocket,
+		                             const FMqttifyConnectionSettingsRef& InConnectionSettings);
 		virtual bool Acknowledge(const FMqttifyPacketPtr& InPacket) override;
 		virtual void Abandon() override;
 

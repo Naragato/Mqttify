@@ -36,24 +36,24 @@ namespace Mqttify
 		 * @param InRemainingLength Length of the remaining payload.
 		 */
 		FMqttifyFixedHeader(const uint8 InFlags, const uint32 InRemainingLength)
-			: Flags{ InFlags }
-			, RemainingLength{ InRemainingLength } {}
+			: Flags{InFlags}
+			, RemainingLength{InRemainingLength} {}
 
 		/**
 		 * @brief Private constructor for deserialization.
 		 * @param InReader Archive for deserialization.
 		 */
 		explicit FMqttifyFixedHeader(FArrayReader& InReader)
-			: Flags{ 0 }
-			, RemainingLength{ 0 }
+			: Flags{0}
+			, RemainingLength{0}
 		{
 			Decode(InReader);
 		}
 
 	public:
 		explicit FMqttifyFixedHeader()
-			: Flags{ 0 }
-			, RemainingLength{ 0 } {}
+			: Flags{0}
+			, RemainingLength{0} {}
 
 		/**
 		 * @brief Get the remaining payload length.
@@ -104,15 +104,15 @@ namespace Mqttify
 		 * @return A unique pointer to the fixed header.
 		 */
 		static FMqttifyFixedHeader Create(const IMqttifyControlPacket* InControlPacket,
-										const uint32 InRemainingLength,
-										bool bInShouldRetain,
-										EMqttifyQualityOfService InQualityOfService,
-										bool bInIsDuplicated);
+		                                  const uint32 InRemainingLength,
+		                                  bool bInShouldRetain,
+		                                  EMqttifyQualityOfService InQualityOfService,
+		                                  bool bInIsDuplicated);
 
 		virtual void Encode(FMemoryWriter& InWriter) override;
 		virtual void Decode(FArrayReader& InReader) override;
 
-		static constexpr TCHAR InvalidPacketSize[]      = TEXT("Invalid packet size");
+		static constexpr TCHAR InvalidPacketSize[] = TEXT("Invalid packet size");
 		static constexpr TCHAR InvalidRemainingLength[] = TEXT("Invalid Remaining Length.");
 	};
 
@@ -120,7 +120,7 @@ namespace Mqttify
 	FORCEINLINE FMqttifyFixedHeader FMqttifyFixedHeader::Create(const IMqttifyControlPacket* InControlPacket)
 	{
 		ensureMsgf(nullptr != InControlPacket, TEXT("Control packet is null"));
-		uint8 Flags                  = static_cast<uint8>(InControlPacket->GetPacketType()) << 4;
+		uint8 Flags = static_cast<uint8>(InControlPacket->GetPacketType()) << 4;
 		const uint32 RemainingLength = InControlPacket->GetLength();
 		// All other packets are reserved however use and MUST be set to the value listed in that table in the spec
 		// See the spec. Which is why we set the flags here.
@@ -135,10 +135,10 @@ namespace Mqttify
 	}
 
 	FORCEINLINE FMqttifyFixedHeader FMqttifyFixedHeader::Create(const IMqttifyControlPacket* InControlPacket,
-																const uint32 InRemainingLength,
-																const bool bInShouldRetain,
-																const EMqttifyQualityOfService InQualityOfService,
-																const bool bInIsDuplicated)
+	                                                            const uint32 InRemainingLength,
+	                                                            const bool bInShouldRetain,
+	                                                            const EMqttifyQualityOfService InQualityOfService,
+	                                                            const bool bInIsDuplicated)
 	{
 		ensureMsgf(nullptr != InControlPacket, TEXT("Control packet is null"));
 		uint8 Flags = static_cast<uint8>(InControlPacket->GetPacketType()) << 4;
@@ -179,9 +179,9 @@ namespace Mqttify
 		{
 			const std::bitset<8> Bits(TempFlags);
 			LOG_MQTTIFY(Error,
-						TEXT("[Fixed Header] %s %s."),
-						MqttifyPacketType::InvalidPacketType,
-						*FString(Bits.to_string().c_str()));
+			            TEXT("[Fixed Header] %s %s."),
+			            MqttifyPacketType::InvalidPacketType,
+			            *FString(Bits.to_string().c_str()));
 			return;
 		}
 
@@ -203,7 +203,7 @@ namespace Mqttify
 				TEXT("[Fixed Header] %s %d."),
 				InvalidRemainingLength,
 				RemainingLength);
-			Flags           = 0;
+			Flags = 0;
 			RemainingLength = 0;
 			return;
 		}

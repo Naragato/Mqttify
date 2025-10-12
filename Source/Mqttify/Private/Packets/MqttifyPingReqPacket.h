@@ -9,7 +9,7 @@ namespace Mqttify
 	{
 	public:
 		explicit FMqttifyPingReqPacket(const FMqttifyFixedHeader& InFixedHeader)
-			: TMqttifyControlPacket{ InFixedHeader } {}
+			: TMqttifyControlPacket{InFixedHeader} {}
 
 		explicit FMqttifyPingReqPacket()
 		{

@@ -42,9 +42,10 @@ namespace Mqttify
 		if (SessionExpiryInterval > 0)
 		{
 			PropertyArr.Add(
-				{ 
-					FMqttifyProperty::Create<EMqttifyPropertyIdentifier::SessionExpiryInterval>(static_cast<uint32>(SessionExpiryInterval)) 
-				});
+			{
+				FMqttifyProperty::Create<EMqttifyPropertyIdentifier::SessionExpiryInterval>(
+					static_cast<uint32>(SessionExpiryInterval))
+			});
 		}
 
 		const FMqttifyCredentialsProviderRef Credentials = Context->GetConnectionSettings()->GetCredentialsProvider();

@@ -26,7 +26,7 @@ namespace Mqttify
 				MqttifyPacketType::InvalidPacketType,
 				EnumToTCharString(FixedHeader.GetPacketType()));
 			ReturnCode = EMqttifyConnectReturnCode::RefusedProtocolVersion;
-			bIsValid   = false;
+			bIsValid = false;
 		}
 
 		uint8 Flags = 0;
@@ -100,7 +100,7 @@ namespace Mqttify
 				MqttifyPacketType::InvalidPacketType,
 				EnumToTCharString(FixedHeader.GetPacketType()));
 			ReasonCode = EMqttifyReasonCode::UnspecifiedError;
-			bIsValid   = false;
+			bIsValid = false;
 		}
 
 		uint8 Flags = 0;

@@ -12,9 +12,9 @@ namespace Mqttify
 	{
 	public:
 		explicit FMqttifyAuthPacket(const EMqttifyReasonCode InReasonCode,
-									const FMqttifyProperties& InProperties = FMqttifyProperties{})
-			: ReasonCode{ InReasonCode }
-			, Properties{ InProperties }
+		                            const FMqttifyProperties& InProperties = FMqttifyProperties{})
+			: ReasonCode{InReasonCode}
+			, Properties{InProperties}
 		{
 #if !UE_BUILD_SHIPPING
 			switch (InReasonCode)
@@ -47,8 +47,8 @@ namespace Mqttify
 		}
 
 		explicit FMqttifyAuthPacket(FArrayReader& InReader, const FMqttifyFixedHeader& InFixedHeader)
-			: TMqttifyControlPacket{ InFixedHeader }
-			, ReasonCode{ EMqttifyReasonCode::Success }
+			: TMqttifyControlPacket{InFixedHeader}
+			, ReasonCode{EMqttifyReasonCode::Success}
 		{
 			Decode(InReader);
 		}

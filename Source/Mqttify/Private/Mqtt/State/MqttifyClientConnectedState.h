@@ -35,9 +35,7 @@ namespace Mqttify
 			const FMqttifySocketRef& InSocket
 			)
 			: FMqttifyClientState{InOnStateChanged, InContext}
-			, Socket{InSocket}
-		{
-		}
+			, Socket{InSocket} {}
 
 		// FMqttifyClientState
 		virtual EMqttifyState GetState() override { return EMqttifyState::Connected; }

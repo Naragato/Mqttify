@@ -21,7 +21,7 @@ namespace Mqttify
 		explicit TMqttifyControlPacket() {}
 
 		explicit TMqttifyControlPacket(const FMqttifyFixedHeader& InFixedHeader)
-			: FixedHeader{ InFixedHeader } {}
+			: FixedHeader{InFixedHeader} {}
 
 		virtual ~TMqttifyControlPacket() override = default;
 
@@ -44,7 +44,7 @@ namespace Mqttify
 
 	protected:
 		FMqttifyFixedHeader FixedHeader;
-		bool bIsValid                                = true;
+		bool bIsValid = true;
 		static constexpr uint8 StringLengthFieldSize = sizeof(uint16);
 	};
 } // namespace Mqttify

@@ -24,8 +24,7 @@ namespace Mqttify
 		{
 			AsyncTask(
 				ENamedThreads::GameThread,
-				[Func = MoveTemp(InFunc)]() mutable
-				{
+				[Func = MoveTemp(InFunc)]() mutable {
 					LOG_MQTTIFY(VeryVerbose, TEXT("Dispatching with thread handling"));
 					Func();
 				});
@@ -57,8 +56,7 @@ namespace Mqttify
 
 			AsyncTask(
 				ENamedThreads::GameThread,
-				[Promise, Value = Forward<TResult>(Value)]() mutable
-				{
+				[Promise, Value = Forward<TResult>(Value)]() mutable {
 					if (Promise.IsValid())
 					{
 						Promise->SetValue(Forward<TResult>(Value));

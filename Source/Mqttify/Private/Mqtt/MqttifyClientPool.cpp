@@ -37,8 +37,7 @@ namespace Mqttify
 
 		TWeakPtr<FMqttifyClientPool> WeakSelf = AsShared();
 
-		auto Deleter = [WeakSelf](const IMqttifyClient* InClient)
-		{
+		auto Deleter = [WeakSelf](const IMqttifyClient* InClient) {
 			const TSharedPtr<FMqttifyClientPool> StrongSelf = WeakSelf.Pin();
 			if (!StrongSelf.IsValid())
 			{

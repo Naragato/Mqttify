@@ -56,7 +56,7 @@ void Mqttify::TMqttifySubscribePacket<EMqttifyProtocolVersion::Mqtt_3_1_1>::Deco
 	int32 ReaderPos = InReader.Tell();
 	while (PayloadSize > 0)
 	{
-		FString TopicFilter                       = Data::DecodeString(InReader);
+		FString TopicFilter = Data::DecodeString(InReader);
 		EMqttifyQualityOfService QualityOfService = EMqttifyQualityOfService::AtMostOnce;
 		InReader << QualityOfService;
 		if (ReaderPos == InReader.Tell())
@@ -73,7 +73,7 @@ void Mqttify::TMqttifySubscribePacket<EMqttifyProtocolVersion::Mqtt_3_1_1>::Deco
 			case EMqttifyQualityOfService::AtMostOnce:
 			case EMqttifyQualityOfService::AtLeastOnce:
 			case EMqttifyQualityOfService::ExactlyOnce:
-				TopicFilters.Add(FMqttifyTopicFilter{ TopicFilter, QualityOfService });
+				TopicFilters.Add(FMqttifyTopicFilter{TopicFilter, QualityOfService});
 			default:
 				LOG_MQTTIFY(
 					Error,
@@ -147,7 +147,7 @@ void Mqttify::TMqttifySubscribePacket<EMqttifyProtocolVersion::Mqtt_5>::Decode(F
 	int32 ReaderPos = InReader.Tell();
 	while (PayloadSize > 0)
 	{
-		FString TopicFilter    = Data::DecodeString(InReader);
+		FString TopicFilter = Data::DecodeString(InReader);
 		uint8 SubscribeOptions = 0;
 		InReader << SubscribeOptions;
 
@@ -171,11 +171,11 @@ void Mqttify::TMqttifySubscribePacket<EMqttifyProtocolVersion::Mqtt_5>::Decode(F
 
 		if ((SubscribeOptions & 0xC0) == 0)
 		{
-			TopicFilters.Add(FMqttifyTopicFilter{ TopicFilter,
-												QualityOfService,
-												bIsNoLocal,
-												bIsRetainAsPublished,
-												RetainHandling });
+			TopicFilters.Add(FMqttifyTopicFilter{TopicFilter,
+			                                     QualityOfService,
+			                                     bIsNoLocal,
+			                                     bIsRetainAsPublished,
+			                                     RetainHandling});
 		}
 		else
 		{

@@ -16,29 +16,29 @@ namespace Mqttify
 	{
 	public:
 		explicit FMqttifyConnectPacketBase(const FMqttifyFixedHeader& InFixedHeader)
-			: TMqttifyControlPacket{ InFixedHeader }
-			, bCleanSession{ false }
-			, bRetainWill{ false }
+			: TMqttifyControlPacket{InFixedHeader}
+			, bCleanSession{false}
+			, bRetainWill{false}
 			, WillQoS{} {}
 
 		explicit FMqttifyConnectPacketBase(const FString& InClientId,
-											const uint16 InKeepAliveSeconds,
-											const FString& InUsername,
-											const FString& InPassword,
-											const bool bInCleanSession,
-											const bool bInRetainWill,
-											const FString& InWillTopic,
-											const FString& InWillMessage,
-											const EMqttifyQualityOfService& WillQoS)
-			: ClientId{ InClientId }
-			, KeepAliveSeconds{ InKeepAliveSeconds }
-			, Username{ InUsername }
-			, Password{ InPassword }
-			, bCleanSession{ bInCleanSession }
-			, bRetainWill{ bInRetainWill }
-			, WillTopic{ InWillTopic }
-			, WillMessage{ InWillMessage }
-			, WillQoS{ WillQoS } {}
+		                                   const uint16 InKeepAliveSeconds,
+		                                   const FString& InUsername,
+		                                   const FString& InPassword,
+		                                   const bool bInCleanSession,
+		                                   const bool bInRetainWill,
+		                                   const FString& InWillTopic,
+		                                   const FString& InWillMessage,
+		                                   const EMqttifyQualityOfService& WillQoS)
+			: ClientId{InClientId}
+			, KeepAliveSeconds{InKeepAliveSeconds}
+			, Username{InUsername}
+			, Password{InPassword}
+			, bCleanSession{bInCleanSession}
+			, bRetainWill{bInRetainWill}
+			, WillTopic{InWillTopic}
+			, WillMessage{InWillMessage}
+			, WillQoS{WillQoS} {}
 
 	public:
 		/**
@@ -95,13 +95,13 @@ namespace Mqttify
 		 */
 		EMqttifyQualityOfService GetWillQoS() const { return WillQoS; }
 
-		static constexpr TCHAR InvalidProtocolVersion[]     = TEXT("Invalid protocol version");
-		static constexpr TCHAR InvalidProtocolName[]        = TEXT("Invalid protocol name.");
-		static constexpr TCHAR TopicEmpty[]                 = TEXT("Topic is empty.");
-		static constexpr TCHAR WillTopicEmpty[]             = TEXT("Will topic is empty.");
-		static constexpr TCHAR WillMessageEmpty[]           = TEXT("Will message is empty.");
+		static constexpr TCHAR InvalidProtocolVersion[] = TEXT("Invalid protocol version");
+		static constexpr TCHAR InvalidProtocolName[] = TEXT("Invalid protocol name.");
+		static constexpr TCHAR TopicEmpty[] = TEXT("Topic is empty.");
+		static constexpr TCHAR WillTopicEmpty[] = TEXT("Will topic is empty.");
+		static constexpr TCHAR WillMessageEmpty[] = TEXT("Will message is empty.");
 		static constexpr TCHAR WillRetainMustBe0WithFlag0[] = TEXT("Will retain must be 0 when will flag is 0.");
-		static constexpr TCHAR WillQosMustBe0WithFlag0[]    = TEXT("Will QoS must be 0 when will flag is 0.");
+		static constexpr TCHAR WillQosMustBe0WithFlag0[] = TEXT("Will QoS must be 0 when will flag is 0.");
 
 	protected:
 		FString ClientId;
@@ -121,15 +121,15 @@ namespace Mqttify
 	template <>
 	struct TMqttifyConnectPacket<EMqttifyProtocolVersion::Mqtt_3_1_1> final : FMqttifyConnectPacketBase
 	{
-		explicit TMqttifyConnectPacket(const FString& InClientId                = {},
-										const uint16 InKeepAliveSeconds         = 60,
-										const FString& InUsername               = {},
-										const FString& InPassword               = {},
-										const bool bInCleanSession              = false,
-										const bool bInRetainWill                = false,
-										const FString& InWillTopic              = {},
-										const FString& InWillMessage            = {},
-										const EMqttifyQualityOfService& WillQoS = EMqttifyQualityOfService::AtMostOnce)
+		explicit TMqttifyConnectPacket(const FString& InClientId = {},
+		                               const uint16 InKeepAliveSeconds = 60,
+		                               const FString& InUsername = {},
+		                               const FString& InPassword = {},
+		                               const bool bInCleanSession = false,
+		                               const bool bInRetainWill = false,
+		                               const FString& InWillTopic = {},
+		                               const FString& InWillMessage = {},
+		                               const EMqttifyQualityOfService& WillQoS = EMqttifyQualityOfService::AtMostOnce)
 			: FMqttifyConnectPacketBase{
 				InClientId,
 				InKeepAliveSeconds,
@@ -139,13 +139,13 @@ namespace Mqttify
 				bInRetainWill,
 				InWillTopic,
 				InWillMessage,
-				WillQoS }
+				WillQoS}
 		{
 			FixedHeader = FMqttifyFixedHeader::Create(this);
 		}
 
 		explicit TMqttifyConnectPacket(FArrayReader& InReader, const FMqttifyFixedHeader& InFixedHeader)
-			: FMqttifyConnectPacketBase{ InFixedHeader }
+			: FMqttifyConnectPacketBase{InFixedHeader}
 		{
 			Decode(InReader);
 		}
@@ -169,16 +169,16 @@ namespace Mqttify
 	{
 	public:
 		explicit TMqttifyConnectPacket(const FString& InClientId = {},
-										const uint16 InKeepAliveSeconds = 60,
-										const FString& InUsername = {},
-										const FString& InPassword = {},
-										const bool bInCleanSession = false,
-										const bool bInRetainWill = false,
-										const FString& InWillTopic = {},
-										const FString& InWillMessage = {},
-										const EMqttifyQualityOfService& WillQoS = EMqttifyQualityOfService::AtMostOnce,
-										const FMqttifyProperties& InWillProperties = FMqttifyProperties{},
-										const FMqttifyProperties& InProperties = FMqttifyProperties{})
+		                               const uint16 InKeepAliveSeconds = 60,
+		                               const FString& InUsername = {},
+		                               const FString& InPassword = {},
+		                               const bool bInCleanSession = false,
+		                               const bool bInRetainWill = false,
+		                               const FString& InWillTopic = {},
+		                               const FString& InWillMessage = {},
+		                               const EMqttifyQualityOfService& WillQoS = EMqttifyQualityOfService::AtMostOnce,
+		                               const FMqttifyProperties& InWillProperties = FMqttifyProperties{},
+		                               const FMqttifyProperties& InProperties = FMqttifyProperties{})
 			: FMqttifyConnectPacketBase{
 				InClientId,
 				InKeepAliveSeconds,
@@ -188,15 +188,15 @@ namespace Mqttify
 				bInRetainWill,
 				InWillTopic,
 				InWillMessage,
-				WillQoS }
-			, WillProperties{ InWillProperties }
-			, Properties{ InProperties }
+				WillQoS}
+			, WillProperties{InWillProperties}
+			, Properties{InProperties}
 		{
 			FixedHeader = FMqttifyFixedHeader::Create(this);
 		}
 
 		explicit TMqttifyConnectPacket(FArrayReader& InReader, const FMqttifyFixedHeader& InFixedHeader)
-			: FMqttifyConnectPacketBase{ InFixedHeader }
+			: FMqttifyConnectPacketBase{InFixedHeader}
 		{
 			Decode(InReader);
 		}

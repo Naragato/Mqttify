@@ -13,7 +13,7 @@ namespace Mqttify
 	{
 	public:
 		explicit FMqttifyProperties(const TArray<FMqttifyProperty>& InProperties)
-			: Properties{ InProperties } {}
+			: Properties{InProperties} {}
 
 		explicit FMqttifyProperties(FArrayReader& InArchive)
 		{

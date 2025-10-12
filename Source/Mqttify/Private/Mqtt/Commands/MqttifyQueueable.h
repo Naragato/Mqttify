@@ -50,11 +50,9 @@ namespace Mqttify
 			const TSharedRef<FMqttifyConnectionSettings>& InConnectionSettings
 			)
 			: Settings{InConnectionSettings}
-		, Socket{InSocket}
-		, RetryWaitTime{FDateTime::MinValue()}
-		, PacketTries{0}
-		{
-		}
+			, Socket{InSocket}
+			, RetryWaitTime{FDateTime::MinValue()}
+			, PacketTries{0} {}
 
 		/**
 		 * @brief Trigger the action
@@ -114,9 +112,7 @@ namespace Mqttify
 			)
 			: FMqttifyQueueable{InSocket, InConnectionSettings}
 			, CommandPromise{MakeShared<TPromise<TMqttifyResult<TReturnValue>>>()}
-			, bIsDone{false}
-		{
-		}
+			, bIsDone{false} {}
 
 		virtual ~TMqttifyQueueable() override;
 
@@ -159,8 +155,7 @@ namespace Mqttify
 			TSharedRef<TPromise<TMqttifyResult<TReturnValue>>> CapturedPromise = CommandPromise;
 			FMqttifyConnectionSettingsRef CapturedSettings = Settings;
 			DispatchWithThreadHandling(
-				[CapturedSettings, CapturedPromise, InValue = MoveTemp(InValue)]() mutable
-				{
+				[CapturedSettings, CapturedPromise, InValue = MoveTemp(InValue)]() mutable {
 					LOG_MQTTIFY(
 						VeryVerbose,
 						TEXT( "Setting promise value (Connection %s, ClientId %s): Success: %s" ),

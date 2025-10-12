@@ -12,11 +12,11 @@ namespace Mqttify
 	{
 	public:
 		explicit FMqttifyPubCompPacketBase(const FMqttifyFixedHeader& InFixedHeader)
-			: TMqttifyControlPacket{ InFixedHeader }
-			, PacketIdentifier{ 0 } {}
+			: TMqttifyControlPacket{InFixedHeader}
+			, PacketIdentifier{0} {}
 
 		explicit FMqttifyPubCompPacketBase(const uint16 InPacketIdentifier)
-			: PacketIdentifier{ InPacketIdentifier } {}
+			: PacketIdentifier{InPacketIdentifier} {}
 
 	public:
 		/**
@@ -36,13 +36,13 @@ namespace Mqttify
 	struct TMqttifyPubCompPacket<EMqttifyProtocolVersion::Mqtt_3_1_1> final : FMqttifyPubCompPacketBase
 	{
 		explicit TMqttifyPubCompPacket(const uint16 InPacketIdentifier)
-			: FMqttifyPubCompPacketBase{ InPacketIdentifier }
+			: FMqttifyPubCompPacketBase{InPacketIdentifier}
 		{
 			FixedHeader = FMqttifyFixedHeader::Create(this);
 		}
 
 		explicit TMqttifyPubCompPacket(FArrayReader& InReader, const FMqttifyFixedHeader& InFixedHeader)
-			: FMqttifyPubCompPacketBase{ InFixedHeader }
+			: FMqttifyPubCompPacketBase{InFixedHeader}
 		{
 			Decode(InReader);
 		}
@@ -57,18 +57,18 @@ namespace Mqttify
 	{
 	public:
 		explicit TMqttifyPubCompPacket(const uint16 InPacketIdentifier,
-										const EMqttifyReasonCode InReasonCode,
-										const FMqttifyProperties& InProperties = FMqttifyProperties{})
-			: FMqttifyPubCompPacketBase{ InPacketIdentifier }
-			, ReasonCode{ InReasonCode }
-			, Properties{ InProperties }
+		                               const EMqttifyReasonCode InReasonCode,
+		                               const FMqttifyProperties& InProperties = FMqttifyProperties{})
+			: FMqttifyPubCompPacketBase{InPacketIdentifier}
+			, ReasonCode{InReasonCode}
+			, Properties{InProperties}
 		{
 			FixedHeader = FMqttifyFixedHeader::Create(this);
 		}
 
 		explicit TMqttifyPubCompPacket(FArrayReader& InReader, const FMqttifyFixedHeader& InFixedHeader)
-			: FMqttifyPubCompPacketBase{ InFixedHeader }
-			, ReasonCode{ EMqttifyReasonCode::Success }
+			: FMqttifyPubCompPacketBase{InFixedHeader}
+			, ReasonCode{EMqttifyReasonCode::Success}
 		{
 			Decode(InReader);
 		}

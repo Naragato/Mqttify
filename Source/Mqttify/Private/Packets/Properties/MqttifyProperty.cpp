@@ -152,7 +152,7 @@ namespace Mqttify
 			case EMqttifyPropertyIdentifier::UserProperty:
 			{
 				TTuple<FString, FString> Value;
-				Value.Key   = Data::DecodeString(InReader);
+				Value.Key = Data::DecodeString(InReader);
 				Value.Value = Data::DecodeString(InReader);
 				Data.SetSubtype<TTuple<FString, FString>>(Value);
 			}

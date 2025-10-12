@@ -70,7 +70,7 @@ namespace Mqttify
 				MqttifyPacketType::InvalidPacketType,
 				EnumToTCharString(FixedHeader.GetPacketType()));
 			ReasonCode = EMqttifyReasonCode::UnspecifiedError;
-			bIsValid   = false;
+			bIsValid = false;
 		}
 
 		InReader << PacketIdentifier;
