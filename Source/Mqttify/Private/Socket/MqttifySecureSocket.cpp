@@ -35,7 +35,7 @@ namespace Mqttify
 	void FMqttifySecureSocket::Connect()
 	{
 		TSharedRef<FMqttifySecureSocket> Self = AsShared();
-		EMqttifySocketState Expected          = EMqttifySocketState::Disconnected;
+		EMqttifySocketState Expected = EMqttifySocketState::Disconnected;
 		if (!CurrentState.compare_exchange_strong(
 			Expected,
 			EMqttifySocketState::Connecting,
@@ -51,7 +51,7 @@ namespace Mqttify
 			InitializeSocket();
 			if (Socket.IsValid())
 			{
-				ISocketSubsystem* SocketSubsystem    = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+				ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
 				FAddressInfoResult AddressInfoResult = SocketSubsystem->GetAddressInfo(
 					*ConnectionSettings->GetHost(),
 					nullptr,
@@ -325,7 +325,7 @@ namespace Mqttify
 		}
 
 		int32 BytesRead = 0;
-		uint8 Dummy     = 0;
+		uint8 Dummy = 0;
 		if (!Socket->Recv(&Dummy, 1, BytesRead, ESocketReceiveFlags::Peek))
 		{
 			LOG_MQTTIFY(Verbose, TEXT("Socket is not ready for writing"));
@@ -336,7 +336,7 @@ namespace Mqttify
 
 	bool FMqttifySecureSocket::ReceiveFromSocket(const int32 Want, TArray<uint8>& Tmp, size_t& OutBytesRead) const
 	{
-		OutBytesRead    = 0;
+		OutBytesRead = 0;
 		int32 BytesRead = 0;
 		if (!Socket->Recv(Tmp.GetData(), Want, BytesRead))
 		{
@@ -364,9 +364,9 @@ namespace Mqttify
 		if (Ssl != nullptr)
 		{
 			const char* SslStateAnsi = SSL_state_string_long(Ssl);
-			const char* VersionAnsi  = SSL_get_version(Ssl);
+			const char* VersionAnsi = SSL_get_version(Ssl);
 			const bool bInitFinished = SSL_is_init_finished(Ssl) == 1;
-			const int PendingApp     = SSL_pending(Ssl);
+			const int PendingApp = SSL_pending(Ssl);
 			Msg += TEXT(" | ");
 			Msg += FString::Printf(TEXT("SSL: state=%s, version=%s, init_finished=%s, pending_app=%d"),
 			                       ANSI_TO_TCHAR(SslStateAnsi),
@@ -377,9 +377,9 @@ namespace Mqttify
 
 		if (Bio != nullptr)
 		{
-			const size_t Pending   = BIO_ctrl_pending(Bio);
-			const size_t WPending  = BIO_ctrl_wpending(Bio);
-			const bool ShouldRead  = !!BIO_should_read(Bio);
+			const size_t Pending = BIO_ctrl_pending(Bio);
+			const size_t WPending = BIO_ctrl_wpending(Bio);
+			const bool ShouldRead = !!BIO_should_read(Bio);
 			const bool ShouldWrite = !!BIO_should_write(Bio);
 			const bool ShouldRetry = !!BIO_should_retry(Bio);
 			Msg += TEXT(" | ");
@@ -593,7 +593,7 @@ namespace Mqttify
 		char Buf[256] = {};
 		ERR_error_string_n(Err, Buf, sizeof(Buf));
 
-		const char* LibStr    = ERR_lib_error_string(Err);
+		const char* LibStr = ERR_lib_error_string(Err);
 		const char* ReasonStr = ERR_reason_error_string(Err);
 
 		if (LibStr || ReasonStr)
@@ -639,9 +639,24 @@ namespace Mqttify
 
 	void FMqttifySecureSocket::AppendAndProcess(const uint8* Data, int32 Len)
 	{
+		bool bShouldDisconnect = false;
+		int32 CurSize;
+		uint32 CapBytes;
 		{
 			FScopeLock Lock{&SocketAccessLock};
 			DataBuffer.Append(Data, Len);
+			CurSize = DataBuffer.Num();
+			CapBytes = ConnectionSettings->GetMaxBufferSize();
+			if (static_cast<uint32>(CurSize) > CapBytes)
+			{
+				bShouldDisconnect = true;
+			}
+		}
+		if (bShouldDisconnect)
+		{
+			LOG_MQTTIFY(Error, TEXT("Inbound buffer exceeded cap; disconnecting. Size=%d, Cap=%u"), CurSize, CapBytes);
+			Disconnect();
+			return;
 		}
 		ReadPacketsFromBuffer();
 	}
@@ -652,7 +667,7 @@ namespace Mqttify
 		if (nullptr == Method)
 		{
 			const int32 BioId = BIO_get_new_index() | BIO_TYPE_SOURCE_SINK;
-			Method            = BIO_meth_new(BioId, "Mqttify Socket BIO");
+			Method = BIO_meth_new(BioId, "Mqttify Socket BIO");
 			BIO_meth_set_write(Method, SocketBioWrite);
 			BIO_meth_set_read(Method, SocketBioRead);
 			BIO_meth_set_ctrl(Method, SocketBioCtrl);
@@ -674,7 +689,7 @@ namespace Mqttify
 		}
 
 		int32 BytesSent = 0;
-		const bool bOk  = Self->Socket->Send(reinterpret_cast<const uint8*>(InBuffer), BufferSize, BytesSent);
+		const bool bOk = Self->Socket->Send(reinterpret_cast<const uint8*>(InBuffer), BufferSize, BytesSent);
 
 		if (bOk && BytesSent > 0)
 		{
@@ -721,7 +736,7 @@ namespace Mqttify
 		}
 
 		int32 BytesRead = 0;
-		const bool bOk  = Self->Socket->Recv(reinterpret_cast<uint8*>(OutBuffer), BufferSize, BytesRead);
+		const bool bOk = Self->Socket->Recv(reinterpret_cast<uint8*>(OutBuffer), BufferSize, BytesRead);
 		if (bOk && BytesRead > 0)
 		{
 			LOG_MQTTIFY(VeryVerbose, TEXT("SocketBioRead: %d bytes read"), BytesRead);

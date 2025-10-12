@@ -11,6 +11,7 @@ FMqttifyConnectionSettings::FMqttifyConnectionSettings(
 	const int16 InPort,
 	const FMqttifyCredentialsProviderRef& InCredentialsProvider,
 	const uint32 InMaxPacketSize,
+	const uint32 InMaxBufferSize,
 	const uint16 InPacketRetryIntervalSeconds,
 	const double InPacketRetryBackoffMultiplier,
 	const uint16 InMaxPacketRetryIntervalSeconds,
@@ -25,6 +26,7 @@ FMqttifyConnectionSettings::FMqttifyConnectionSettings(
 	FString&& InClientId
 	)
 	: MaxPacketSize{InMaxPacketSize}
+	, MaxBufferSize{InMaxBufferSize}
 	, ClientId{InClientId}
 	, Port{InPort}
 	, Host{InHost}
@@ -102,6 +104,7 @@ uint32 FMqttifyConnectionSettings::GetHashCode() const
 TSharedPtr<FMqttifyConnectionSettings> FMqttifyConnectionSettings::CreateShared(
 	const FString& InURL,
 	const uint32 InMaxPacketSize,
+	const uint32 InMaxBufferSize,
 	const uint16 InPacketRetryIntervalSeconds,
 	const double InBackoffMultiplier,
 	const uint16 InMaxPacketRetryIntervalSeconds,
@@ -132,7 +135,8 @@ TSharedPtr<FMqttifyConnectionSettings> FMqttifyConnectionSettings::CreateShared(
 		// Parse credentials
 		FString Username = Matcher.GetCaptureGroup(2);
 		FString Password = Matcher.GetCaptureGroup(3);
-		const TSharedRef<IMqttifyCredentialsProvider> CredentialsProvider = MakeShared<FMqttifyBasicCredentialsProvider>(
+		const TSharedRef<IMqttifyCredentialsProvider> CredentialsProvider = MakeShared<
+			FMqttifyBasicCredentialsProvider>(
 			MoveTemp(Username),
 			MoveTemp(Password));
 
@@ -146,6 +150,7 @@ TSharedPtr<FMqttifyConnectionSettings> FMqttifyConnectionSettings::CreateShared(
 			Port,
 			CredentialsProvider,
 			InMaxPacketSize,
+			InMaxBufferSize,
 			InPacketRetryIntervalSeconds,
 			InBackoffMultiplier,
 			InMaxPacketRetryIntervalSeconds,
@@ -168,6 +173,7 @@ TSharedPtr<FMqttifyConnectionSettings> FMqttifyConnectionSettings::CreateShared(
 	const FString& InURL,
 	const TSharedRef<IMqttifyCredentialsProvider>& CredentialsProvider,
 	const uint32 InMaxPacketSize,
+	const uint32 InMaxBufferSize,
 	const uint16 InPacketRetryIntervalSeconds,
 	const double InBackoffMultiplier,
 	const uint16 InMaxPacketRetryIntervalSeconds,
@@ -214,6 +220,7 @@ TSharedPtr<FMqttifyConnectionSettings> FMqttifyConnectionSettings::CreateShared(
 			Port,
 			CredentialsProvider,
 			InMaxPacketSize,
+			InMaxBufferSize,
 			InPacketRetryIntervalSeconds,
 			InBackoffMultiplier,
 			InMaxPacketRetryIntervalSeconds,
@@ -258,16 +265,16 @@ int32 FMqttifyConnectionSettings::DefaultPort(const EMqttifyConnectionProtocol P
 {
 	switch (Protocol)
 	{
-	case EMqttifyConnectionProtocol::Mqtt:
-		return 1883;
-	case EMqttifyConnectionProtocol::Mqtts:
-		return 8883;
-	case EMqttifyConnectionProtocol::Ws:
-		return 80;
-	case EMqttifyConnectionProtocol::Wss:
-		return 443;
-	default:
-		return 1883;
+		case EMqttifyConnectionProtocol::Mqtt:
+			return 1883;
+		case EMqttifyConnectionProtocol::Mqtts:
+			return 8883;
+		case EMqttifyConnectionProtocol::Ws:
+			return 80;
+		case EMqttifyConnectionProtocol::Wss:
+			return 443;
+		default:
+			return 1883;
 	}
 }
 
@@ -327,23 +334,23 @@ FString FMqttifyConnectionSettings::ToString() const
 	// Protocol
 	switch (ConnectionProtocol)
 	{
-	case EMqttifyConnectionProtocol::Mqtt:
-		Result += TEXT("mqtt://");
-		break;
+		case EMqttifyConnectionProtocol::Mqtt:
+			Result += TEXT("mqtt://");
+			break;
 
-	case EMqttifyConnectionProtocol::Mqtts:
-		Result += TEXT("mqtts://");
-		break;
+		case EMqttifyConnectionProtocol::Mqtts:
+			Result += TEXT("mqtts://");
+			break;
 
-	case EMqttifyConnectionProtocol::Ws:
-		Result += TEXT("ws://");
-		break;
+		case EMqttifyConnectionProtocol::Ws:
+			Result += TEXT("ws://");
+			break;
 
-	case EMqttifyConnectionProtocol::Wss:
-		Result += TEXT("wss://");
-		break;
+		case EMqttifyConnectionProtocol::Wss:
+			Result += TEXT("wss://");
+			break;
 
-	default: checkNoEntry();
+		default: checkNoEntry();
 	}
 
 	// Hostname and port
@@ -377,23 +384,23 @@ FString FMqttifyConnectionSettings::ToConnectionString() const
 	// Protocol
 	switch (ConnectionProtocol)
 	{
-	case EMqttifyConnectionProtocol::Mqtt:
-		Result += TEXT("mqtt://");
-		break;
+		case EMqttifyConnectionProtocol::Mqtt:
+			Result += TEXT("mqtt://");
+			break;
 
-	case EMqttifyConnectionProtocol::Mqtts:
-		Result += TEXT("mqtts://");
-		break;
+		case EMqttifyConnectionProtocol::Mqtts:
+			Result += TEXT("mqtts://");
+			break;
 
-	case EMqttifyConnectionProtocol::Ws:
-		Result += TEXT("ws://");
-		break;
+		case EMqttifyConnectionProtocol::Ws:
+			Result += TEXT("ws://");
+			break;
 
-	case EMqttifyConnectionProtocol::Wss:
-		Result += TEXT("wss://");
-		break;
+		case EMqttifyConnectionProtocol::Wss:
+			Result += TEXT("wss://");
+			break;
 
-	default: checkNoEntry();
+		default: checkNoEntry();
 	}
 
 	const auto [Password, Username] = CredentialsProvider->GetCredentials();
