@@ -45,8 +45,6 @@ END_DEFINE_SPEC(FMqttifyClientLongRunningTest)
 
 void FMqttifyClientLongRunningTest::Define()
 {
-	FMqttifyTestDockerSpec Spec{8080, FindAvailablePort(5000, 10000), EMqttifyConnectionProtocol::Ws};
-
 	FString DurationArg;
 	if (FParse::Value(FCommandLine::Get(), TEXT("MqttifyLongTestDuration="), DurationArg))
 	{
@@ -59,125 +57,135 @@ void FMqttifyClientLongRunningTest::Define()
 		EMqttifyQualityOfService::ExactlyOnce
 	};
 
-	for (const EMqttifyQualityOfService& QoS : QualityOfServices)
+	// Define protocol specs: MQTT (1883), MQTTS (1884), and existing WS (8080)
+	const TArray<FMqttifyTestDockerSpec> ProtocolSpecs = {
+		// FMqttifyTestDockerSpec{1883, FindAvailablePort(5000, 10000), EMqttifyConnectionProtocol::Mqtt},
+		// FMqttifyTestDockerSpec{1884, FindAvailablePort(5000, 10000), EMqttifyConnectionProtocol::Mqtts}, TODO: Need to find a docker image which terminates with TLS
+		FMqttifyTestDockerSpec{8080, FindAvailablePort(5000, 10000), EMqttifyConnectionProtocol::Ws}
+	};
+
+	for (const FMqttifyTestDockerSpec& Spec : ProtocolSpecs)
 	{
-		Describe(
-			FString::Printf(TEXT("Long-running test for QoS %s"), EnumToTCharString(QoS)),
-			[this, Spec, QoS]()
-			{
-				LatentBeforeEach(
-					FTimespan::FromSeconds(120),
-					[this, Spec, QoS](const FDoneDelegate& BeforeDone)
-					{
-						LogMqttify.SetVerbosity(ELogVerbosity::VeryVerbose);
-						if (!StartBroker(DockerContainerName, Spec))
-						{
-							AddError(TEXT("Failed to start MQTT broker"));
-							LOG_MQTTIFY(Error, TEXT("Failed to start MQTT broker"));
-							BeforeDone.Execute();
-							return;
-						}
-						SetupClients(Spec, BeforeDone, QoS);
-					});
-
-				LatentIt(
-				TEXT("UnsubscribeAsync.Next is called for const TSet<FString>& InTopicFilters"),
-				FTimespan::FromSeconds(120.0f),
-				[this](const FDoneDelegate& TestDone)
+		for (const EMqttifyQualityOfService& QoS : QualityOfServices)
+		{
+			Describe(
+				FString::Printf(TEXT("Long-running test for %s QoS %s"), GetProtocolString(Spec.Protocol), EnumToTCharString(QoS)),
+				[this, Spec, QoS]()
 				{
-					const TSharedPtr<IMqttifyClient> Client = MqttClients[0];
-					const TSet TopicFilters = {FString{kTopic}};
-					Client->UnsubscribeAsync(TopicFilters).Next(
-						[this, TestDone](const TMqttifyResult<TArray<FMqttifyUnsubscribeResult>>& InResult)
+					LatentBeforeEach(
+						FTimespan::FromSeconds(120),
+						[this, Spec, QoS](const FDoneDelegate& BeforeDone)
 						{
-							TestTrue(TEXT("UnsubscribeAsync.Next should be called"), InResult.HasSucceeded());
-							TestDone.Execute();
-						});
-				});
-
-				LatentIt(
-					FString::Printf(TEXT("Continuously send messages to a subscriber")),
-					FTimespan::FromSeconds(TestDurationSeconds + 300.0f),
-					[this, QoS](const FDoneDelegate& TestDone)
-					{
-						StartTime = FDateTime::UtcNow();
-						bTestDoneExecuted = false;
-
-						LOG_MQTTIFY(VeryVerbose, TEXT("Starting long-running test for QoS %s"), EnumToTCharString(QoS));
-						const TSharedPtr<IMqttifyClient> Subscriber = MqttClients[1];
-						Subscriber->OnMessage().AddLambda(
-							[this, QoS, TestDone](const FMqttifyMessage& InMessage)
+							LogMqttify.SetVerbosity(ELogVerbosity::VeryVerbose);
+							if (!StartBroker(DockerContainerName, Spec))
 							{
-								const FString OriginalMessage = BytesToString(
-									InMessage.GetPayload().GetData(),
-									InMessage.GetPayload().Num());
+								AddError(TEXT("Failed to start MQTT broker"));
+								LOG_MQTTIFY(Error, TEXT("Failed to start MQTT broker"));
+								BeforeDone.Execute();
+								return;
+							}
+							SetupClients(Spec, BeforeDone, QoS);
+						});
 
-								LOG_MQTTIFY_PACKET_DATA(
-									VeryVerbose,
-									InMessage.GetPayload().GetData(),
-									InMessage.GetPayload().Num(),
-									TEXT("Received message payload %s"),
-									*OriginalMessage);
-
-								FMqttifyTestMessage TestMessage;
-								FJsonObjectConverter::JsonObjectStringToUStruct(OriginalMessage, &TestMessage);
-								const int32 Removed = PublishBuffer.Remove(TestMessage);
-								const auto Elapsed = FDateTime::UtcNow() - TestMessage.Time;
-								LOG_MQTTIFY(
-									VeryVerbose,
-									TEXT(
-										"Message ID %s was removed from the publish buffer. Elapsed time: %s. Removed: %d"
-									),
-									*TestMessage.MessageId.ToString(),
-									*Elapsed.ToString(),
-									Removed);
-								if (Removed == 0 && QoS != EMqttifyQualityOfService::AtLeastOnce)
-								{
-									LOG_MQTTIFY(Error, TEXT("Received message which was not in the publish buffer"));
-									AddError(TEXT("Received message which was not in the publish buffer"));
-									bTestDoneExecuted = true;
-									CheckTestCompletion(TestDone);
-									return;
-								}
-
-								CheckTestCompletion(TestDone);
+					LatentIt(
+					TEXT("UnsubscribeAsync.Next is called for const TSet<FString>& InTopicFilters"),
+					FTimespan::FromSeconds(120.0f),
+					[this](const FDoneDelegate& TestDone)
+					{
+						const TSharedPtr<IMqttifyClient> Client = MqttClients[0];
+						const TSet TopicFilters = {FString{kTopic}};
+						Client->UnsubscribeAsync(TopicFilters).Next(
+							[this, TestDone](const TMqttifyResult<TArray<FMqttifyUnsubscribeResult>>& InResult)
+							{
+								TestTrue(TEXT("UnsubscribeAsync.Next should be called"), InResult.HasSucceeded());
+								TestDone.Execute();
 							});
-
-						FTSTicker::GetCoreTicker().AddTicker(
-							FTickerDelegate::CreateLambda(
-								[this, QoS, TestDone](float Delta)
-								{
-									LOG_MQTTIFY(VeryVerbose, TEXT("Ticker tick"));
-									PublishMessages(QoS);
-									CheckTestCompletion(TestDone);
-									return !bTestDoneExecuted;
-								}),
-							1.f);
 					});
 
-				LatentAfterEach(
-					FTimespan::FromSeconds(120),
-					[this](const FDoneDelegate& AfterDone)
-					{
-						FTSTicker::GetCoreTicker().AddTicker(
-							FTickerDelegate::CreateLambda(
-								[this, AfterDone](float Delta)
-								{
-									if (PublishBuffer.Num() == 0)
-									{
-										DisconnectClients(AfterDone);
-										return false;
-									}
+					LatentIt(
+						FString::Printf(TEXT("Continuously send messages to a subscriber")),
+						FTimespan::FromSeconds(TestDurationSeconds + 300.0f),
+						[this, QoS](const FDoneDelegate& TestDone)
+						{
+							StartTime = FDateTime::UtcNow();
+							bTestDoneExecuted = false;
 
+							LOG_MQTTIFY(VeryVerbose, TEXT("Starting long-running test for QoS %s"), EnumToTCharString(QoS));
+							const TSharedPtr<IMqttifyClient> Subscriber = MqttClients[1];
+							Subscriber->OnMessage().AddLambda(
+								[this, QoS, TestDone](const FMqttifyMessage& InMessage)
+								{
+									const FString OriginalMessage = BytesToString(
+										InMessage.GetPayload().GetData(),
+										InMessage.GetPayload().Num());
+
+									LOG_MQTTIFY_PACKET_DATA(
+										VeryVerbose,
+										InMessage.GetPayload().GetData(),
+										InMessage.GetPayload().Num(),
+										TEXT("Received message payload %s"),
+										*OriginalMessage);
+
+									FMqttifyTestMessage TestMessage;
+									FJsonObjectConverter::JsonObjectStringToUStruct(OriginalMessage, &TestMessage);
+									const int32 Removed = PublishBuffer.Remove(TestMessage);
+									const auto Elapsed = FDateTime::UtcNow() - TestMessage.Time;
 									LOG_MQTTIFY(
 										VeryVerbose,
-										TEXT("Waiting for all messages to be received. %d messages remaining"),
-										PublishBuffer.Num());
-									return true;
-								}),
-							5.0f);
-					});
-			});
+										TEXT(
+											"Message ID %s was removed from the publish buffer. Elapsed time: %s. Removed: %d"
+										),
+										*TestMessage.MessageId.ToString(),
+										*Elapsed.ToString(),
+										Removed);
+									if (Removed == 0 && QoS != EMqttifyQualityOfService::AtLeastOnce)
+									{
+										LOG_MQTTIFY(Error, TEXT("Received message which was not in the publish buffer"));
+										AddError(TEXT("Received message which was not in the publish buffer"));
+										bTestDoneExecuted = true;
+										CheckTestCompletion(TestDone);
+										return;
+									}
+
+									CheckTestCompletion(TestDone);
+								});
+
+							FTSTicker::GetCoreTicker().AddTicker(
+								FTickerDelegate::CreateLambda(
+									[this, QoS, TestDone](float Delta)
+									{
+										LOG_MQTTIFY(VeryVerbose, TEXT("Ticker tick"));
+										PublishMessages(QoS);
+										CheckTestCompletion(TestDone);
+										return !bTestDoneExecuted;
+									}),
+								1.f);
+						});
+
+					LatentAfterEach(
+						FTimespan::FromSeconds(120),
+						[this](const FDoneDelegate& AfterDone)
+						{
+							FTSTicker::GetCoreTicker().AddTicker(
+								FTickerDelegate::CreateLambda(
+									[this, AfterDone](float Delta)
+									{
+										if (PublishBuffer.Num() == 0)
+										{
+											DisconnectClients(AfterDone);
+											return false;
+										}
+
+										LOG_MQTTIFY(
+											VeryVerbose,
+											TEXT("Waiting for all messages to be received. %d messages remaining"),
+											PublishBuffer.Num());
+										return true;
+									}),
+								5.0f);
+						});
+				});
+		}
 	}
 }
 

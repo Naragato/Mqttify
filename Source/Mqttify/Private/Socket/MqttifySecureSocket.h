@@ -35,7 +35,6 @@ namespace Mqttify
 		static constexpr uint32 kBufferSize  = 2 * 1024 * 1024;
 		static constexpr uint32 kMaxChunkSize = 16 * 1024;
 		FUniqueSocket Socket;
-		mutable FCriticalSection SocketAccessLock;
 
 		std::atomic<EMqttifySocketState> CurrentState;
 		bool bUseSSL;

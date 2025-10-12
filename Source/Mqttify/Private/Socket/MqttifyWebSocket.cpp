@@ -381,7 +381,10 @@ namespace Mqttify
 			Length,
 			BytesRemaining);
 
-		DataBuffer.Append(static_cast<const uint8*>(Data), Length);
+		{
+			FScopeLock Lock{&SocketAccessLock};
+			DataBuffer.Append(static_cast<const uint8*>(Data), Length);
+		}
 		if (BytesRemaining > 0)
 		{
 			return;

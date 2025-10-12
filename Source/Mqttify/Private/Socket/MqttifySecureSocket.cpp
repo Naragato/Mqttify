@@ -639,7 +639,10 @@ namespace Mqttify
 
 	void FMqttifySecureSocket::AppendAndProcess(const uint8* Data, int32 Len)
 	{
-		DataBuffer.Append(Data, Len);
+		{
+			FScopeLock Lock{&SocketAccessLock};
+			DataBuffer.Append(Data, Len);
+		}
 		ReadPacketsFromBuffer();
 	}
 
