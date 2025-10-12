@@ -14,7 +14,6 @@ namespace Mqttify
 	class FMqttifyWebSocket final : public FMqttifySocketBase, public TSharedFromThis<FMqttifyWebSocket>
 	{
 	private:
-		mutable FCriticalSection SocketAccessLock{};
 		TSharedPtr<IWebSocket> Socket;
 		std::atomic<EMqttifySocketState> CurrentState;
 		FDateTime DisconnectTime;

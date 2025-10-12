@@ -33,9 +33,9 @@ namespace Mqttify
 
 	void FMqttifySocketBase::ReadPacketsFromBuffer()
 	{
-		while (DataBuffer.Num() >= 1)
+		FScopeLock Lock{&SocketAccessLock};
+		while (DataBuffer.Num() > 1)
 		{
-			constexpr int32 PacketStartIndex = 0;
 			uint32 RemainingLength           = 0;
 			uint32 Multiplier                = 1;
 			int32 Index                      = 1;
@@ -76,9 +76,8 @@ namespace Mqttify
 				Disconnect();
 				return;
 			}
-
 			const int32 FixedHeaderSize = Index;
-			const int32 TotalPacketSize = FixedHeaderSize + RemainingLength;
+			int32 TotalPacketSize = FixedHeaderSize + static_cast<int32>(RemainingLength);
 
 			if (DataBuffer.Num() < TotalPacketSize)
 			{
@@ -89,15 +88,16 @@ namespace Mqttify
 			TSharedPtr<FArrayReader> Packet = MakeShared<FArrayReader>(false);
 			Packet->SetNumUninitialized(TotalPacketSize);
 			FMemory::Memcpy(Packet->GetData(), DataBuffer.GetData(), TotalPacketSize);
-
 			DataBuffer.RemoveAt(0, TotalPacketSize, EAllowShrinking::No);
-
-			if (GetOnDataReceivedDelegate().IsBound())
+			LOG_MQTTIFY(VeryVerbose, TEXT("Packet prepared of size %d"), TotalPacketSize);
+			if (Packet.IsValid() && GetOnDataReceivedDelegate().IsBound())
 			{
 				GetOnDataReceivedDelegate().Broadcast(Packet);
 			}
-
-			LOG_MQTTIFY(VeryVerbose, TEXT("Packet received of size %d"), TotalPacketSize);
+			else
+			{
+				break;
+			}
 		}
 	}
 } // namespace Mqttify
