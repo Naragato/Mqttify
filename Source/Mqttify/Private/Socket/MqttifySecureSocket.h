@@ -32,7 +32,7 @@ namespace Mqttify
 	private:
 		virtual void Send(const TSharedRef<IMqttifyControlPacket>& InPacket) override;
 		virtual void Send(const uint8* InData, uint32 InSize) override;
-		static constexpr uint32 kBufferSize  = 2 * 1024 * 1024;
+		static constexpr uint32 kBufferSize = 2 * 1024 * 1024;
 		static constexpr uint32 kMaxChunkSize = 16 * 1024;
 		FUniqueSocket Socket;
 
@@ -53,7 +53,8 @@ namespace Mqttify
 		bool ReceiveFromSocket(int32 Want, TArray<uint8>& Tmp, size_t& OutBytesRead) const;
 		// Reads pending data (if any) using the provided reader lambda.
 		// The reader must have signature: bool(int32 Want, TArray<uint8>& Tmp, int32& BytesRead).
-		bool ReadAvailableData(const TUniqueFunction<bool(const int32 Want, TArray<uint8>& Tmp, size_t& OutBytesRead)>&& Reader);
+		bool ReadAvailableData(
+			const TUniqueFunction<bool(const int32 Want, TArray<uint8>& Tmp, size_t& OutBytesRead)>&& Reader);
 #if WITH_SSL
 		bool InitializeSSL();
 		void CleanupSSL();
@@ -68,12 +69,12 @@ namespace Mqttify
 		static long SocketBioCtrl(BIO* Bio, int Cmd, long Num, void* Ptr);
 		static int SocketBioCreate(BIO* Bio);
 		static int SocketBioDestroy(BIO* Bio);
-		
+
 #if !UE_BUILD_SHIPPING
 		void DebugSslBioState(EMqttifySocketState State);
 		FString LastSslBioDebugLog{};
 #endif // !UE_BUILD_SHIPPING
-		
+
 #endif // WITH_SSL
 	};
 } // namespace Mqttify

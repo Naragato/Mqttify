@@ -10,12 +10,24 @@ using FMqttifyConnectionSettingsRef = TSharedRef<class FMqttifyConnectionSetting
 /**
  * @brief Represents a structured MQTT URL.
  * Handles URL formation as: mqtt[s]://[username][:password]@host.domain[:port]
+ * Represents all connection settings required to establish and maintain an MQTT/Ws connection.
+ *
+ * Key groups:
+ * - Addressing: Host, Port, Path, Protocol
+ * - Auth: CredentialsProvider (username/password, tokens, etc.)
+ * - Reliability: timeouts and retry policies
+ * - Safety limits: MaxPacketSize (single message) and MaxBufferSize (inbound buffer cap)
+ *
+ * Defaults are chosen for safety and reasonable performance. Fields are immutable except for size caps.
  */
 class MQTTIFY_API FMqttifyConnectionSettings final
 {
 private:
 	/// @brief Max Packet Size
 	uint32 MaxPacketSize = 1 * 1024 * 1024; // 1MB
+
+	/// @brief Max inbound buffer size (bytes) for accumulated network data before parsing
+	uint32 MaxBufferSize = 64 * 1024 * 1024; // 64MB
 
 	/// @brief Unique Id for this game instance / credentials.
 	FString ClientId{};
@@ -81,6 +93,7 @@ public:
 		bShouldVerifyServerCertificate = Other.bShouldVerifyServerCertificate;
 		SessionExpiryInterval = Other.SessionExpiryInterval;
 		MaxPacketSize = Other.MaxPacketSize;
+		MaxBufferSize = Other.MaxBufferSize;
 	}
 
 	FMqttifyConnectionSettings& operator=(const FMqttifyConnectionSettings&)
@@ -105,6 +118,10 @@ public:
 
 	/// @brief Get the max packet size
 	uint32 GetMaxPacketSize() const { return MaxPacketSize; }
+
+	/// @brief Get the max inbound buffer size in bytes.
+	/// This is a safety cap for accumulated inbound bytes prior to packet parsing. Exceeding this cap results in a disconnect.
+	uint32 GetMaxBufferSize() const { return MaxBufferSize; }
 
 	/// @brief Returns the socket connection timeout.
 	uint16 GetSocketConnectionTimeoutSeconds() const { return SocketConnectionTimeoutSeconds; }
@@ -161,6 +178,7 @@ public:
 	static TSharedPtr<FMqttifyConnectionSettings> CreateShared(
 		const FString& InURL,
 		uint32 InMaxPacketSize,
+		uint32 InMaxBufferSize,
 		uint16 InPacketRetryIntervalSeconds,
 		double InBackoffMultiplier,
 		uint16 InMaxPacketRetryIntervalSeconds,
@@ -179,6 +197,7 @@ public:
 		const FString& InURL,
 		const TSharedRef<IMqttifyCredentialsProvider>& CredentialsProvider,
 		uint32 InMaxPacketSize,
+		uint32 InMaxBufferSize,
 		uint16 InPacketRetryIntervalSeconds,
 		double InBackoffMultiplier,
 		uint16 InMaxPacketRetryIntervalSeconds,
@@ -201,6 +220,7 @@ public:
 		const int32 InPort,
 		const TSharedRef<IMqttifyCredentialsProvider>& InCredentialsProvider,
 		const uint32 InMaxPacketSize,
+		const uint32 InMaxBufferSize,
 		const uint16 InPacketRetryIntervalSeconds,
 		const double InPacketRetryBackoffMultiplier,
 		const uint16 InMaxPacketRetryIntervalSeconds,
@@ -223,6 +243,7 @@ public:
 				InPort,
 				InCredentialsProvider,
 				InMaxPacketSize,
+				InMaxBufferSize,
 				InPacketRetryIntervalSeconds,
 				InPacketRetryBackoffMultiplier,
 				InMaxPacketRetryIntervalSeconds,
@@ -265,6 +286,7 @@ private:
 	 * @param InMaxConnectionRetries The maximum number of connection retries.
 	 * @param InMaxPacketRetries The maximum number time to retry sending a packet.
 	 * @param bInShouldVerifyCertificate Whether to verify the server certificate.
+	 * @param InSessionExpiryInterval The Session Expiry Interval
 	 * @param InClientId The ClientId to use for the connection.
 	 */
 	explicit FMqttifyConnectionSettings(
@@ -274,6 +296,7 @@ private:
 		int16 InPort,
 		const FMqttifyCredentialsProviderRef& InCredentialsProvider,
 		uint32 InMaxPacketSize,
+		uint32 InMaxBufferSize,
 		uint16 InPacketRetryIntervalSeconds,
 		double InPacketRetryBackoffMultiplier,
 		uint16 InMaxPacketRetryIntervalSeconds,

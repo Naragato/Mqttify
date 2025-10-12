@@ -381,9 +381,24 @@ namespace Mqttify
 			Length,
 			BytesRemaining);
 
+		bool bShouldDisconnect = false;
+		int32 CurSize = 0;
+		uint32 CapBytes = 0;
 		{
 			FScopeLock Lock{&SocketAccessLock};
 			DataBuffer.Append(static_cast<const uint8*>(Data), Length);
+			CurSize = DataBuffer.Num();
+			CapBytes = ConnectionSettings->GetMaxBufferSize();
+			if (static_cast<uint32>(CurSize) > CapBytes)
+			{
+				bShouldDisconnect = true;
+			}
+		}
+		if (bShouldDisconnect)
+		{
+			LOG_MQTTIFY(Error, TEXT("Inbound buffer exceeded cap; disconnecting. Size=%d, Cap=%u"), CurSize, CapBytes);
+			Disconnect();
+			return;
 		}
 		if (BytesRemaining > 0)
 		{

@@ -4,6 +4,18 @@
 #include "MqttifyThreadMode.h"
 #include "Mqtt/MqttifyConnectionSettings.h"
 
+/**
+ * Fluent builder for FMqttifyConnectionSettings.
+ *
+ * Responsibilities:
+ * - Parse and validate the input URL.
+ * - Allow overriding timeouts, retry policies, protocol version, threading mode, and size caps.
+ * - Provide sensible defaults suitable for production.
+ *
+ * Notes:
+ * - MaxPacketSize limits a single MQTT control packet.
+ * - MaxBufferSize caps the total accumulated inbound buffer before parsing to mitigate DoS.
+ */
 class MQTTIFY_API FMqttifyConnectionSettingsBuilder final
 {
 private:
@@ -12,6 +24,7 @@ private:
 	TSharedPtr<IMqttifyCredentialsProvider> CredentialsProvider = nullptr;
 	// Default values
 	uint32 MaxPacketSize = 1 * 1024 * 1024; // 1MB
+	uint32 MaxBufferSize = 64 * 1024 * 1024; // 64MB
 	uint16 InitialPacketRetryIntervalSeconds = 15;
 	double PacketRetryBackoffMultiplier = 2;
 	uint16 MaxPacketRetryIntervalSeconds = 60;
@@ -32,9 +45,7 @@ public:
 	 * @param InUrl The URL to connect to.
 	 */
 	explicit FMqttifyConnectionSettingsBuilder(const FString& InUrl)
-		: Url(InUrl)
-	{
-	}
+		: Url(InUrl) {}
 
 	/**
 	 * @brief Sets the socket connection timeout in seconds.
@@ -171,6 +182,17 @@ public:
 		return *this;
 	}
 
+	/**
+	 * @brief Sets the maximum inbound buffer size (bytes).
+	 * This is a global cap on the accumulated network buffer prior to parsing. Exceeding this cap will close the connection.
+	 * Default: 64MB.
+	 */
+	FMqttifyConnectionSettingsBuilder& SetMaxBufferSize(const uint32 InMaxBufferSize)
+	{
+		MaxBufferSize = InMaxBufferSize;
+		return *this;
+	}
+
 	FMqttifyConnectionSettingsBuilder& SetClientId(FString&& InClientId)
 	{
 		ClientId = MoveTemp(InClientId);
@@ -183,37 +205,41 @@ public:
 	 */
 	TSharedPtr<FMqttifyConnectionSettings> Build() const
 	{
-		return CredentialsProvider == nullptr
-			       ? FMqttifyConnectionSettings::CreateShared(
-				       Url,
-				       MaxPacketSize,
-				       InitialPacketRetryIntervalSeconds,
-				       PacketRetryBackoffMultiplier,
-				       MaxPacketRetryIntervalSeconds,
-				       SocketConnectionTimeoutSeconds,
-				       KeepAliveIntervalSeconds,
-				       MqttConnectionTimeoutSeconds,
-				       InitialRetryIntervalSeconds,
-				       MaxConnectionRetries,
-				       MaxPacketRetries,
-				       bShouldVerifyCertificate,
-					   SessionExpiryInterval,
-				       FString{ClientId})
-			       : FMqttifyConnectionSettings::CreateShared(
-				       Url,
-				       CredentialsProvider.ToSharedRef(),
-				       MaxPacketSize,
-				       InitialPacketRetryIntervalSeconds,
-				       PacketRetryBackoffMultiplier,
-				       MaxPacketRetryIntervalSeconds,
-				       SocketConnectionTimeoutSeconds,
-				       KeepAliveIntervalSeconds,
-				       MqttConnectionTimeoutSeconds,
-				       InitialRetryIntervalSeconds,
-				       MaxConnectionRetries,
-				       MaxPacketRetries,
-				       bShouldVerifyCertificate,
-					   SessionExpiryInterval,
-				       FString{ClientId});
+		TSharedPtr<FMqttifyConnectionSettings> Settings = CredentialsProvider == nullptr
+			? FMqttifyConnectionSettings::CreateShared(
+				Url,
+				MaxPacketSize,
+				MaxBufferSize,
+				InitialPacketRetryIntervalSeconds,
+				PacketRetryBackoffMultiplier,
+				MaxPacketRetryIntervalSeconds,
+				SocketConnectionTimeoutSeconds,
+				KeepAliveIntervalSeconds,
+				MqttConnectionTimeoutSeconds,
+				InitialRetryIntervalSeconds,
+				MaxConnectionRetries,
+				MaxPacketRetries,
+				bShouldVerifyCertificate,
+				SessionExpiryInterval,
+				FString{ClientId})
+			: FMqttifyConnectionSettings::CreateShared(
+				Url,
+				CredentialsProvider.ToSharedRef(),
+				MaxPacketSize,
+				MaxBufferSize,
+				InitialPacketRetryIntervalSeconds,
+				PacketRetryBackoffMultiplier,
+				MaxPacketRetryIntervalSeconds,
+				SocketConnectionTimeoutSeconds,
+				KeepAliveIntervalSeconds,
+				MqttConnectionTimeoutSeconds,
+				InitialRetryIntervalSeconds,
+				MaxConnectionRetries,
+				MaxPacketRetries,
+				bShouldVerifyCertificate,
+				SessionExpiryInterval,
+				FString{ClientId});
+
+		return Settings;
 	}
 };
