@@ -27,7 +27,7 @@ namespace Mqttify
 		/// @return The OnDisconnect event.
 		FOnDisconnectDelegate& GetOnDisconnectDelegate() { return OnDisconnectDelegate; }
 
-		DECLARE_TS_MULTICAST_DELEGATE_OneParam(FOnDataReceivedDelegate, const TSharedPtr<FArrayReader>& /* Data */)
+		DECLARE_TS_MULTICAST_DELEGATE_OneParam(FOnDataReceivedDelegate, const TSharedPtr<FArrayReader>& /* Data */);
 		/// @return The OnDataReceived event.
 		FOnDataReceivedDelegate& GetOnDataReceivedDelegate() { return OnDataReceiveDelegate; }
 
@@ -72,6 +72,7 @@ namespace Mqttify
 		FOnConnectDelegate OnConnectDelegate{};
 		FOnDisconnectDelegate OnDisconnectDelegate{};
 		TArray<uint8> DataBuffer;
+		int32 DataBufferReadOffset = 0; // number of bytes already consumed from the front
 		const FMqttifyConnectionSettingsRef ConnectionSettings;
 
 	protected:

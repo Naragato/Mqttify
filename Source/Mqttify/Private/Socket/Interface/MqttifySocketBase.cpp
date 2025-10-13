@@ -38,27 +38,30 @@ namespace Mqttify
 
 		{
 			FScopeLock Lock{&SocketAccessLock};
-			while (DataBuffer.Num() > 1)
+
+			int32 Available = DataBuffer.Num() - DataBufferReadOffset;
+			while (Available > 1)
 			{
-				uint32 RemainingLength    = 0;
-				uint32 Multiplier         = 1;
-				int32 Index               = 1;
+				const uint8* Base = DataBuffer.GetData() + DataBufferReadOffset;
+				uint32 RemainingLength = 0;
+				uint32 Multiplier = 1;
+				int32 Index = 1;
 				bool bHaveRemainingLength = false;
 
 				// Parse Remaining Length (MQTT varint, up to 4 bytes)
 				for (; Index < 5; ++Index)
 				{
-					if (Index >= DataBuffer.Num())
+					if (Index >= Available)
 					{
 						// Header not complete yet
 						break;
 					}
 
-					const uint8 EncodedByte = DataBuffer[Index];
-					RemainingLength += (EncodedByte & 127) * Multiplier;
-					Multiplier *= 128;
+					const uint8 EncodedByte = Base[Index];
+					RemainingLength += (EncodedByte & 127u) * Multiplier;
+					Multiplier *= 128u;
 
-					if ((EncodedByte & 128) == 0)
+					if ((EncodedByte & 128u) == 0)
 					{
 						bHaveRemainingLength = true;
 						++Index;
@@ -69,7 +72,7 @@ namespace Mqttify
 				if (!bHaveRemainingLength)
 				{
 					LOG_MQTTIFY(VeryVerbose, TEXT("Header not complete yet"));
-					break;
+					break; // wait for more data
 				}
 
 				if (RemainingLength > ConnectionSettings->GetMaxPacketSize())
@@ -86,7 +89,7 @@ namespace Mqttify
 				const int32 FixedHeaderSize = Index;
 				const int32 TotalPacketSize = FixedHeaderSize + static_cast<int32>(RemainingLength);
 
-				if (DataBuffer.Num() < TotalPacketSize)
+				if (Available < TotalPacketSize)
 				{
 					// We don't have the full packet yet
 					break;
@@ -94,11 +97,36 @@ namespace Mqttify
 
 				TSharedPtr<FArrayReader> Packet = MakeShared<FArrayReader>(false);
 				Packet->SetNumUninitialized(TotalPacketSize);
-				FMemory::Memcpy(Packet->GetData(), DataBuffer.GetData(), TotalPacketSize);
-				DataBuffer.RemoveAt(0, TotalPacketSize, EAllowShrinking::No);
+				FMemory::Memcpy(Packet->GetData(), Base, TotalPacketSize);
 				LOG_MQTTIFY(VeryVerbose, TEXT("Packet prepared of size %d"), TotalPacketSize);
 
 				PacketsToDispatch.Emplace(MoveTemp(Packet));
+
+				// Advance read offset instead of removing from front
+				DataBufferReadOffset += TotalPacketSize;
+				Available -= TotalPacketSize;
+			}
+
+			// Periodic compaction to reclaim memory, it might be better to switch to a ring buffer in future
+			if (DataBufferReadOffset > 0)
+			{
+				if (DataBufferReadOffset == DataBuffer.Num())
+				{
+					// All consumed; clear buffer cheaply
+					DataBuffer.Reset();
+					DataBufferReadOffset = 0;
+				}
+				else
+				{
+					constexpr int32 CompactMinBytes = 256 * 1024; // 256 KiB
+					constexpr float CompactFraction = 0.75f;          // 75% of buffer
+					const int32 ThresholdByFraction = static_cast<int32>(DataBuffer.Num() * CompactFraction);
+					if (DataBufferReadOffset >= CompactMinBytes && DataBufferReadOffset >= ThresholdByFraction)
+					{
+						DataBuffer.RemoveAt(0, DataBufferReadOffset, EAllowShrinking::No);
+						DataBufferReadOffset = 0;
+					}
+				}
 			}
 		}
 
