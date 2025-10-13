@@ -276,7 +276,7 @@ namespace Mqttify
 	bool FMqttifyClient::IsConnected() const
 	{
 		FScopeLock Lock{&StateLock};
-		return CurrentState->GetState() == EMqttifyState::Connected;
+		return CurrentState.IsValid() && CurrentState->GetState() == EMqttifyState::Connected;
 	}
 
 	void FMqttifyClient::CloseSocket(int32 Code, const FString& Reason)
@@ -293,11 +293,25 @@ namespace Mqttify
 		)
 	{
 		FScopeLock Lock{&StateLock};
+		if (!CurrentState.IsValid())
+		{
+			LOG_MQTTIFY(
+				VeryVerbose,
+				TEXT("Transitioning to a null current state. Ignoring transition."));
+			return;
+		}
 		if (InPrevious != CurrentState.Get())
 		{
 			LOG_MQTTIFY(
 				VeryVerbose,
 				TEXT("Transitioning from a different state than the current state. Ignoring transition."));
+			return;
+		}
+		if (!InState.IsValid())
+		{
+			LOG_MQTTIFY(
+				Warning,
+				TEXT("Attempted to transition to an invalid (null) state. Ignoring transition."));
 			return;
 		}
 		LOG_MQTTIFY(
