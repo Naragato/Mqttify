@@ -180,19 +180,46 @@ namespace Mqttify
 		}
 	}
 
-	void FMqttifyWebSocket::Close(int32 Code, const FString& Reason)
-	{
-		FScopeLock Lock{ &SocketAccessLock };
-		LOG_MQTTIFY(
-			Display,
-			TEXT("Closing socket on %s, ClientId %s"),
-			*ConnectionSettings->ToString(),
-			*ConnectionSettings->GetClientId());
-		if (Socket.IsValid() && Socket->IsConnected())
-		{
-			Socket->Close(Code, Reason);
-		}
-	}
+ void FMqttifyWebSocket::Close(int32 Code, const FString& Reason)
+ {
+ 	if constexpr (GMqttifyThreadMode == EMqttifyThreadMode::GameThread)
+ 	{
+ 		FScopeLock Lock{ &SocketAccessLock };
+ 		LOG_MQTTIFY(
+ 			Display,
+ 			TEXT("Closing socket on %s, ClientId %s"),
+ 			*ConnectionSettings->ToString(),
+ 			*ConnectionSettings->GetClientId());
+ 		if (Socket.IsValid() && Socket->IsConnected())
+ 		{
+ 			Socket->Close(Code, Reason);
+ 		}
+ 	}
+ 	else
+ 	{
+ 		TWeakPtr<FMqttifyWebSocket> WeakSelf = AsShared();
+ 		const int32 LocalCode = Code;
+ 		const FString LocalReason = Reason; // copy for thread safety
+ 		AsyncTask(
+ 			ENamedThreads::GameThread,
+ 			[WeakSelf, LocalCode, LocalReason]()
+ 			{
+ 				if (const TSharedPtr<FMqttifyWebSocket> StrongThis = WeakSelf.Pin())
+ 				{
+ 					FScopeLock Lock{ &StrongThis->SocketAccessLock };
+ 					LOG_MQTTIFY(
+ 						Display,
+ 						TEXT("Closing socket on %s, ClientId %s"),
+ 						*StrongThis->ConnectionSettings->ToString(),
+ 						*StrongThis->ConnectionSettings->GetClientId());
+ 					if (StrongThis->Socket.IsValid() && StrongThis->Socket->IsConnected())
+ 					{
+ 						StrongThis->Socket->Close(LocalCode, LocalReason);
+ 					}
+ 				}
+ 			});
+ 	}
+ }
 
 	void FMqttifyWebSocket::Disconnect_Internal()
 	{
@@ -215,28 +242,64 @@ namespace Mqttify
 		}
 	}
 
-	void FMqttifyWebSocket::Send(const uint8* Data, const uint32 Size)
-	{
-		FScopeLock Lock{&SocketAccessLock};
-		if (!IsConnected())
-		{
-			LOG_MQTTIFY(
-				Warning,
-				TEXT("Socket not connected %s, ClientId %s"),
-				*ConnectionSettings->ToString(),
-				*ConnectionSettings->GetClientId());
-			return;
-		}
+ void FMqttifyWebSocket::Send(const uint8* Data, const uint32 Size)
+ {
+ 	if constexpr (GMqttifyThreadMode == EMqttifyThreadMode::GameThread)
+ 	{
+ 		FScopeLock Lock{&SocketAccessLock};
+ 		if (!IsConnected())
+ 		{
+ 			LOG_MQTTIFY(
+ 				Warning,
+ 				TEXT("Socket not connected %s, ClientId %s"),
+ 				*ConnectionSettings->ToString(),
+ 				*ConnectionSettings->GetClientId());
+ 			return;
+ 		}
 
-		LOG_MQTTIFY_PACKET_DATA(
-			VeryVerbose,
-			Data,
-			Size,
-			TEXT("Sending data to socket %s, ClientId %s"),
-			*ConnectionSettings->ToString(),
-			*ConnectionSettings->GetClientId());
-		Socket->Send(Data, Size, true);
-	}
+ 		LOG_MQTTIFY_PACKET_DATA(
+ 			VeryVerbose,
+ 			Data,
+ 			Size,
+ 			TEXT("Sending data to socket %s, ClientId %s"),
+ 			*ConnectionSettings->ToString(),
+ 			*ConnectionSettings->GetClientId());
+ 		Socket->Send(Data, Size, true);
+ 	}
+ 	else
+ 	{
+ 		// Copy payload for async dispatch to the Game Thread
+ 		TArray<uint8> Payload;
+ 		Payload.Append(Data, Size);
+ 		TWeakPtr<FMqttifyWebSocket> WeakSelf = AsShared();
+ 		AsyncTask(
+ 			ENamedThreads::GameThread,
+ 			[WeakSelf, Payload=MoveTemp(Payload)]() mutable
+ 			{
+ 				if (const TSharedPtr<FMqttifyWebSocket> StrongThis = WeakSelf.Pin())
+ 				{
+ 					FScopeLock Lock{&StrongThis->SocketAccessLock};
+ 					if (!StrongThis->IsConnected())
+ 					{
+ 						LOG_MQTTIFY(
+ 							Warning,
+ 							TEXT("Socket not connected %s, ClientId %s"),
+ 							*StrongThis->ConnectionSettings->ToString(),
+ 							*StrongThis->ConnectionSettings->GetClientId());
+ 						return;
+ 					}
+ 					LOG_MQTTIFY_PACKET_DATA(
+ 						VeryVerbose,
+ 						Payload.GetData(),
+ 						Payload.Num(),
+ 						TEXT("Sending data to socket %s, ClientId %s"),
+ 						*StrongThis->ConnectionSettings->ToString(),
+ 						*StrongThis->ConnectionSettings->GetClientId());
+ 					StrongThis->Socket->Send(Payload.GetData(), Payload.Num(), true);
+ 				}
+ 			});
+ 	}
+ }
 
 	void FMqttifyWebSocket::Tick()
 	{
@@ -290,7 +353,24 @@ namespace Mqttify
 						TArray<uint8> ActualBytes;
 						FMemoryWriter Writer(ActualBytes);
 						InPacket->Encode(Writer);
-						Send(ActualBytes.GetData(), ActualBytes.Num());
+						FScopeLock Lock{ &StrongThis->SocketAccessLock };
+						if (!StrongThis->IsConnected())
+						{
+							LOG_MQTTIFY(
+								Warning,
+								TEXT("Socket not connected %s, ClientId %s"),
+								*StrongThis->ConnectionSettings->ToString(),
+								*StrongThis->ConnectionSettings->GetClientId());
+							return;
+						}
+						LOG_MQTTIFY_PACKET_DATA(
+							VeryVerbose,
+							ActualBytes.GetData(),
+							ActualBytes.Num(),
+							TEXT("Sending data to socket %s, ClientId %s"),
+							*StrongThis->ConnectionSettings->ToString(),
+							*StrongThis->ConnectionSettings->GetClientId());
+						StrongThis->Socket->Send(ActualBytes.GetData(), ActualBytes.Num(), true);
 					}
 				});
 		}
