@@ -39,85 +39,82 @@ struct MQTTIFY_API FMqttifyTopicFilter final
 		return !(*this == Other);
 	}
 
-	// TODO: Not sure if we will need this for our client but if we
-	// create a server it will 100% need this.
 	/**
-	 * @brief Matches a given topic with the stored filter, considering MQTT-style wildcards (+ and #).
-	 * @param InTopic - topic to check against the filter.
-	 * @return True on successful match, false otherwise.
-	*/
+	 * @brief Matches a topic against this filter using MQTT wildcards ('+' and '#').
+	 */
 	bool MatchesWildcard(const FString& InTopic) const
 	{
-		int FilterPos = 0;
-		int TopicPos  = 0;
+		const int32 FilterLength = Filter.Len();
+		const int32 TopicLength = InTopic.Len();
 
-		while (FilterPos < Filter.Len() && TopicPos < InTopic.Len())
+		// Iterate by levels separated by '/'. Supports empty leading/trailing levels.
+		auto NextSegment = [](const FString& String,
+		                     int32& Index,
+		                     const int32 Length,
+		                     bool& bEmittedTrailingEmptySegment) -> TTuple<const TCHAR*, int32>
 		{
-			switch (Filter[FilterPos])
+			if (Index == Length && !bEmittedTrailingEmptySegment)
 			{
-				case '+':
-					// Skip until the next level in the topic.
-					while (InTopic[TopicPos] != '/' && TopicPos < InTopic.Len())
-					{
-						++TopicPos;
-					}
-				// Advance FilterPos past the '+' character.
-					++FilterPos;
-					break;
+				if (Length > 0 && String[Length - 1] == TEXT('/'))
+				{
+					bEmittedTrailingEmptySegment = true;
+					return MakeTuple(static_cast<const TCHAR*>(nullptr), 0);
+				}
+			}
+			if (Index >= Length)
+			{
+				return MakeTuple(static_cast<const TCHAR*>(nullptr), -1);
+			}
 
-				case '#':
-					// '#' must be the last character in the filter string, so if it matches, we have a successful topic-filter match.
-					return true;
+			const int32 Start = Index;
+			int32 End = Start;
+			while (End < Length && String[End] != TEXT('/')) { ++End; }
+			const int32 SegmentLength = End - Start;
+			Index = (End < Length) ? End + 1 : Length;
+			return MakeTuple(SegmentLength > 0 ? &String[Start] : static_cast<const TCHAR*>(nullptr), SegmentLength);
+		};
 
-				default:
-					// Normal character, check character by character
-					while (Filter[FilterPos] == InTopic[TopicPos])
-					{
-						++FilterPos;
-						++TopicPos;
-						if (FilterPos == Filter.Len() && TopicPos == InTopic.Len())
-						{
-							// Both strings ended at the same time, hence they match.
-							return true;
-						}
-						if (TopicPos == InTopic.Len() || FilterPos == Filter.Len())
-						{
-							// One string ended before the other, hence they do not match.
-							return false;
-						}
-					}
-				// If the unmatched character is '/', move to the next level. Otherwise, return false.
-					if (Filter[FilterPos] == '/' && InTopic[TopicPos] == '/')
-					{
-						++FilterPos;
-						++TopicPos;
-					}
-					else
-					{
-						return false;
-					}
-					break;
+		auto IsPlusLevel = [](const TCHAR* Ptr, int32 Len) { return Len == 1 && Ptr && *Ptr == TEXT('+'); };
+		auto IsHashLevel = [](const TCHAR* Ptr, int32 Len) { return Len == 1 && Ptr && *Ptr == TEXT('#'); };
+
+		int32 FilterIndex = 0;
+		int32 TopicIndex = 0;
+		bool bFilterEmittedTrailingEmpty = false;
+		bool bTopicEmittedTrailingEmpty = false;
+
+		while (true)
+		{
+			const auto [FilterPtr, FilterSegLen] = NextSegment(Filter, FilterIndex, FilterLength, bFilterEmittedTrailingEmpty);
+			const auto [TopicPtr, TopicSegLen] = NextSegment(InTopic, TopicIndex, TopicLength, bTopicEmittedTrailingEmpty);
+
+			const bool bFilterDone = (FilterSegLen < 0);
+			const bool bTopicDone = (TopicSegLen < 0);
+
+			if (bFilterDone || bTopicDone)
+			{
+				if (!bFilterDone && IsHashLevel(FilterPtr, FilterSegLen))
+				{
+					const auto [NextPtr, NextLen] = NextSegment(Filter, FilterIndex, FilterLength, bFilterEmittedTrailingEmpty);
+					return NextLen < 0; // '#' must be the last level
+				}
+				return bFilterDone && bTopicDone;
+			}
+
+			if (IsHashLevel(FilterPtr, FilterSegLen))
+			{
+				const auto [NextPtr, NextLen] = NextSegment(Filter, FilterIndex, FilterLength, bFilterEmittedTrailingEmpty);
+				return NextLen < 0;
+			}
+
+			if (!IsPlusLevel(FilterPtr, FilterSegLen))
+			{
+				if (FilterSegLen != TopicSegLen) { return false; }
+				for (int32 CharIndex = 0; CharIndex < FilterSegLen; ++CharIndex)
+				{
+					if (FilterPtr[CharIndex] != TopicPtr[CharIndex]) { return false; }
+				}
 			}
 		}
-
-		// If either the filter or the topic have remaining characters, but not both, they do not match
-		if ((FilterPos < Filter.Len() && Filter[FilterPos] != '#') || TopicPos < InTopic.Len())
-		{
-			return false;
-		}
-
-		// If both strings have ended simultaneously, or remaining filter characters are all '/', they match.
-		while (FilterPos < Filter.Len())
-		{
-			if (Filter[FilterPos] != '/')
-			{
-				// Any character remaining in filter other than '/' will break the match.
-				return false;
-			}
-			++FilterPos;
-		}
-
-		return true;
 	}
 
 private:
@@ -183,12 +180,12 @@ public:
 	 * If there are no retained messages matching the Topic Filter, all of these values act the same. The values are:
 	 */
 	explicit FMqttifyTopicFilter(const FString& InFilter,
-								const EMqttifyQualityOfService InQualityOfService =
-									EMqttifyQualityOfService::AtMostOnce,
-								const bool bInNoLocal                                       = true,
-								const bool bInRetainAsPublished                             = true,
-								const EMqttifyRetainHandlingOptions InRetainHandlingOptions =
-									EMqttifyRetainHandlingOptions::SendRetainedMessagesAtSubscribeTime)
+	                             const EMqttifyQualityOfService InQualityOfService =
+		                             EMqttifyQualityOfService::AtMostOnce,
+	                             const bool bInNoLocal = true,
+	                             const bool bInRetainAsPublished = true,
+	                             const EMqttifyRetainHandlingOptions InRetainHandlingOptions =
+		                             EMqttifyRetainHandlingOptions::SendRetainedMessagesAtSubscribeTime)
 		: Filter(InFilter)
 		, InQualityOfService(InQualityOfService)
 		, bNoLocal(bInNoLocal)

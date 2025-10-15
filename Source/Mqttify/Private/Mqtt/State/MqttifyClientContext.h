@@ -97,6 +97,12 @@ namespace Mqttify
 		TMap<FString, TSharedRef<FOnMessage>> OnMessageDelegates{};
 		mutable FCriticalSection OnMessageDelegatesCriticalSection{};
 
+		/// @brief Exact-topic cache for standard filters
+		TMap<FString, TSharedRef<FOnMessage>> ExactDelegates{};
+		
+		/// @brief Cache for filters with wind cards
+		TArray<TPair<FMqttifyTopicFilter, TSharedRef<FOnMessage>>> WildcardDelegates{};
+
 		/// @brief Promises for when a disconnect is complete.
 		TArray<TSharedPtr<TPromise<TMqttifyResult<void>>>> OnDisconnectPromises;
 		mutable FCriticalSection OnDisconnectPromisesCriticalSection{};

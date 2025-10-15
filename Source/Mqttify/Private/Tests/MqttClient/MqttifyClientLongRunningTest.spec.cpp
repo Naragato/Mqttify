@@ -58,7 +58,7 @@ void FMqttifyClientLongRunningTest::Define()
 	};
 
 	// Define protocol specs: MQTT (1883), MQTTS (1884), and existing WS (8080)
-	const TArray<FMqttifyTestDockerSpec> ProtocolSpecs = {
+	const TArray ProtocolSpecs = {
 		// FMqttifyTestDockerSpec{1883, FindAvailablePort(5000, 10000), EMqttifyConnectionProtocol::Mqtt},
 		// FMqttifyTestDockerSpec{1884, FindAvailablePort(5000, 10000), EMqttifyConnectionProtocol::Mqtts}, TODO: Need to find a docker image which terminates with TLS
 		FMqttifyTestDockerSpec{8080, FindAvailablePort(5000, 10000), EMqttifyConnectionProtocol::Ws}
@@ -69,13 +69,13 @@ void FMqttifyClientLongRunningTest::Define()
 		for (const EMqttifyQualityOfService& QoS : QualityOfServices)
 		{
 			Describe(
-				FString::Printf(TEXT("Long-running test for %s QoS %s"), GetProtocolString(Spec.Protocol), EnumToTCharString(QoS)),
-				[this, Spec, QoS]()
-				{
+				FString::Printf(TEXT("Long-running test for %s QoS %s"),
+				                GetProtocolString(Spec.Protocol),
+				                EnumToTCharString(QoS)),
+				[this, Spec, QoS]() {
 					LatentBeforeEach(
 						FTimespan::FromSeconds(120),
-						[this, Spec, QoS](const FDoneDelegate& BeforeDone)
-						{
+						[this, Spec, QoS](const FDoneDelegate& BeforeDone) {
 							LogMqttify.SetVerbosity(ELogVerbosity::VeryVerbose);
 							if (!StartBroker(DockerContainerName, Spec))
 							{
@@ -88,33 +88,196 @@ void FMqttifyClientLongRunningTest::Define()
 						});
 
 					LatentIt(
-					TEXT("UnsubscribeAsync.Next is called for const TSet<FString>& InTopicFilters"),
-					FTimespan::FromSeconds(120.0f),
-					[this](const FDoneDelegate& TestDone)
-					{
-						const TSharedPtr<IMqttifyClient> Client = MqttClients[0];
-						const TSet TopicFilters = {FString{kTopic}};
-						Client->UnsubscribeAsync(TopicFilters).Next(
-							[this, TestDone](const TMqttifyResult<TArray<FMqttifyUnsubscribeResult>>& InResult)
+						TEXT("UnsubscribeAsync.Next is called for const TSet<FString>& InTopicFilters"),
+						FTimespan::FromSeconds(120.0f),
+						[this](const FDoneDelegate& TestDone) {
+							const TSharedPtr<IMqttifyClient> Client = MqttClients[0];
+							const TSet TopicFilters = {FString{kTopic}};
+							Client->UnsubscribeAsync(TopicFilters).Next(
+								[this, TestDone](const TMqttifyResult<TArray<FMqttifyUnsubscribeResult>>& InResult) {
+									TestTrue(TEXT("UnsubscribeAsync.Next should be called"), InResult.HasSucceeded());
+									TestDone.Execute();
+								});
+						});
+
+					LatentIt(
+						TEXT("Wildcard subscriptions should work with real broker"),
+						FTimespan::FromSeconds(60.0f + TestDurationSeconds),
+						[this, QoS](const FDoneDelegate& TestDone) {
+							if (MqttClients.Num() != 2)
 							{
-								TestTrue(TEXT("UnsubscribeAsync.Next should be called"), InResult.HasSucceeded());
+								AddError(TEXT("Expected 2 client pointers"));
 								TestDone.Execute();
-							});
-					});
+								return;
+							}
+
+							const TSharedRef<IMqttifyClient> Publisher = MqttClients[0];
+							const TSharedRef<IMqttifyClient> Subscriber = MqttClients[1];
+
+							const FString PlusFilter = TEXT("tests/wild/+/temp");
+							const FString HashFilter = TEXT("tests/wild/#");
+							const FString ExactTopic = TEXT("tests/wild/uk/temp");
+							const FString OnlyHashTopic = TEXT("tests/wild/uk/humidity");
+							const FString NonMatchTopic = TEXT("tests/other/uk/temp");
+							const FString DoneTopic = TEXT("tests/wild/__done");
+
+							auto bCompleted = MakeShared<TAtomic<bool>>(false);
+
+							AddExpectedMessage(TEXT("WILD_PLUS_OK"),
+							                   EAutomationExpectedMessageFlags::Contains,
+							                   0,
+							                   false);
+							AddExpectedMessage(TEXT("WILD_HASH_OK"),
+							                   EAutomationExpectedMessageFlags::Contains,
+							                   0,
+							                   false);
+							AddExpectedMessage(TEXT("WILD_EXACT_OK"),
+							                   EAutomationExpectedMessageFlags::Contains,
+							                   0,
+							                   false);
+							AddExpectedMessage(TEXT("WILD_DONE"), EAutomationExpectedMessageFlags::Contains, 1, false);
+
+							TArray<FMqttifyTopicFilter> Filters;
+							Filters.Emplace(FMqttifyTopicFilter{PlusFilter, QoS});
+							Filters.Emplace(FMqttifyTopicFilter{HashFilter, QoS});
+							Filters.Emplace(FMqttifyTopicFilter{ExactTopic, QoS});
+
+							Subscriber->SubscribeAsync(Filters).Next(
+								[this, TestDone, Publisher, Subscriber, PlusFilter, HashFilter, ExactTopic,
+									OnlyHashTopic, NonMatchTopic, DoneTopic, bCompleted](
+								const TMqttifyResult<TArray<FMqttifySubscribeResult>>& InResult) {
+									if (!InResult.HasSucceeded())
+									{
+										AddError(TEXT("Wildcard SubscribeAsync failed"));
+										TestDone.Execute();
+										return InResult;
+									}
+
+									for (const FMqttifySubscribeResult& Res : *InResult.GetResult())
+									{
+										const FString F = Res.GetFilter().GetFilter();
+										if (const TSharedPtr<FOnMessage> D = Res.GetOnMessage())
+										{
+											if (F == PlusFilter)
+											{
+												D->AddLambda([this, ExactTopic](const FMqttifyMessage& Msg) {
+													if (Msg.GetTopic() == ExactTopic)
+													{
+														LOG_MQTTIFY(Display, TEXT("WILD_PLUS_OK"));
+													}
+													else
+													{
+														AddError(FString::Printf(
+															TEXT("Plus filter received unexpected topic: %s"),
+															*Msg.GetTopic()));
+													}
+												});
+											}
+											else if (F == HashFilter)
+											{
+												D->AddLambda(
+													[this, ExactTopic, OnlyHashTopic, DoneTopic, TestDone, bCompleted, Subscriber, PlusFilter, HashFilter](
+													const FMqttifyMessage& Msg) {
+														if (Msg.GetTopic() == ExactTopic || Msg.GetTopic() ==
+															OnlyHashTopic)
+														{
+															LOG_MQTTIFY(Display, TEXT("WILD_HASH_OK"));
+														}
+														else if (Msg.GetTopic() == DoneTopic)
+														{
+															LOG_MQTTIFY(Display, TEXT("WILD_DONE"));
+															bCompleted->Store(true);
+															const TSet<FString> FiltersToRemove{
+																PlusFilter, HashFilter, ExactTopic};
+															Subscriber->UnsubscribeAsync(FiltersToRemove).Next(
+																[this, TestDone](
+																const TMqttifyResult<TArray<FMqttifyUnsubscribeResult>>&
+																R) {
+																	if (!R.HasSucceeded())
+																	{
+																		AddError(TEXT(
+																			"Unsubscribe failed in wildcard test cleanup"));
+																	}
+																	TestDone.Execute();
+																	return R;
+																});
+															return;
+														}
+														else
+														{
+															AddError(FString::Printf(
+																TEXT("Hash filter received unexpected topic: %s"),
+																*Msg.GetTopic()));
+														}
+													});
+											}
+											else if (F == ExactTopic)
+											{
+												D->AddLambda([this, ExactTopic](const FMqttifyMessage& Msg) {
+													if (Msg.GetTopic() == ExactTopic)
+													{
+														LOG_MQTTIFY(Display, TEXT("WILD_EXACT_OK"));
+													}
+													else
+													{
+														AddError(FString::Printf(
+															TEXT("Exact filter received unexpected topic: %s"),
+															*Msg.GetTopic()));
+													}
+												});
+											}
+										}
+									}
+
+									Publisher->PublishAsync(FMqttifyMessage{
+										ExactTopic, TArray<uint8>{'E', 'X', 'A', 'C', 'T'}, false,
+										EMqttifyQualityOfService::AtMostOnce});
+									Publisher->PublishAsync(FMqttifyMessage{
+										OnlyHashTopic, TArray<uint8>{'H', 'A', 'S', 'H'}, false,
+										EMqttifyQualityOfService::AtMostOnce});
+									Publisher->PublishAsync(FMqttifyMessage{
+										NonMatchTopic, TArray<uint8>{'N', 'O', 'N'}, false,
+										EMqttifyQualityOfService::AtMostOnce});
+									Publisher->PublishAsync(FMqttifyMessage{
+										DoneTopic, TArray<uint8>{'D', 'O', 'N', 'E'}, false,
+										EMqttifyQualityOfService::AtLeastOnce});
+
+									const double Start = FPlatformTime::Seconds();
+									FTSTicker::GetCoreTicker().AddTicker(
+										FTickerDelegate::CreateLambda([this, TestDone, Start, bCompleted](float) {
+											if (bCompleted->Load())
+											{
+												return false;
+											}
+											if (FPlatformTime::Seconds() - Start > 60.0)
+											{
+												AddError(TEXT(
+													"Timed out waiting for 'done' topic in wildcard broker test"));
+												bCompleted->Store(true);
+												TestDone.Execute();
+												return false;
+											}
+											return true;
+										}),
+										0.25f);
+
+									return InResult;
+								});
+						});
 
 					LatentIt(
 						FString::Printf(TEXT("Continuously send messages to a subscriber")),
 						FTimespan::FromSeconds(TestDurationSeconds + 300.0f),
-						[this, QoS](const FDoneDelegate& TestDone)
-						{
+						[this, QoS](const FDoneDelegate& TestDone) {
 							StartTime = FDateTime::UtcNow();
 							bTestDoneExecuted = false;
 
-							LOG_MQTTIFY(VeryVerbose, TEXT("Starting long-running test for QoS %s"), EnumToTCharString(QoS));
+							LOG_MQTTIFY(VeryVerbose,
+							            TEXT("Starting long-running test for QoS %s"),
+							            EnumToTCharString(QoS));
 							const TSharedPtr<IMqttifyClient> Subscriber = MqttClients[1];
 							Subscriber->OnMessage().AddLambda(
-								[this, QoS, TestDone](const FMqttifyMessage& InMessage)
-								{
+								[this, QoS, TestDone](const FMqttifyMessage& InMessage) {
 									const FString OriginalMessage = BytesToString(
 										InMessage.GetPayload().GetData(),
 										InMessage.GetPayload().Num());
@@ -140,7 +303,8 @@ void FMqttifyClientLongRunningTest::Define()
 										Removed);
 									if (Removed == 0 && QoS != EMqttifyQualityOfService::AtLeastOnce)
 									{
-										LOG_MQTTIFY(Error, TEXT("Received message which was not in the publish buffer"));
+										LOG_MQTTIFY(Error,
+										            TEXT("Received message which was not in the publish buffer"));
 										AddError(TEXT("Received message which was not in the publish buffer"));
 										bTestDoneExecuted = true;
 										CheckTestCompletion(TestDone);
@@ -152,8 +316,7 @@ void FMqttifyClientLongRunningTest::Define()
 
 							FTSTicker::GetCoreTicker().AddTicker(
 								FTickerDelegate::CreateLambda(
-									[this, QoS, TestDone](float Delta)
-									{
+									[this, QoS, TestDone](float Delta) {
 										LOG_MQTTIFY(VeryVerbose, TEXT("Ticker tick"));
 										PublishMessages(QoS);
 										CheckTestCompletion(TestDone);
@@ -164,12 +327,10 @@ void FMqttifyClientLongRunningTest::Define()
 
 					LatentAfterEach(
 						FTimespan::FromSeconds(120),
-						[this](const FDoneDelegate& AfterDone)
-						{
+						[this](const FDoneDelegate& AfterDone) {
 							FTSTicker::GetCoreTicker().AddTicker(
 								FTickerDelegate::CreateLambda(
-									[this, AfterDone](float Delta)
-									{
+									[this, AfterDone](float Delta) {
 										if (PublishBuffer.Num() == 0)
 										{
 											DisconnectClients(AfterDone);
@@ -228,8 +389,7 @@ void FMqttifyClientLongRunningTest::SetupClients(
 
 		MqttClients.Add(MqttClient.ToSharedRef());
 		MqttClient->OnConnect().AddLambda(
-			[this](const bool bIsConnected)
-			{
+			[this](const bool bIsConnected) {
 				if (!bIsConnected)
 				{
 					AddError(TEXT("Client failed to connect"));
@@ -240,14 +400,12 @@ void FMqttifyClientLongRunningTest::SetupClients(
 
 	const TWeakPtr<IMqttifyClient> SubscriberWeak = MqttClients[1];
 	SubscriberWeak.Pin()->OnConnect().AddLambda(
-		[this, InBeforeDone, InQoS, SubscriberWeak](const bool bIsConnected)
-		{
+		[this, InBeforeDone, InQoS, SubscriberWeak](const bool bIsConnected) {
 			FMqttifyTopicFilter TopicFilter{FString{kTopic}, InQoS};
 			if (const TSharedPtr<IMqttifyClient> SubscriberStrong = SubscriberWeak.Pin())
 			{
 				SubscriberStrong->SubscribeAsync(MoveTemp(TopicFilter)).Next(
-					[this, InBeforeDone](const TMqttifyResult<FMqttifySubscribeResult>& InResult)
-					{
+					[this, InBeforeDone](const TMqttifyResult<FMqttifySubscribeResult>& InResult) {
 						if (!InResult.HasSucceeded())
 						{
 							AddError(TEXT("Failed to subscribe"));
@@ -299,8 +457,7 @@ void FMqttifyClientLongRunningTest::PublishMessages(const EMqttifyQualityOfServi
 
 		PublishBuffer.Add(TestMessage);
 		Publisher->PublishAsync(MoveTemp(Message)).Next(
-			[this, TestMessage](const TMqttifyResult<void>& InResult)
-			{
+			[this, TestMessage](const TMqttifyResult<void>& InResult) {
 				if (!InResult.HasSucceeded())
 				{
 					LOG_MQTTIFY(
@@ -324,8 +481,7 @@ void FMqttifyClientLongRunningTest::DisconnectClients(const FDoneDelegate& InAft
 	for (const TSharedRef<IMqttifyClient>& MqttClient : MqttClients)
 	{
 		MqttClient->DisconnectAsync().Next(
-			[this, InAfterDone](const TMqttifyResult<void>&)
-			{
+			[this, InAfterDone](const TMqttifyResult<void>&) {
 				if (MqttClients.ContainsByPredicate(
 					[](const TSharedPtr<IMqttifyClient>& Client) { return Client->IsConnected(); }))
 				{
