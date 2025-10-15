@@ -22,12 +22,19 @@ namespace Mqttify
 		}
 		else
 		{
-			AsyncTask(
-				ENamedThreads::GameThread,
-				[Func = MoveTemp(InFunc)]() mutable {
-					LOG_MQTTIFY(VeryVerbose, TEXT("Dispatching with thread handling"));
-					Func();
-				});
+			if (IsInGameThread())
+			{
+				InFunc();
+			}
+			else
+			{
+				AsyncTask(
+					ENamedThreads::GameThread,
+					[Func = MoveTemp(InFunc)]() mutable {
+						LOG_MQTTIFY(VeryVerbose, TEXT("Dispatching with thread handling"));
+						Func();
+					});
+			}
 		}
 	}
 
@@ -36,7 +43,7 @@ namespace Mqttify
 	 * @brief Creates a fulfilled promise that adapts to the current thread mode.
 	 *
 	 * If the thread mode is not set to `BackgroundThreadWithCallbackMarshalling`, the promise is fulfilled and the future is returned immediately on the current thread.
-	 * Otherwise, the promise is fulfilled asynchronously on the game thread.
+	 * Otherwise, the promise is fulfilled on the game thread; if we're already on the game thread, fulfill immediately.
 	 *
 	 * @param Value The value to set for the promise fulfillment.
 	 * @return A future that holds the result of the fulfilled promise.
@@ -50,19 +57,27 @@ namespace Mqttify
 		}
 		else
 		{
-			// Create a shared promise and fulfill it on the main thread
+			// Create a shared promise and fulfill it on the main thread (inline if already on it)
 			TSharedPtr<TPromise<TResult>> Promise = MakeShared<TPromise<TResult>>();
 			TFuture<TResult> Future = Promise->GetFuture();
-
-			AsyncTask(
-				ENamedThreads::GameThread,
-				[Promise, Value = Forward<TResult>(Value)]() mutable {
-					if (Promise.IsValid())
-					{
-						Promise->SetValue(Forward<TResult>(Value));
-					}
-				});
-
+			if (IsInGameThread())
+			{
+				if (Promise.IsValid())
+				{
+					Promise->SetValue(Forward<TResult>(Value));
+				}
+			}
+			else
+			{
+				AsyncTask(
+					ENamedThreads::GameThread,
+					[Promise, Value = Forward<TResult>(Value)]() mutable {
+						if (Promise.IsValid())
+						{
+							Promise->SetValue(Forward<TResult>(Value));
+						}
+					});
+			}
 			return Future;
 		}
 	}

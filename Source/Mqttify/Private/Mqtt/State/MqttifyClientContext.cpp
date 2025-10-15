@@ -132,24 +132,36 @@ namespace Mqttify
 		}
 		const TSharedRef<FOnMessage> Delegate = MakeShared<FOnMessage>();
 		OnMessageDelegates.Add(InTopic, Delegate);
+		// Populate caches for efficient dispatch
+		if (InTopic.Contains(TEXT("+")) || InTopic.Contains(TEXT("#")))
+		{
+			WildcardDelegates.Emplace(FMqttifyTopicFilter{InTopic}, Delegate);
+		}
+		else
+		{
+			ExactDelegates.Add(InTopic, Delegate);
+		}
 		LOG_MQTTIFY(VeryVerbose, TEXT("GetMessageDelegate %s %d"), *InTopic, OnMessageDelegates.Num());
 		return Delegate;
 	}
 
-	void FMqttifyClientContext::ClearMessageDelegates(
-		const TSharedPtr<TArray<FMqttifyUnsubscribeResult>>& InUnsubscribeResults
-		)
+	void FMqttifyClientContext::ClearMessageDelegates(const TSharedPtr<TArray<FMqttifyUnsubscribeResult>>& InUnsubscribeResults)
 	{
 		FScopeLock Lock(&OnMessageDelegatesCriticalSection);
 
 		LOG_MQTTIFY(VeryVerbose, TEXT("ClearMessageDelegates %d"), OnMessageDelegates.Num());
 		for (FMqttifyUnsubscribeResult& Result : *InUnsubscribeResults)
 		{
-			if (const TSharedRef<FOnMessage>* Delegate = OnMessageDelegates.Find(Result.GetFilter().GetFilter()))
+			const FString Key = Result.GetFilter().GetFilter();
+			if (const TSharedRef<FOnMessage>* Delegate = OnMessageDelegates.Find(Key))
 			{
 				(*Delegate)->Clear();
-				OnMessageDelegates.Remove(Result.GetFilter().GetFilter());
+				OnMessageDelegates.Remove(Key);
 			}
+			ExactDelegates.Remove(Key);
+			WildcardDelegates.RemoveAll([&](const TPair<FMqttifyTopicFilter, TSharedRef<FOnMessage>>& P) {
+				return P.Key.GetFilter() == Key;
+			});
 		}
 	}
 
@@ -199,10 +211,23 @@ namespace Mqttify
 				{
 					FScopeLock Lock(&ThisSharedPtr->OnMessageDelegatesCriticalSection);
 					ThisSharedPtr->OnMessage().Broadcast(Message);
-					if (const TSharedRef<FOnMessage>* Delegate = ThisSharedPtr->OnMessageDelegates.Find(
-						Message.GetTopic()))
+					LOG_MQTTIFY(VeryVerbose, TEXT("OnMessage %s"), *Message.GetTopic());
+					const FString& Topic = Message.GetTopic();
+
+					// Exact-topic fast path
+					if (const TSharedRef<FOnMessage>* Exact = ThisSharedPtr->ExactDelegates.Find(Topic))
 					{
-						(*Delegate)->Broadcast(Message);
+						(*Exact)->Broadcast(Message);
+					}
+
+					// Precompiled wildcard filters only
+					for (const auto& Entry : ThisSharedPtr->WildcardDelegates)
+					{
+						const FMqttifyTopicFilter& Filter = Entry.Key;
+						if (Filter.MatchesWildcard(Topic))
+						{
+							Entry.Value->Broadcast(Message);
+						}
 					}
 				}
 			});
@@ -260,6 +285,8 @@ namespace Mqttify
 			Pair.Value->Clear();
 		}
 		OnMessageDelegates.Empty();
+		ExactDelegates.Empty();
+		WildcardDelegates.Empty();
 	}
 
 	void FMqttifyClientContext::ClearDisconnectPromises()
