@@ -46,6 +46,6 @@ namespace Mqttify
 		 * @return A future that contains the result of the connection, which can be checked for success.
 		 * the result contains a result for this topic filter
 		 */
-		virtual FSubscribeFuture SubscribeAsync(FString& InTopicFilter) = 0;
+		virtual FSubscribeFuture SubscribeAsync(const FString& InTopicFilter) = 0;
 	};
 } // namespace Mqttify

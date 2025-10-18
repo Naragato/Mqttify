@@ -24,9 +24,12 @@ DECLARE_LOG_CATEGORY_EXTERN(LogMqttify, Display, All);
  */
 #define LOG_MQTTIFY(Verbosity, Format, ...)\
 do {\
+if (UE_LOG_ACTIVE(LogMqttify, Verbosity))\
+{\
 UE_LOG(LogMqttify, Verbosity, TEXT("[%s]: %s"),\
 StringCast<TCHAR>(MQTTIFY_PRETTY_FUNCTION).Get(),\
 *FString::Printf(Format, ##__VA_ARGS__));\
+}\
 } while (0)
 
 namespace Mqttify

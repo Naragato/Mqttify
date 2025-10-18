@@ -41,7 +41,7 @@ namespace Mqttify
 			VeryVerbose,
 			TEXT("[Connect (Connection %s, ClientId %s)]"),
 			*GetConnectionSettings()->GetHost(),
-			*GetConnectionSettings()->GetClientId());
+			*GetConnectionSettings()->GetClientIdRef());
 		if (!CurrentState.IsValid())
 		{
 			TWeakPtr<FMqttifyClient> ThisWeakPtr = AsWeak();
@@ -70,7 +70,7 @@ namespace Mqttify
 			VeryVerbose,
 			TEXT("[disconnect (Connection %s, ClientId %s)]"),
 			*GetConnectionSettings()->GetHost(),
-			*GetConnectionSettings()->GetClientId());
+			*GetConnectionSettings()->GetClientIdRef());
 
 		if (CurrentState.IsValid())
 		{
@@ -90,7 +90,7 @@ namespace Mqttify
 			Verbose,
 			TEXT("[Publishing (Connection %s, ClientId %s)] %s, QoS %s"),
 			*GetConnectionSettings()->GetHost(),
-			*GetConnectionSettings()->GetClientId(),
+			*GetConnectionSettings()->GetClientIdRef(),
 			*InMessage.GetTopic(),
 			EnumToTCharString(InMessage.GetQualityOfService()));
 		switch (InMessage.GetQualityOfService())
@@ -140,13 +140,22 @@ namespace Mqttify
 		const TArray<FMqttifyTopicFilter>& InTopicFilters
 		)
 	{
+		// Copy and forward to the rvalue-ref core to avoid duplicating implementation
+		TArray<FMqttifyTopicFilter> LocalCopy{InTopicFilters};
+		return SubscribeAsync_Internal(MoveTemp(LocalCopy));
+	}
+
+	TFuture<TMqttifyResult<TArray<FMqttifySubscribeResult>>> FMqttifyClient::SubscribeAsync_Internal(
+		TArray<FMqttifyTopicFilter>&& InTopicFilters)
+	{
 		const uint16 PacketId = Context->GetNextId();
 
 		TArray<TTuple<FMqttifyTopicFilter, TSharedRef<FOnMessage>>> TopicFilters;
-		for (const FMqttifyTopicFilter& TopicFilter : InTopicFilters)
+		TopicFilters.Reserve(InTopicFilters.Num());
+		for (FMqttifyTopicFilter& TF : InTopicFilters)
 		{
-			auto Tuple = MakeTuple(TopicFilter, Context->GetMessageDelegate(TopicFilter.GetFilter()));
-			TopicFilters.Emplace(Tuple);
+			const TSharedRef<FOnMessage> Delegate = Context->GetMessageDelegate(TF.GetFilter());
+			TopicFilters.Emplace(MoveTemp(TF), Delegate);
 		}
 
 		const TSharedRef<FMqttifySubscribe> SubscribeCommand = MakeShared<FMqttifySubscribe>(
@@ -178,12 +187,15 @@ namespace Mqttify
 
 	TFuture<TMqttifyResult<FMqttifySubscribeResult>> FMqttifyClient::SubscribeAsync(FMqttifyTopicFilter&& InTopicFilter)
 	{
-		return SubscribeAsync(TArray{InTopicFilter}).Next(
+		TArray<FMqttifyTopicFilter> Filters;
+		Filters.Reserve(1);
+		Filters.Emplace(MoveTemp(InTopicFilter));
+		return SubscribeAsync_Internal(MoveTemp(Filters)).Next(
 			[](const TMqttifyResult<TArray<FMqttifySubscribeResult>>& InResult) {
 				if (InResult.HasSucceeded() && InResult.GetResult()->Num() == 1)
 				{
-					FMqttifySubscribeResult OutResult = InResult.GetResult()->operator[](0);
-					return TMqttifyResult{true, MoveTemp(OutResult)};
+					FMqttifySubscribeResult OutResult = (*InResult.GetResult())[0];
+					return TMqttifyResult<FMqttifySubscribeResult>{true, MoveTemp(OutResult)};
 				}
 
 				LOG_MQTTIFY(
@@ -194,7 +206,7 @@ namespace Mqttify
 			});
 	}
 
-	TFuture<TMqttifyResult<FMqttifySubscribeResult>> FMqttifyClient::SubscribeAsync(FString& InTopicFilter)
+	TFuture<TMqttifyResult<FMqttifySubscribeResult>> FMqttifyClient::SubscribeAsync(const FString& InTopicFilter)
 	{
 		FMqttifyTopicFilter TopicFilter{InTopicFilter};
 		return SubscribeAsync(MoveTemp(TopicFilter));
@@ -205,6 +217,7 @@ namespace Mqttify
 		)
 	{
 		TArray<FMqttifyTopicFilter> TopicFilters;
+		TopicFilters.Reserve(InTopicFilters.Num());
 		for (const FString& TopicFilter : InTopicFilters)
 		{
 			TopicFilters.Emplace(TopicFilter);
@@ -281,10 +294,9 @@ namespace Mqttify
 
 	void FMqttifyClient::CloseSocket(int32 Code, const FString& Reason)
 	{
-		if (Socket->IsConnected())
-		{
-			Socket->Close(Code, Reason);
-		}
+		// Guard with the same lock used for other state interactions and let the socket handle idempotent Close
+		FScopeLock Lock{&StateLock};
+		Socket->Close(Code, Reason);
 	}
 
 	void FMqttifyClient::TransitionTo(
@@ -318,7 +330,7 @@ namespace Mqttify
 			Verbose,
 			TEXT("(Connection %s, ClientId %s)  Client transitioning from %s to %s"),
 			*GetConnectionSettings()->GetHost(),
-			*GetConnectionSettings()->GetClientId(),
+			*GetConnectionSettings()->GetClientIdRef(),
 			EnumToTCharString(CurrentState->GetState()),
 			EnumToTCharString(InState->GetState()));
 		CurrentState = InState;
@@ -331,7 +343,7 @@ namespace Mqttify
 			VeryVerbose,
 			TEXT("[On Connect (Connection %s, ClientId %s)]"),
 			*GetConnectionSettings()->GetHost(),
-			*GetConnectionSettings()->GetClientId());
+			*GetConnectionSettings()->GetClientIdRef());
 
 		if (CurrentState.IsValid())
 		{
@@ -349,7 +361,7 @@ namespace Mqttify
 			VeryVerbose,
 			TEXT("[On Disconnect (Connection %s, ClientId %s)]"),
 			*GetConnectionSettings()->GetHost(),
-			*GetConnectionSettings()->GetClientId());
+			*GetConnectionSettings()->GetClientIdRef());
 
 		if (CurrentState.IsValid())
 		{
@@ -367,7 +379,7 @@ namespace Mqttify
 			VeryVerbose,
 			TEXT("[On Receive Packet (Connection %s, ClientId %s)]"),
 			*GetConnectionSettings()->GetHost(),
-			*GetConnectionSettings()->GetClientId());
+			*GetConnectionSettings()->GetClientIdRef());
 
 		if (CurrentState.IsValid())
 		{

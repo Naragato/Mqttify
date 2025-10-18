@@ -40,13 +40,14 @@ namespace Mqttify
 		// IMqttifySubscribableAsync
 		virtual FSubscribesFuture SubscribeAsync(const TArray<FMqttifyTopicFilter>& InTopicFilters) override;
 		virtual FSubscribeFuture SubscribeAsync(FMqttifyTopicFilter&& InTopicFilter) override;
-		virtual FSubscribeFuture SubscribeAsync(FString& InTopicFilter) override;
+		virtual FSubscribeFuture SubscribeAsync(const FString& InTopicFilter) override;
 		// ~IMqttifySubscribableAsync
 
 		// IMqttifyUnsubscribableAsync
 		virtual FUnsubscribesFuture UnsubscribeAsync(const TSet<FString>& InTopicFilters) override;
 		// ~IMqttifyUnsubscribableAsync
 
+	private:
 		// IMqttifyClient
 		virtual FOnConnect& OnConnect() override;
 		virtual FOnDisconnect& OnDisconnect() override;
@@ -66,7 +67,7 @@ namespace Mqttify
 		// IMqttifyDisconnectableAsync
 		virtual FDisconnectFuture DisconnectAsync() override;
 		// ~IMqttifyDisconnectableAsync
-	private:
+
 		void TransitionTo(const FMqttifyClientState* InPrevious, const TSharedPtr<FMqttifyClientState>& InState);
 
 		// FMqttifySocketBase Callbacks
@@ -74,7 +75,9 @@ namespace Mqttify
 		void OnSocketDisconnect() const;
 		void OnReceivePacket(const TSharedPtr<FArrayReader>& InPacket) const;
 		// ~FMqttifySocketBase Callbacks
-	private:
+
+		FSubscribesFuture SubscribeAsync_Internal(TArray<FMqttifyTopicFilter>&& InTopicFilters);
+		
 		/// @brief The current state of the MQTT client.
 		TSharedPtr<FMqttifyClientState> CurrentState;
 		TSharedRef<FMqttifyClientContext> Context;

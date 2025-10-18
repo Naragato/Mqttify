@@ -103,6 +103,12 @@ namespace Mqttify
 		/// @brief Cache for filters with wind cards
 		TArray<TPair<FMqttifyTopicFilter, TSharedRef<FOnMessage>>> WildcardDelegates{};
 
+		/// @brief Initial reserve size for WildcardDelegates to reduce reallocations when first populated
+		static constexpr int32 kWildcardDelegatesInitialReserve = 8;
+
+		/// @brief Initial reserve size for promise arrays to reduce reallocations
+		static constexpr int32 kPromiseInitialReserve = 4;
+
 		/// @brief Promises for when a disconnect is complete.
 		TArray<TSharedPtr<TPromise<TMqttifyResult<void>>>> OnDisconnectPromises;
 		mutable FCriticalSection OnDisconnectPromisesCriticalSection{};

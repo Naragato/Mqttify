@@ -165,6 +165,11 @@ public:
 	FString GetClientId() const;
 
 	/**
+	 * @brief Returns the ClientId by const reference to avoid copies in hot paths.
+	 */
+	const FString& GetClientIdRef() const;
+
+	/**
 	 * @brief Generates a hash code based on the connection settings.
 	 * We ignore the password as we want to use the same Hash if the password changes
 	 * @return The hash code for the connection settings.
