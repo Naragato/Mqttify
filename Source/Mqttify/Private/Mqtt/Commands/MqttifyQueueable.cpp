@@ -43,7 +43,7 @@ namespace Mqttify
 				TEXT( "(Connection %s, ClientId %s) Sending %s, Attempt %d"),
 				InPacket,
 				*Settings->GetHost(),
-				*Settings->GetClientId(),
+				*Settings->GetClientIdRef(),
 				EnumToTCharString(InPacket->GetPacketType()),
 				PacketTries);
 
@@ -56,7 +56,7 @@ namespace Mqttify
 					TEXT( "(Connection %s, ClientId %s) Socket disconnected while sending packet"),
 					InPacket,
 					*Settings->GetHost(),
-					*Settings->GetClientId());
+					*Settings->GetClientIdRef());
 				Abandon();
 			}
 

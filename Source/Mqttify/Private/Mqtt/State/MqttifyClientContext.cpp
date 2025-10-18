@@ -32,7 +32,7 @@ namespace Mqttify
 		if (!IdPool.Dequeue(Id))
 		{
 			UE_LOG(LogTemp, Warning, TEXT("No more IDs available!"));
-			Id = 0; // or any other error indication
+			Id = 0;
 		}
 		return Id;
 	}
@@ -105,18 +105,26 @@ namespace Mqttify
 		return ConnectionSettings;
 	}
 
-	TSharedPtr<TPromise<TMqttifyResult<void>>> FMqttifyClientContext::GetDisconnectPromise()
-	{
-		FScopeLock Lock(&OnDisconnectPromisesCriticalSection);
-		const TSharedPtr<TPromise<TMqttifyResult<void>>> Promise = MakeShared<TPromise<TMqttifyResult<void>>>();
-		OnDisconnectPromises.Add(Promise);
-		LOG_MQTTIFY(VeryVerbose, TEXT("GetDisconnectPromise %d"), OnDisconnectPromises.Num());
-		return Promise;
-	}
+ TSharedPtr<TPromise<TMqttifyResult<void>>> FMqttifyClientContext::GetDisconnectPromise()
+ {
+ 	FScopeLock Lock(&OnDisconnectPromisesCriticalSection);
+ 	if (OnDisconnectPromises.Num() == 0)
+ 	{
+ 		OnDisconnectPromises.Reserve(kPromiseInitialReserve);
+ 	}
+ 	const TSharedPtr<TPromise<TMqttifyResult<void>>> Promise = MakeShared<TPromise<TMqttifyResult<void>>>();
+ 	OnDisconnectPromises.Add(Promise);
+ 	LOG_MQTTIFY(VeryVerbose, TEXT("GetDisconnectPromise %d"), OnDisconnectPromises.Num());
+ 	return Promise;
+ }
 
 	TSharedPtr<TPromise<TMqttifyResult<void>>> FMqttifyClientContext::GetConnectPromise()
 	{
 		FScopeLock Lock(&OnConnectPromisesCriticalSection);
+		if (OnConnectPromises.Num() == 0)
+		{
+			OnConnectPromises.Reserve(kPromiseInitialReserve);
+		}
 		const TSharedPtr<TPromise<TMqttifyResult<void>>> Promise = MakeShared<TPromise<TMqttifyResult<void>>>();
 		OnConnectPromises.Add(Promise);
 		LOG_MQTTIFY(VeryVerbose, TEXT("GetConnectPromise %d"), OnConnectPromises.Num());
@@ -132,9 +140,13 @@ namespace Mqttify
 		}
 		const TSharedRef<FOnMessage> Delegate = MakeShared<FOnMessage>();
 		OnMessageDelegates.Add(InTopic, Delegate);
-		// Populate caches for efficient dispatch
+
 		if (InTopic.Contains(TEXT("+")) || InTopic.Contains(TEXT("#")))
 		{
+			if (WildcardDelegates.Num() == 0)
+			{
+				WildcardDelegates.Reserve(kWildcardDelegatesInitialReserve);
+			}
 			WildcardDelegates.Emplace(FMqttifyTopicFilter{InTopic}, Delegate);
 		}
 		else
@@ -173,13 +185,19 @@ namespace Mqttify
 			[ThisWeakPtr] {
 				if (const TSharedPtr<FMqttifyClientContext> ThisSharedPtr = ThisWeakPtr.Pin())
 				{
-					FScopeLock Lock(&ThisSharedPtr->OnDisconnectPromisesCriticalSection);
+					TArray<TSharedPtr<TPromise<TMqttifyResult<void>>>> Snapshot;
+					{
+						FScopeLock Lock(&ThisSharedPtr->OnDisconnectPromisesCriticalSection);
+						Snapshot = ThisSharedPtr->OnDisconnectPromises;
+						ThisSharedPtr->OnDisconnectPromises.Empty();
+						ThisSharedPtr->OnDisconnectPromises.Reserve(kPromiseInitialReserve);
+					}
+
 					ThisSharedPtr->OnDisconnect().Broadcast(true);
-					for (const auto& Promise : ThisSharedPtr->OnDisconnectPromises)
+					for (const auto& Promise : Snapshot)
 					{
 						Promise->SetValue(TMqttifyResult<void>{true});
 					}
-					ThisSharedPtr->OnDisconnectPromises.Empty();
 				}
 			});
 	}
@@ -191,13 +209,19 @@ namespace Mqttify
 			[ThisWeakPtr] {
 				if (const TSharedPtr<FMqttifyClientContext> ThisSharedPtr = ThisWeakPtr.Pin())
 				{
-					FScopeLock Lock(&ThisSharedPtr->OnConnectPromisesCriticalSection);
+					TArray<TSharedPtr<TPromise<TMqttifyResult<void>>>> Snapshot;
+					{
+						FScopeLock Lock(&ThisSharedPtr->OnConnectPromisesCriticalSection);
+						Snapshot = ThisSharedPtr->OnConnectPromises;
+						ThisSharedPtr->OnConnectPromises.Empty();
+						ThisSharedPtr->OnConnectPromises.Reserve(kPromiseInitialReserve);
+					}
+
 					ThisSharedPtr->OnConnect().Broadcast(true);
-					for (const auto& Promise : ThisSharedPtr->OnConnectPromises)
+					for (const auto& Promise : Snapshot)
 					{
 						Promise->SetValue(TMqttifyResult<void>{true});
 					}
-					ThisSharedPtr->OnConnectPromises.Empty();
 				}
 			});
 	}
@@ -209,19 +233,27 @@ namespace Mqttify
 			[ThisWeakPtr, Message = MoveTemp(InMessage)]() mutable {
 				if (const TSharedPtr<FMqttifyClientContext> ThisSharedPtr = ThisWeakPtr.Pin())
 				{
-					FScopeLock Lock(&ThisSharedPtr->OnMessageDelegatesCriticalSection);
-					ThisSharedPtr->OnMessage().Broadcast(Message);
-					LOG_MQTTIFY(VeryVerbose, TEXT("OnMessage %s"), *Message.GetTopic());
-					const FString& Topic = Message.GetTopic();
-
-					// Exact-topic fast path
-					if (const TSharedRef<FOnMessage>* Exact = ThisSharedPtr->ExactDelegates.Find(Topic))
+					const FString Topic = Message.GetTopic();
+					TSharedPtr<FOnMessage> ExactToCall;
+					TArray<TPair<FMqttifyTopicFilter, TSharedRef<FOnMessage>>> WildcardSnapshot;
 					{
-						(*Exact)->Broadcast(Message);
+						FScopeLock Lock(&ThisSharedPtr->OnMessageDelegatesCriticalSection);
+						if (const TSharedRef<FOnMessage>* Exact = ThisSharedPtr->ExactDelegates.Find(Topic))
+						{
+							ExactToCall = *Exact;
+						}
+						WildcardSnapshot = ThisSharedPtr->WildcardDelegates;
 					}
 
-					// Precompiled wildcard filters only
-					for (const auto& Entry : ThisSharedPtr->WildcardDelegates)
+					ThisSharedPtr->OnMessage().Broadcast(Message);
+					LOG_MQTTIFY(VeryVerbose, TEXT("OnMessage %s"), *Topic);
+
+					if (ExactToCall.IsValid())
+					{
+						ExactToCall->Broadcast(Message);
+					}
+
+					for (const auto& Entry : WildcardSnapshot)
 					{
 						const FMqttifyTopicFilter& Filter = Entry.Key;
 						if (Filter.MatchesWildcard(Topic))
@@ -291,28 +323,38 @@ namespace Mqttify
 
 	void FMqttifyClientContext::ClearDisconnectPromises()
 	{
-		FScopeLock Lock(&OnDisconnectPromisesCriticalSection);
-		for (const auto& Promise : OnDisconnectPromises)
+		TArray<TSharedPtr<TPromise<TMqttifyResult<void>>>> Snapshot;
+		{
+			FScopeLock Lock(&OnDisconnectPromisesCriticalSection);
+			Snapshot = OnDisconnectPromises;
+			OnDisconnectPromises.Empty();
+			OnDisconnectPromises.Reserve(kPromiseInitialReserve);
+		}
+		for (const auto& Promise : Snapshot)
 		{
 			DispatchWithThreadHandling(
 				[Promise] {
 					Promise->SetValue(TMqttifyResult<void>{false});
 				});
 		}
-		OnDisconnectPromises.Empty();
 	}
 
 	void FMqttifyClientContext::ClearConnectPromises()
 	{
-		FScopeLock Lock(&OnConnectPromisesCriticalSection);
-		for (const auto& Promise : OnConnectPromises)
+		TArray<TSharedPtr<TPromise<TMqttifyResult<void>>>> Snapshot;
+		{
+			FScopeLock Lock(&OnConnectPromisesCriticalSection);
+			Snapshot = OnConnectPromises;
+			OnConnectPromises.Empty();
+			OnConnectPromises.Reserve(kPromiseInitialReserve);
+		}
+		for (const auto& Promise : Snapshot)
 		{
 			DispatchWithThreadHandling(
 				[Promise] {
 					Promise->SetValue(TMqttifyResult<void>{false});
 				});
 		}
-		OnConnectPromises.Empty();
 	}
 
 	void FMqttifyClientContext::AbandonCommands()

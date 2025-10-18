@@ -56,6 +56,11 @@ FString FMqttifyConnectionSettings::GetClientId() const
 	return ClientId;
 }
 
+const FString& FMqttifyConnectionSettings::GetClientIdRef() const
+{
+	return ClientId;
+}
+
 uint32 FMqttifyConnectionSettings::GetHashCode() const
 {
 	// We're deliberately not hashing the password or client ID here

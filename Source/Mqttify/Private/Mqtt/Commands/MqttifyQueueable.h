@@ -149,7 +149,7 @@ namespace Mqttify
 				VeryVerbose,
 				TEXT( "Dispatching Promise Value (Connection %s, ClientId %s): Success: %s" ),
 				*Settings->GetHost(),
-				*Settings->GetClientId(),
+				*Settings->GetClientIdRef(),
 				InValue.HasSucceeded() ? TEXT("true") : TEXT("false"));
 
 			TSharedRef<TPromise<TMqttifyResult<TReturnValue>>> CapturedPromise = CommandPromise;
@@ -160,7 +160,7 @@ namespace Mqttify
 						VeryVerbose,
 						TEXT( "Setting promise value (Connection %s, ClientId %s): Success: %s" ),
 						*CapturedSettings->GetHost(),
-						*CapturedSettings->GetClientId(),
+						*CapturedSettings->GetClientIdRef(),
 						InValue.HasSucceeded() ? TEXT("true") : TEXT("false"));
 					CapturedPromise->SetValue(MoveTemp(InValue));
 				});
