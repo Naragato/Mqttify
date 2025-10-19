@@ -5,6 +5,8 @@
 #include "Mqtt/State/MqttifyClientDisconnectedState.h"
 #include "Mqtt/State/MqttifyClientDisconnectingState.h"
 #include "Packets/MqttifyConnectPacket.h"
+#include "Packets/MqttifyAuthPacket.h"
+#include "Packets/Properties/MqttifyProperty.h"
 #include "Serialization/MemoryWriter.h"
 
 namespace Mqttify
@@ -43,12 +45,25 @@ namespace Mqttify
 		{
 			PropertyArr.Add(
 			{
-				FMqttifyProperty::Create<EMqttifyPropertyIdentifier::SessionExpiryInterval>(
-					static_cast<uint32>(SessionExpiryInterval))
+				FMqttifyProperty::Create<EMqttifyPropertyIdentifier::SessionExpiryInterval>(SessionExpiryInterval)
 			});
 		}
 
 		const FMqttifyCredentialsProviderRef Credentials = Context->GetConnectionSettings()->GetCredentialsProvider();
+
+		// Enhanced authentication: include Authentication Method and optional initial Authentication Data
+		const FString AuthMethod = Credentials->GetAuthMethod();
+		if (!AuthMethod.IsEmpty())
+		{
+			PropertyArr.Add({FMqttifyProperty::Create<EMqttifyPropertyIdentifier::AuthenticationMethod>(AuthMethod)});
+			const TArray<uint8> InitialAuthData = Credentials->GetInitialAuthData();
+			if (InitialAuthData.Num() > 0)
+			{
+				PropertyArr.Add(
+					{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::AuthenticationData>(InitialAuthData)});
+			}
+		}
+
 		const auto ConnectPacketRef = MakeShared<TMqttifyConnectPacket<GMqttifyProtocol>>(
 			Context->GetConnectionSettings()->GetClientId(),
 			Context->GetConnectionSettings()->GetKeepAliveIntervalSeconds(),
@@ -125,6 +140,74 @@ namespace Mqttify
 		{
 			LOG_MQTTIFY(Error, TEXT("Malformed packet."));
 			SocketTransitionToState<FMqttifyClientDisconnectingState>();
+		}
+
+		// During enhanced authentication, the server may send AUTH packets before CONNACK.
+		if (Packet->GetPacketType() == EMqttifyPacketType::Auth)
+		{
+			if constexpr (GMqttifyProtocol == EMqttifyProtocolVersion::Mqtt_5)
+			{
+				TUniquePtr<FMqttifyAuthPacket> AuthPacket(static_cast<FMqttifyAuthPacket*>(Packet.Release()));
+				switch (const EMqttifyReasonCode ReasonCode = AuthPacket->GetReasonCode())
+				{
+					
+					case EMqttifyReasonCode::ContinueAuthentication:
+					{
+						FString ServerMethod;
+						TArray<uint8> ServerData;
+						for (const FMqttifyProperty& Prop : AuthPacket->GetProperties().GetProperties())
+						{
+							switch (Prop.GetIdentifier())
+							{
+								case EMqttifyPropertyIdentifier::AuthenticationMethod:
+									Prop.TryGetValue(ServerMethod);
+									break;
+								case EMqttifyPropertyIdentifier::AuthenticationData:
+									Prop.TryGetValue(ServerData);
+									break;
+								default:
+									break;
+							}
+						}
+
+						const FMqttifyCredentialsProviderRef Creds = Context->GetConnectionSettings()->GetCredentialsProvider();
+						const FString ClientMethod = Creds->GetAuthMethod();
+						if (!ClientMethod.IsEmpty() && !ServerMethod.IsEmpty() && !ServerMethod.Equals(ClientMethod))
+						{
+							LOG_MQTTIFY(Error,
+										TEXT("AUTH method mismatch. Client='%s' Server='%s'"),
+										*ClientMethod,
+										*ServerMethod);
+							Socket->Disconnect();
+							return;
+						}
+
+						const TArray<uint8> NextData = Creds->OnAuthChallenge(ServerData);
+						TArray<FMqttifyProperty> RespProps;
+						const FString MethodToEcho = !ClientMethod.IsEmpty() ? ClientMethod : ServerMethod;
+						if (!MethodToEcho.IsEmpty())
+						{
+							RespProps.Add(
+								{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::AuthenticationMethod>(MethodToEcho)});
+						}
+						if (NextData.Num() > 0)
+						{
+							RespProps.Add(
+								{FMqttifyProperty::Create<EMqttifyPropertyIdentifier::AuthenticationData>(NextData)});
+						}
+						const auto OutAuth = MakeShared<FMqttifyAuthPacket>(EMqttifyReasonCode::ContinueAuthentication,
+																			FMqttifyProperties(RespProps));
+						Socket->Send(OutAuth);
+						return;
+					}
+					case EMqttifyReasonCode::Success:
+						return;
+					default:
+						LOG_MQTTIFY(Error, TEXT("Authentication failed. Reason: %s."), EnumToTCharString(ReasonCode));
+						Socket->Disconnect();
+						return;
+				}
+			}
 		}
 
 		if (Packet->GetPacketType() != EMqttifyPacketType::ConnAck)
